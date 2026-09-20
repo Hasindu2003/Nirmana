@@ -25,6 +25,7 @@ public/uploads/quick-print/*
 # Logs
 logs/
 *.log
+*.csv
 
 # Operating System & Editor Files
 .DS_Store

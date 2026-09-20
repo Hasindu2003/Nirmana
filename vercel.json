@@ -7,7 +7,8 @@
       "config": {
         "includeFiles": [
           "src/views/**",
-          "public/**"
+          "public/**",
+          "node_modules/mysql2/**"
         ]
       }
     }
