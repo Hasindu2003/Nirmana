@@ -604,7 +604,7 @@
 </script>
 
 <script>
-  const currentViewStatus = '<%= currentStatus %>';
+  let currentViewStatus = '<%= currentStatus %>';
   let knownJobIds = new Set([<%= jobs.map(j => j.id).join(',') %>]);
   let soundEnabled = true;
   let currentQrDataUrl = '';
@@ -862,7 +862,7 @@
     });
   }
 
-  // 1-Click Mark Completed (Smoothly removes card and moves to Completed)
+  // 1-Click Mark Completed (Smoothly updates card to Completed in-memory)
   async function markJobCompleted(jobId, tokenNumber) {
     const card = document.getElementById(`job-card-${jobId}`);
     try {
@@ -873,22 +873,35 @@
       });
       const data = await res.json();
       if (data.success) {
-        if (currentViewStatus === 'PENDING') {
-          // Animate card slide out & remove
-          if (card) {
-            card.style.opacity = '0';
-            card.style.transform = 'translateX(50px)';
-            setTimeout(() => {
-              card.remove();
-              // If list is empty, reload to show clean empty state
-              const wrapper = document.getElementById('ordersListWrapper');
-              if (wrapper && wrapper.children.length === 0) {
-                window.location.reload();
-              }
-            }, 250);
+        const job = quickPrintJobsData.find(j => j.id == jobId);
+        if (job) job.status = 'COMPLETED';
+
+        if (card) {
+          card.setAttribute('data-status', 'COMPLETED');
+          const innerCard = card.querySelector('.serene-card');
+          if (innerCard) {
+            innerCard.classList.remove('border-start-danger');
+            innerCard.classList.add('border-start-success');
+          }
+          const badge = card.querySelector('.badge.bg-danger');
+          if (badge) {
+            badge.classList.remove('bg-danger');
+            badge.classList.add('bg-success');
+          }
+          const actionBtn = card.querySelector('button[onclick*="markJobCompleted"]');
+          if (actionBtn) {
+            actionBtn.outerHTML = `
+              <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 0.75rem;">
+                <i class="bi bi-check2-all me-1"></i> Completed
+              </span>
+              <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" style="font-size: 0.75rem; height: 28px;"
+                      onclick="reopenJob(${jobId}, '${tokenNumber}')" title="Move back to Pending">
+                <i class="bi bi-arrow-counterclockwise"></i>
+              </button>
+            `;
           }
         }
-        // Update stats
+        applyRealtimeSearch();
         updateQueueCounts();
       } else {
         alert(data.message || 'Could not update status.');
@@ -898,8 +911,9 @@
     }
   }
 
-  // Reopen Job (Move back to Pending)
+  // Reopen Job (Move back to Pending in-memory)
   async function reopenJob(jobId, tokenNumber) {
+    const card = document.getElementById(`job-card-${jobId}`);
     try {
       const res = await fetch(`/api/quick-print/jobs/${jobId}/status`, {
         method: 'PUT',
@@ -908,7 +922,36 @@
       });
       const data = await res.json();
       if (data.success) {
-        window.location.reload();
+        const job = quickPrintJobsData.find(j => j.id == jobId);
+        if (job) job.status = 'PENDING';
+
+        if (card) {
+          card.setAttribute('data-status', 'PENDING');
+          const innerCard = card.querySelector('.serene-card');
+          if (innerCard) {
+            innerCard.classList.remove('border-start-success');
+            innerCard.classList.add('border-start-danger');
+          }
+          const badge = card.querySelector('.badge.bg-success');
+          if (badge) {
+            badge.classList.remove('bg-success');
+            badge.classList.add('bg-danger');
+          }
+          const completedBadge = card.querySelector('.badge.bg-success-subtle');
+          const reopenBtn = card.querySelector('button[onclick*="reopenJob"]');
+          if (completedBadge) completedBadge.remove();
+          if (reopenBtn) {
+            reopenBtn.outerHTML = `
+              <button type="button" class="btn btn-success fw-bold px-3 py-1 shadow-sm d-flex align-items-center gap-1" style="font-size: 0.8rem; height: 32px;"
+                      onclick="markJobCompleted(${jobId}, '${tokenNumber}')">
+                <i class="bi bi-check2-circle fs-6"></i>
+                <span>Mark Completed</span>
+              </button>
+            `;
+          }
+        }
+        applyRealtimeSearch();
+        updateQueueCounts();
       } else {
         alert(data.message || 'Could not reopen order.');
       }
@@ -988,7 +1031,6 @@
   // -------------------------------------------------------------
   // Instant In-Memory Tab Switching & Real-Time Search (0ms)
   // -------------------------------------------------------------
-  let currentViewStatus = '<%= currentStatus %>';
   const searchInput = document.getElementById('queueSearchInput');
   const clearBtn = document.getElementById('clearSearchBtn');
   const noResultsBox = document.getElementById('searchNoResults');
