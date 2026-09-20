@@ -106,6 +106,30 @@ class QuickPrintService {
         }
       }
 
+      // Parse per-file color modes if provided
+      let fileColorModes = [];
+      if (data.fileColorModes) {
+        try {
+          fileColorModes = typeof data.fileColorModes === 'string'
+            ? JSON.parse(data.fileColorModes)
+            : data.fileColorModes;
+        } catch (e) {
+          fileColorModes = Array.isArray(data.fileColorModes) ? data.fileColorModes : [data.fileColorModes];
+        }
+      }
+
+      // Parse per-file copies if provided
+      let fileCopies = [];
+      if (data.fileCopies) {
+        try {
+          fileCopies = typeof data.fileCopies === 'string'
+            ? JSON.parse(data.fileCopies)
+            : data.fileCopies;
+        } catch (e) {
+          fileCopies = Array.isArray(data.fileCopies) ? data.fileCopies : [data.fileCopies];
+        }
+      }
+
       // Calculate effective overall paper size
       let effectivePaperSize = (data.paperSize || 'A4').trim();
       if (filePaperSizes && filePaperSizes.length > 0) {
@@ -117,13 +141,36 @@ class QuickPrintService {
         }
       }
 
+      // Calculate effective overall color mode
+      let effectiveColorMode = ['COLOR', 'BW', 'MIXED'].includes(data.colorMode) ? data.colorMode : 'BW';
+      if (fileColorModes && fileColorModes.length > 0) {
+        const uniqueModes = [...new Set(fileColorModes.map(m => (m || '').toUpperCase().trim()).filter(Boolean))];
+        if (uniqueModes.length > 1) {
+          effectiveColorMode = 'MIXED';
+        } else if (uniqueModes.length === 1) {
+          effectiveColorMode = uniqueModes[0] === 'COLOR' ? 'COLOR' : 'BW';
+        }
+      }
+
+      // Calculate effective overall copies
+      let effectiveCopies = parseInt(data.copies, 10) > 0 ? parseInt(data.copies, 10) : 1;
+      if (fileCopies && fileCopies.length > 0) {
+        const validCopies = fileCopies.map(c => parseInt(c, 10) || 1);
+        const allSame = validCopies.every(c => c === validCopies[0]);
+        if (allSame) {
+          effectiveCopies = validCopies[0];
+        } else {
+          effectiveCopies = validCopies.reduce((sum, c) => sum + c, 0);
+        }
+      }
+
       const job = await QuickPrintJob.create({
         tokenNumber,
         customerName,
         customerPhone: customerPhone || rawPhone,
         customerMessage: (data.customerMessage || data.message || '').trim() || null,
-        colorMode: ['COLOR', 'BW', 'MIXED'].includes(data.colorMode) ? data.colorMode : 'NOT_SPECIFIED',
-        copies: parseInt(data.copies, 10) > 0 ? parseInt(data.copies, 10) : 1,
+        colorMode: effectiveColorMode,
+        copies: effectiveCopies,
         paperSize: effectivePaperSize,
         status: 'PENDING',
         customerId,
@@ -136,6 +183,8 @@ class QuickPrintService {
       for (let i = 0; i < uploadedFiles.length; i++) {
         const file = uploadedFiles[i];
         const perFilePaperSize = (filePaperSizes && filePaperSizes[i]) || data.paperSize || 'A4';
+        const perFileColorMode = (fileColorModes && fileColorModes[i]) || data.colorMode || 'BW';
+        const perFileCopies = (fileCopies && parseInt(fileCopies[i], 10) > 0) ? parseInt(fileCopies[i], 10) : (parseInt(data.copies, 10) || 1);
         let driveFileId = null;
         let driveViewLink = null;
         let driveDownloadLink = null;
@@ -147,7 +196,7 @@ class QuickPrintService {
               file.path,
               `[${job.tokenNumber}] ${file.originalname}`,
               file.mimetype,
-              `Customer: ${customerName} (${customerPhone || 'N/A'}) - Token: ${job.tokenNumber} - Size: ${perFilePaperSize}`
+              `Customer: ${customerName} (${customerPhone || 'N/A'}) - Token: ${job.tokenNumber} - Size: ${perFilePaperSize} - Mode: ${perFileColorMode} - Copies: ${perFileCopies}`
             );
             if (driveUpload && driveUpload.id) {
               driveFileId = driveUpload.id;
@@ -174,6 +223,8 @@ class QuickPrintService {
           driveDownloadLink,
           storageProvider,
           paperSize: perFilePaperSize,
+          colorMode: perFileColorMode,
+          copies: perFileCopies,
         }, { transaction: t });
         fileRecords.push(fileRecord);
       }
@@ -249,13 +300,35 @@ class QuickPrintService {
         effectivePaperSize = uniqueSizes[0];
       }
 
+      // Calculate effective overall color mode from driveFiles
+      let effectiveColorMode = ['COLOR', 'BW', 'MIXED'].includes(data.colorMode) ? data.colorMode : 'BW';
+      const driveColorModes = driveFiles.map(df => (df.colorMode || data.colorMode || 'BW').toUpperCase().trim());
+      const uniqueModes = [...new Set(driveColorModes.filter(Boolean))];
+      if (uniqueModes.length > 1) {
+        effectiveColorMode = 'MIXED';
+      } else if (uniqueModes.length === 1) {
+        effectiveColorMode = uniqueModes[0] === 'COLOR' ? 'COLOR' : 'BW';
+      }
+
+      // Calculate effective overall copies from driveFiles
+      let effectiveCopies = parseInt(data.copies, 10) > 0 ? parseInt(data.copies, 10) : 1;
+      const driveCopies = driveFiles.map(df => parseInt(df.copies, 10) || parseInt(data.copies, 10) || 1);
+      if (driveCopies.length > 0) {
+        const allSame = driveCopies.every(c => c === driveCopies[0]);
+        if (allSame) {
+          effectiveCopies = driveCopies[0];
+        } else {
+          effectiveCopies = driveCopies.reduce((sum, c) => sum + c, 0);
+        }
+      }
+
       const job = await QuickPrintJob.create({
         tokenNumber,
         customerName,
         customerPhone: customerPhone || rawPhone,
         customerMessage: (data.customerMessage || data.message || '').trim() || null,
-        colorMode: ['COLOR', 'BW', 'MIXED'].includes(data.colorMode) ? data.colorMode : 'NOT_SPECIFIED',
-        copies: parseInt(data.copies, 10) > 0 ? parseInt(data.copies, 10) : 1,
+        colorMode: effectiveColorMode,
+        copies: effectiveCopies,
         paperSize: effectivePaperSize,
         status: 'PENDING',
         customerId,
@@ -264,6 +337,9 @@ class QuickPrintService {
       const fileRecords = [];
       for (const df of driveFiles) {
         const perFilePaperSize = df.paperSize || data.paperSize || 'A4';
+        const perFileColorMode = df.colorMode || data.colorMode || 'BW';
+        const perFileCopies = parseInt(df.copies, 10) > 0 ? parseInt(df.copies, 10) : (parseInt(data.copies, 10) || 1);
+
         const fileRecord = await QuickPrintFile.create({
           jobId: job.id,
           originalName: df.originalName || df.name || 'document',
@@ -277,6 +353,8 @@ class QuickPrintService {
           driveDownloadLink: df.webContentLink,
           storageProvider: 'GDRIVE',
           paperSize: perFilePaperSize,
+          colorMode: perFileColorMode,
+          copies: perFileCopies,
         }, { transaction: t });
         fileRecords.push(fileRecord);
       }

@@ -36,6 +36,9 @@ class QuickPrintController {
             fileSize: f.fileSize,
             mimeType: f.mimeType,
             fileUrl: f.fileUrl,
+            paperSize: f.paperSize,
+            colorMode: f.colorMode,
+            copies: f.copies,
           })),
         },
       });
@@ -337,6 +340,8 @@ class QuickPrintController {
               webViewLink: driveMeta.webViewLink,
               webContentLink: driveMeta.webContentLink,
               paperSize: f.paperSize || paperSize || 'A4',
+              colorMode: f.colorMode || colorMode || 'BW',
+              copies: parseInt(f.copies, 10) || parseInt(copies, 10) || 1,
             });
           } catch (finErr) {
             console.warn('Finalize error for file:', finErr.message);
@@ -348,6 +353,8 @@ class QuickPrintController {
               webViewLink: `https://drive.google.com/file/d/${f.driveFileId}/view`,
               webContentLink: `https://drive.google.com/uc?id=${f.driveFileId}&export=download`,
               paperSize: f.paperSize || paperSize || 'A4',
+              colorMode: f.colorMode || colorMode || 'BW',
+              copies: parseInt(f.copies, 10) || parseInt(copies, 10) || 1,
             });
           }
         }

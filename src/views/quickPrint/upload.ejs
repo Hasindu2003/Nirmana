@@ -74,8 +74,8 @@
     }
     .file-preview-item {
       display: flex;
-      align-items: center;
-      padding: 0.6rem 0.75rem;
+      align-items: flex-start;
+      padding: 0.65rem 0.75rem;
       background: #f8fafc;
       border: 1px solid #e2e8f0;
       border-radius: 10px;
@@ -118,6 +118,7 @@
       padding: 4px 8px;
       border-radius: 6px;
       cursor: pointer;
+      margin-top: 2px;
     }
     .btn-remove-file:hover {
       background: #fee2e2;
@@ -345,24 +346,32 @@
       </div>
 
       <!-- 5. Quick Options: Color Mode & Copies -->
-      <div class="row g-2 mb-3">
-        <div class="col-6">
-          <label class="form-label fw-bold small text-muted text-uppercase mb-1">5. Color ද B&W ද?</label>
-          <div class="pill-radio-group">
-            <input type="radio" id="modeBw" name="colorMode" value="BW" checked>
-            <label for="modeBw"><i class="bi bi-circle-half me-1"></i> B&W</label>
-            
-            <input type="radio" id="modeColor" name="colorMode" value="COLOR">
-            <label for="modeColor"><i class="bi bi-palette-fill me-1 text-warning"></i> Color</label>
-          </div>
+      <div class="mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <label class="form-label fw-bold small text-muted text-uppercase mb-0">5. Color Mode & Copies</label>
+          <span class="badge bg-light text-muted border small d-none" id="multiOptionsNotice" style="font-size: 0.7rem;">
+            <i class="bi bi-info-circle me-1 text-primary"></i> Default for all files
+          </span>
         </div>
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label small text-muted mb-1" style="font-size: 0.75rem;">Color ද B&W ද?</label>
+            <div class="pill-radio-group">
+              <input type="radio" id="modeBw" name="colorMode" value="BW" checked>
+              <label for="modeBw"><i class="bi bi-circle-half me-1"></i> B&W</label>
+              
+              <input type="radio" id="modeColor" name="colorMode" value="COLOR">
+              <label for="modeColor"><i class="bi bi-palette-fill me-1 text-warning"></i> Color</label>
+            </div>
+          </div>
 
-        <div class="col-6">
-          <label class="form-label fw-bold small text-muted text-uppercase mb-1">Copies ගණන</label>
-          <div class="input-group">
-            <button class="btn btn-outline-secondary btn-sm" type="button" id="decCopies">-</button>
-            <input type="number" class="form-control text-center fw-bold" id="copies" name="copies" value="1" min="1" max="99">
-            <button class="btn btn-outline-secondary btn-sm" type="button" id="incCopies">+</button>
+          <div class="col-6">
+            <label class="form-label small text-muted mb-1" style="font-size: 0.75rem;">Copies ගණන</label>
+            <div class="input-group">
+              <button class="btn btn-outline-secondary btn-sm" type="button" id="decCopies">-</button>
+              <input type="number" class="form-control text-center fw-bold" id="copies" name="copies" value="1" min="1" max="99">
+              <button class="btn btn-outline-secondary btn-sm" type="button" id="incCopies">+</button>
+            </div>
           </div>
         </div>
       </div>
@@ -481,18 +490,6 @@
   const successView = document.getElementById('successView');
   const newUploadBtn = document.getElementById('newUploadBtn');
 
-  // Copies +/- controls
-  document.getElementById('incCopies').addEventListener('click', () => {
-    const copiesInput = document.getElementById('copies');
-    copiesInput.value = parseInt(copiesInput.value, 10) + 1;
-  });
-  document.getElementById('decCopies').addEventListener('click', () => {
-    const copiesInput = document.getElementById('copies');
-    if (parseInt(copiesInput.value, 10) > 1) {
-      copiesInput.value = parseInt(copiesInput.value, 10) - 1;
-    }
-  });
-
   function escapeHtml(str) {
     if (!str) return '';
     return String(str)
@@ -512,13 +509,25 @@
     return checked.value;
   }
 
+  function getGlobalColorMode() {
+    const checked = document.querySelector('input[name="colorMode"]:checked');
+    return checked ? checked.value : 'BW';
+  }
+
+  function getGlobalCopies() {
+    const input = document.getElementById('copies');
+    return parseInt(input?.value, 10) || 1;
+  }
+
   function updateMultiFilesNotice() {
     const notice = document.getElementById('multiFilesNotice');
-    if (!notice) return;
+    const optionsNotice = document.getElementById('multiOptionsNotice');
     if (selectedFiles.length > 1) {
-      notice.classList.remove('d-none');
+      if (notice) notice.classList.remove('d-none');
+      if (optionsNotice) optionsNotice.classList.remove('d-none');
     } else {
-      notice.classList.add('d-none');
+      if (notice) notice.classList.add('d-none');
+      if (optionsNotice) optionsNotice.classList.add('d-none');
     }
   }
 
@@ -528,6 +537,26 @@
     selectedFiles.forEach(file => {
       if (!file.hasCustomPaperSize) {
         file.selectedPaperSize = globalSize;
+      }
+    });
+    renderFileList();
+  }
+
+  function handleGlobalColorModeChange() {
+    const globalMode = getGlobalColorMode();
+    selectedFiles.forEach(file => {
+      if (!file.hasCustomColorMode) {
+        file.selectedColorMode = globalMode;
+      }
+    });
+    renderFileList();
+  }
+
+  function handleGlobalCopiesChange() {
+    const globalCopies = getGlobalCopies();
+    selectedFiles.forEach(file => {
+      if (!file.hasCustomCopies) {
+        file.selectedCopies = globalCopies;
       }
     });
     renderFileList();
@@ -554,6 +583,32 @@
       handleGlobalPaperSizeChange();
     });
   }
+
+  // Color mode & Copies sync defaults
+  document.querySelectorAll('input[name="colorMode"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      handleGlobalColorModeChange();
+    });
+  });
+
+  const copiesInput = document.getElementById('copies');
+  if (copiesInput) {
+    copiesInput.addEventListener('input', () => {
+      handleGlobalCopiesChange();
+    });
+  }
+  document.getElementById('incCopies').addEventListener('click', () => {
+    if (copiesInput) {
+      copiesInput.value = parseInt(copiesInput.value, 10) + 1;
+      handleGlobalCopiesChange();
+    }
+  });
+  document.getElementById('decCopies').addEventListener('click', () => {
+    if (copiesInput && parseInt(copiesInput.value, 10) > 1) {
+      copiesInput.value = parseInt(copiesInput.value, 10) - 1;
+      handleGlobalCopiesChange();
+    }
+  });
 
   // Dropzone click & drag handlers
   dropzoneBox.addEventListener('click', () => fileInput.click());
@@ -587,11 +642,17 @@
 
   function handleFilesAdded(files) {
     const defaultSize = getGlobalPaperSize();
+    const defaultColor = getGlobalColorMode();
+    const defaultCopies = getGlobalCopies();
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
       if (!selectedFiles.some(existing => existing.name === f.name && existing.size === f.size)) {
         f.selectedPaperSize = defaultSize;
         f.hasCustomPaperSize = false;
+        f.selectedColorMode = defaultColor;
+        f.hasCustomColorMode = false;
+        f.selectedCopies = defaultCopies;
+        f.hasCustomCopies = false;
         selectedFiles.push(f);
       }
     }
@@ -629,6 +690,8 @@
       }
 
       const curSize = file.selectedPaperSize || getGlobalPaperSize() || 'A4';
+      const curColor = file.selectedColorMode || getGlobalColorMode() || 'BW';
+      const curCopies = parseInt(file.selectedCopies, 10) || getGlobalCopies() || 1;
       const standardSizes = ['A4', 'A3', 'Legal', 'A5'];
       const isCustom = !standardSizes.includes(curSize);
 
@@ -636,11 +699,13 @@
         ${thumbHtml}
         <div class="file-preview-info">
           <div class="file-preview-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</div>
-          <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mt-1">
-            <div class="file-preview-size">${formatBytes(file.size)}</div>
-            <div class="d-flex align-items-center gap-1">
+          <div class="file-preview-size">${formatBytes(file.size)}</div>
+          
+          <div class="d-flex align-items-center flex-wrap gap-2 mt-2 pt-1 border-top border-light-subtle">
+            <!-- Paper Size -->
+            <div class="d-inline-flex align-items-center gap-1">
               <span class="text-muted" style="font-size: 0.72rem; font-weight: 600;">Size:</span>
-              <select class="form-select form-select-sm py-0 px-1 border-secondary-subtle file-size-select" data-index="${index}" style="font-size: 0.75rem; height: 26px; border-radius: 6px; font-weight: 600; width: auto; max-width: 95px;">
+              <select class="form-select form-select-sm py-0 px-1 border-secondary-subtle file-size-select" data-index="${index}" style="font-size: 0.75rem; height: 26px; border-radius: 6px; font-weight: 600; width: auto; max-width: 85px;">
                 <option value="A4" ${curSize === 'A4' ? 'selected' : ''}>A4</option>
                 <option value="A3" ${curSize === 'A3' ? 'selected' : ''}>A3</option>
                 <option value="Legal" ${curSize === 'Legal' ? 'selected' : ''}>Legal</option>
@@ -649,7 +714,24 @@
               </select>
               <input type="text" class="form-control form-control-sm py-0 px-1 file-custom-size-input ${isCustom ? '' : 'd-none'}" 
                      data-index="${index}" placeholder="Size" value="${isCustom ? escapeHtml(curSize) : ''}" 
-                     style="font-size: 0.75rem; height: 26px; width: 65px; border-radius: 6px;">
+                     style="font-size: 0.75rem; height: 26px; width: 60px; border-radius: 6px;">
+            </div>
+
+            <!-- Color Mode -->
+            <div class="d-inline-flex align-items-center gap-1">
+              <span class="text-muted" style="font-size: 0.72rem; font-weight: 600;">Mode:</span>
+              <select class="form-select form-select-sm py-0 px-1 border-secondary-subtle file-color-select" data-index="${index}" style="font-size: 0.75rem; height: 26px; border-radius: 6px; font-weight: 600; width: auto;">
+                <option value="BW" ${curColor === 'BW' ? 'selected' : ''}>B&W</option>
+                <option value="COLOR" ${curColor === 'COLOR' ? 'selected' : ''}>Color</option>
+              </select>
+            </div>
+
+            <!-- Copies -->
+            <div class="d-inline-flex align-items-center gap-1">
+              <span class="text-muted" style="font-size: 0.72rem; font-weight: 600;">Copies:</span>
+              <input type="number" class="form-control form-control-sm py-0 px-1 text-center fw-bold file-copies-input" 
+                     data-index="${index}" value="${curCopies}" min="1" max="99" 
+                     style="font-size: 0.75rem; height: 26px; width: 48px; border-radius: 6px;">
             </div>
           </div>
         </div>
@@ -699,6 +781,41 @@
         if (file) {
           file.selectedPaperSize = e.target.value.trim() || 'Other';
           file.hasCustomPaperSize = true;
+        }
+      });
+    });
+
+    document.querySelectorAll('.file-color-select').forEach(select => {
+      select.addEventListener('change', (e) => {
+        const idx = parseInt(e.target.getAttribute('data-index'), 10);
+        const file = selectedFiles[idx];
+        if (file) {
+          file.selectedColorMode = e.target.value;
+          file.hasCustomColorMode = true;
+        }
+      });
+    });
+
+    document.querySelectorAll('.file-copies-input').forEach(input => {
+      input.addEventListener('change', (e) => {
+        const idx = parseInt(e.target.getAttribute('data-index'), 10);
+        const file = selectedFiles[idx];
+        if (file) {
+          const val = parseInt(e.target.value, 10);
+          file.selectedCopies = val > 0 ? val : 1;
+          e.target.value = file.selectedCopies;
+          file.hasCustomCopies = true;
+        }
+      });
+      input.addEventListener('input', (e) => {
+        const idx = parseInt(e.target.getAttribute('data-index'), 10);
+        const file = selectedFiles[idx];
+        if (file) {
+          const val = parseInt(e.target.value, 10);
+          if (val > 0) {
+            file.selectedCopies = val;
+            file.hasCustomCopies = true;
+          }
         }
       });
     });
@@ -957,9 +1074,13 @@
           uploadStatusText.textContent = `Photo ${i + 1} Print Quality එකට Optimize කරනවා...`;
           const optimized = await optimizeImageIfLarge(f);
           optimized.selectedPaperSize = f.selectedPaperSize || getGlobalPaperSize() || 'A4';
+          optimized.selectedColorMode = f.selectedColorMode || getGlobalColorMode() || 'BW';
+          optimized.selectedCopies = f.selectedCopies || getGlobalCopies() || 1;
           processedFiles.push(optimized);
         } else {
           f.selectedPaperSize = f.selectedPaperSize || getGlobalPaperSize() || 'A4';
+          f.selectedColorMode = f.selectedColorMode || getGlobalColorMode() || 'BW';
+          f.selectedCopies = f.selectedCopies || getGlobalCopies() || 1;
           processedFiles.push(f);
         }
       }
@@ -1002,6 +1123,9 @@
         }
 
         const filePaperSizes = processedFiles.map(f => f.selectedPaperSize || selectedPaperSize || 'A4');
+        const fileColorModes = processedFiles.map(f => f.selectedColorMode || colorMode || 'BW');
+        const fileCopies = processedFiles.map(f => parseInt(f.selectedCopies, 10) || parseInt(copies, 10) || 1);
+
         uploadStatusText.textContent = 'Order එක Counter එකට Save කරනවා...';
         const completeRes = await fetch('/api/quick-print/complete-direct-upload', {
           method: 'POST',
@@ -1016,8 +1140,12 @@
             files: driveFiles.map((df, idx) => ({
               ...df,
               paperSize: processedFiles[idx]?.selectedPaperSize || selectedPaperSize || 'A4',
+              colorMode: processedFiles[idx]?.selectedColorMode || colorMode || 'BW',
+              copies: parseInt(processedFiles[idx]?.selectedCopies, 10) || parseInt(copies, 10) || 1,
             })),
             filePaperSizes,
+            fileColorModes,
+            fileCopies,
           }),
         });
 
@@ -1037,6 +1165,9 @@
       // Standard upload for small files under 3.5 MB
       uploadStatusText.textContent = 'Files Counter එකට Send වෙනවා...';
       const filePaperSizes = processedFiles.map(f => f.selectedPaperSize || selectedPaperSize || 'A4');
+      const fileColorModes = processedFiles.map(f => f.selectedColorMode || colorMode || 'BW');
+      const fileCopies = processedFiles.map(f => parseInt(f.selectedCopies, 10) || parseInt(copies, 10) || 1);
+
       const formData = new FormData();
       formData.append('customerName', name);
       formData.append('customerPhone', phone);
@@ -1045,6 +1176,8 @@
       formData.append('copies', copies);
       formData.append('paperSize', selectedPaperSize);
       formData.append('filePaperSizes', JSON.stringify(filePaperSizes));
+      formData.append('fileColorModes', JSON.stringify(fileColorModes));
+      formData.append('fileCopies', JSON.stringify(fileCopies));
 
       processedFiles.forEach(file => {
         formData.append('files', file);
@@ -1108,7 +1241,9 @@
     document.getElementById('ticketCustomerName').textContent = data.customerName;
     document.getElementById('ticketFilesCount').textContent = `${data.filesCount} file(s)`;
     if (document.getElementById('ticketSpecs')) {
-      const modeLabel = (data.colorMode === 'COLOR' ? 'Color' : 'B&W');
+      let modeLabel = 'B&W';
+      if (data.colorMode === 'COLOR') modeLabel = 'Color';
+      else if (data.colorMode === 'MIXED') modeLabel = 'Mixed Color/B&W';
       const copiesLabel = (data.copies && data.copies > 1 ? `${data.copies} copies` : '1 copy');
       document.getElementById('ticketSpecs').textContent = `${data.paperSize || 'A4'} • ${modeLabel} • ${copiesLabel}`;
     }

@@ -63,6 +63,16 @@ const QuickPrintFile = sequelize.define('QuickPrintFile', {
     allowNull: true,
     defaultValue: 'A4',
   },
+  colorMode: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    defaultValue: 'BW',
+  },
+  copies: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 1,
+  },
 }, {
   tableName: 'quick_print_files',
   timestamps: true,

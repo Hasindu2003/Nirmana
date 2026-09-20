@@ -195,6 +195,20 @@ async function ensureDbInitialized() {
                 defaultValue: 'A4',
               });
             }
+            if (!tableDesc.colorMode) {
+              await qi.addColumn('quick_print_files', 'colorMode', {
+                type: sequelize.Sequelize.STRING(20),
+                allowNull: true,
+                defaultValue: 'BW',
+              });
+            }
+            if (!tableDesc.copies) {
+              await qi.addColumn('quick_print_files', 'copies', {
+                type: sequelize.Sequelize.INTEGER,
+                allowNull: true,
+                defaultValue: 1,
+              });
+            }
           }
         } catch (migErr) {
           // Non-fatal if table already updated

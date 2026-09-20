@@ -229,7 +229,7 @@
                       <i class="bi bi-copy text-muted me-1"></i><strong><%= job.copies %></strong> <%= job.copies > 1 ? 'copies' : 'copy' %>
                     </span>
                     <span class="badge bg-light text-dark border px-2 py-1" style="font-size: 0.74rem;">
-                      <i class="bi <%= job.colorMode === 'COLOR' ? 'bi-palette-fill text-warning' : 'bi-circle-half text-secondary' %> me-1"></i>
+                      <i class="bi <%= job.colorMode === 'COLOR' ? 'bi-palette-fill text-warning' : (job.colorMode === 'MIXED' ? 'bi-shuffle text-info' : 'bi-circle-half text-secondary') %> me-1"></i>
                       <strong><%= job.colorMode %></strong>
                     </span>
                     <span class="badge bg-light text-dark border px-2 py-1" style="font-size: 0.74rem;">
@@ -634,7 +634,7 @@
     document.getElementById('previewModalCustomer').innerHTML = '<i class="bi bi-person me-1"></i>' + escapeHtml(job.customerName);
     document.getElementById('previewModalSpecs').innerHTML = 
       `<i class="bi bi-copy me-1"></i>${job.copies} ${job.copies > 1 ? 'copies' : 'copy'} &bull; ` +
-      `<i class="bi ${job.colorMode === 'COLOR' ? 'bi-palette-fill text-warning' : 'bi-circle-half'} me-1"></i>${job.colorMode} &bull; ` +
+      `<i class="bi ${job.colorMode === 'COLOR' ? 'bi-palette-fill text-warning' : (job.colorMode === 'MIXED' ? 'bi-shuffle text-info' : 'bi-circle-half')} me-1"></i>${job.colorMode} &bull; ` +
       `<i class="bi bi-file-earmark me-1"></i>${job.paperSize}`;
 
     // Customer note
@@ -667,7 +667,10 @@
         a.className = 'nav-link btn-sm py-1 px-3 ' + (index === 0 ? 'active' : '');
         a.href = 'javascript:void(0)';
         const fSize = file.paperSize || job.paperSize || 'A4';
-        a.innerHTML = `<i class="bi bi-file-earmark me-1"></i> File ${index + 1}: <span class="text-truncate d-inline-block align-bottom" style="max-width: 130px;">${escapeHtml(file.originalName)}</span> <span class="badge bg-secondary-subtle text-dark border ms-1" style="font-size: 0.68rem; font-weight: 600;">${escapeHtml(fSize)}</span>`;
+        const fColor = file.colorMode || job.colorMode || 'BW';
+        const fCopies = file.copies || job.copies || 1;
+        const colorIcon = fColor === 'COLOR' ? '<i class="bi bi-palette-fill text-warning"></i>' : '<i class="bi bi-circle-half"></i>';
+        a.innerHTML = `<i class="bi bi-file-earmark me-1"></i> File ${index + 1}: <span class="text-truncate d-inline-block align-bottom" style="max-width: 120px;">${escapeHtml(file.originalName)}</span> <span class="badge bg-secondary-subtle text-dark border ms-1" style="font-size: 0.68rem; font-weight: 600;">${escapeHtml(fSize)} &bull; ${colorIcon} ${fColor} &bull; ${fCopies}x</span>`;
         a.onclick = () => {
           navTabs.querySelectorAll('.nav-link').forEach(tab => tab.classList.remove('active'));
           a.classList.add('active');
@@ -710,9 +713,11 @@
 
     if (document.getElementById('previewModalSpecs') && currentPreviewJob) {
       const activeSize = file.paperSize || currentPreviewJob.paperSize || 'A4';
+      const activeColor = file.colorMode || currentPreviewJob.colorMode || 'BW';
+      const activeCopies = file.copies || currentPreviewJob.copies || 1;
       document.getElementById('previewModalSpecs').innerHTML = 
-        `<i class="bi bi-copy me-1"></i>${currentPreviewJob.copies} ${currentPreviewJob.copies > 1 ? 'copies' : 'copy'} &bull; ` +
-        `<i class="bi ${currentPreviewJob.colorMode === 'COLOR' ? 'bi-palette-fill text-warning' : 'bi-circle-half'} me-1"></i>${currentPreviewJob.colorMode} &bull; ` +
+        `<i class="bi bi-copy me-1"></i><strong>${activeCopies}</strong> ${activeCopies > 1 ? 'copies' : 'copy'} &bull; ` +
+        `<i class="bi ${activeColor === 'COLOR' ? 'bi-palette-fill text-warning' : 'bi-circle-half'} me-1"></i><strong>${escapeHtml(activeColor)}</strong> &bull; ` +
         `<i class="bi bi-file-earmark me-1"></i><span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0">${escapeHtml(activeSize)}</span>`;
     }
 
