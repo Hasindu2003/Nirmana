@@ -5,6 +5,7 @@ const session = require('express-session');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const morgan = require('morgan');
+const jwt = require('jsonwebtoken');
 
 const config = require('./src/config/config');
 const sequelize = require('./src/config/database');
@@ -30,9 +31,10 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    maxAge: 1000 * 60 * 60 * 24, // 24 hours
+    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
     httpOnly: true,
-    secure: config.nodeEnv === 'production',
+    sameSite: 'lax',
+    secure: false, // Handled dynamically via reverse proxy
   },
 }));
 
@@ -58,17 +60,31 @@ app.use(async (req, res, next) => {
   res.locals.activePage = '';
   res.locals.title = 'Nirmana Printing Management System';
 
-  if (req.session && req.session.userId) {
-    try {
+  try {
+    let userId = null;
+    const token = req.cookies && req.cookies.auth_token;
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, config.jwtSecret);
+        if (decoded && decoded.id) {
+          userId = decoded.id;
+        }
+      } catch (e) {}
+    }
+    if (!userId && req.session && req.session.userId) {
+      userId = req.session.userId;
+    }
+
+    if (userId) {
       const { User } = require('./src/models');
-      const user = await User.findByPk(req.session.userId);
+      const user = await User.findByPk(userId);
       if (user && user.isActive) {
         req.user = user;
         res.locals.currentUser = user;
       }
-    } catch (e) {
-      // Non-fatal if DB not ready
     }
+  } catch (e) {
+    // Non-fatal if DB not ready
   }
 
   next();

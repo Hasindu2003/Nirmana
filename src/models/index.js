@@ -6,6 +6,7 @@ const StockItem = require('./StockItem');
 const StockTransaction = require('./StockTransaction');
 const QuickPrintJob = require('./QuickPrintJob');
 const QuickPrintFile = require('./QuickPrintFile');
+const AuditLog = require('./AuditLog');
 
 // Customer <-> Orders
 Customer.hasMany(Order, { foreignKey: 'customerId', as: 'orders' });
@@ -36,5 +37,6 @@ module.exports = {
   StockTransaction,
   QuickPrintJob,
   QuickPrintFile,
+  AuditLog,
 };
 

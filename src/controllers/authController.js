@@ -7,7 +7,16 @@ class AuthController {
       const { username, password } = req.body;
       const result = await authService.login(username, password);
 
-      // Save user ID to web session
+      // Set stateless, serverless-proof HTTP-Only Cookie with signed JWT
+      const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
+      res.cookie('auth_token', result.token, {
+        httpOnly: true,
+        secure: isHttps,
+        sameSite: 'lax',
+        maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+      });
+
+      // Also set web session
       if (req.session) {
         req.session.userId = result.user.id;
         req.session.userRole = result.user.role;
@@ -55,6 +64,7 @@ class AuthController {
         });
       }
 
+      res.clearCookie('auth_token');
       if (req.session) {
         req.session.destroy();
       }

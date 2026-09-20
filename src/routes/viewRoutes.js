@@ -9,8 +9,25 @@ const stockService = require('../services/stockService');
 const customerService = require('../services/customerService');
 const quickPrintService = require('../services/quickPrintService');
 const googleDriveService = require('../services/googleDriveService');
+const jwt = require('jsonwebtoken');
+const config = require('../config/config');
 const { authenticate } = require('../middleware/auth');
 const { getUploadUrl, getAvailableLanIps } = require('../utils/network');
+
+// Helper to check if visitor is already authenticated (cookie or session)
+function isAuthenticated(req) {
+  const token = req.cookies && req.cookies.auth_token;
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, config.jwtSecret);
+      if (decoded && decoded.id) return true;
+    } catch (e) {}
+  }
+  if (req.session && req.session.userId) {
+    return true;
+  }
+  return false;
+}
 
 // =========================================================================
 // 1. PUBLIC ROUTES (No Login Required)
@@ -18,7 +35,7 @@ const { getUploadUrl, getAvailableLanIps } = require('../utils/network');
 
 // Root redirect: Logged in -> Dashboard | Visitors -> Login
 router.get('/', (req, res) => {
-  if (req.session && req.session.userId) {
+  if (isAuthenticated(req)) {
     return res.redirect('/dashboard');
   }
   return res.redirect('/login');
@@ -26,7 +43,7 @@ router.get('/', (req, res) => {
 
 // Staff Login
 router.get('/login', (req, res) => {
-  if (req.session && req.session.userId) {
+  if (isAuthenticated(req)) {
     return res.redirect('/dashboard');
   }
   res.render('auth/login', {
