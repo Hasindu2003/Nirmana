@@ -11,91 +11,186 @@
           Today, <%= new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' }) %> &bull; Live Operations
         </div>
       </div>
+
       <div class="d-flex flex-wrap align-items-center gap-2 mt-3 mt-sm-0">
-        <a href="/quick-print" class="btn btn-serene-secondary">
-          <i class="bi bi-qr-code-scan text-serene-primary me-1"></i> Quick Print (QR)
+        <!-- Stock Attention Alert Icon Button -->
+        <button class="btn btn-sm <%= stats.kpis.lowStockCount > 0 ? 'btn-stock-alert-active' : 'btn-serene-secondary' %> d-inline-flex align-items-center gap-2 shadow-xs" 
+                data-bs-toggle="modal" 
+                data-bs-target="#stockAttentionModal" 
+                title="<%= stats.kpis.lowStockCount > 0 ? stats.kpis.lowStockCount + ' materials low in stock!' : 'All stock levels healthy' %>">
+          <i class="bi <%= stats.kpis.lowStockCount > 0 ? 'bi-exclamation-triangle-fill text-danger' : 'bi-shield-check text-success' %>"></i>
+          <span class="fw-semibold">Stock Attention</span>
+          <span class="badge <%= stats.kpis.lowStockCount > 0 ? 'bg-danger text-white' : 'bg-light text-muted border' %> rounded-pill px-2 py-0" style="font-size: 0.72rem;">
+            <%= stats.kpis.lowStockCount %>
+          </span>
+        </button>
+
+        <!-- Recent Stock Movements Icon Button -->
+        <button class="btn btn-sm btn-serene-secondary d-inline-flex align-items-center gap-2 shadow-xs" 
+                data-bs-toggle="modal" 
+                data-bs-target="#recentMovementsModal" 
+                title="View recent inventory ins & outs">
+          <i class="bi bi-arrow-left-right text-muted"></i>
+          <span class="fw-medium">Stock Movements</span>
+          <% if (stats.recentTransactions && stats.recentTransactions.length > 0) { %>
+            <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2 py-0" style="font-size: 0.72rem;">
+              <%= stats.recentTransactions.length %>
+            </span>
+          <% } %>
+        </button>
+
+        <span class="text-muted opacity-25 d-none d-lg-inline">|</span>
+
+        <!-- Express Quick Print -->
+        <a href="/quick-print" class="btn btn-sm btn-serene-secondary">
+          <i class="bi bi-qr-code-scan text-serene-primary me-1"></i> Quick Print
         </a>
-        <a href="/orders/new" class="btn btn-serene-primary">
+
+        <!-- New Order -->
+        <a href="/orders/new" class="btn btn-sm btn-serene-primary">
           <i class="bi bi-plus-lg"></i> New Order
         </a>
-        <button class="btn btn-serene-secondary" data-bs-toggle="modal" data-bs-target="#stockInModal">
+
+        <!-- Stock Actions -->
+        <button class="btn btn-sm btn-serene-secondary" data-bs-toggle="modal" data-bs-target="#stockInModal">
           <i class="bi bi-box-arrow-in-down text-success"></i> Stock In
         </button>
-        <button class="btn btn-serene-secondary" data-bs-toggle="modal" data-bs-target="#stockOutModal">
+        <button class="btn btn-sm btn-serene-secondary" data-bs-toggle="modal" data-bs-target="#stockOutModal">
           <i class="bi bi-box-arrow-up text-danger"></i> Stock Out
         </button>
       </div>
     </div>
 
-    <!-- 4 KPI Cards (2x2 on mobile, 4 in row on desktop) -->
+    <!-- 4 Redesigned Compact Modern KPI Cards -->
     <div class="row g-2 g-md-3 mb-4">
+      <!-- 1. Active Queue -->
       <div class="col-6 col-md-6 col-xl-3">
-        <div class="kpi-card">
-          <div class="kpi-title">Active Queue</div>
-          <div class="kpi-value text-primary tabular-nums"><%= stats.kpis.activeOrdersCount %></div>
-          <div class="kpi-sub text-muted text-truncate">
-            <span class="status-dot" style="background:#2d6a68;"></span> Active orders
+        <a href="/orders?status=PRINTING" class="text-decoration-none">
+          <div class="kpi-card-compact">
+            <div class="kpi-compact-content">
+              <div class="kpi-compact-label">
+                <span>Active Queue</span>
+              </div>
+              <div class="kpi-compact-num text-serene-primary tabular-nums">
+                <%= stats.kpis.activeOrdersCount %>
+              </div>
+              <div class="kpi-compact-sub">
+                <span class="status-dot" style="background:#2d6a68;"></span> Active orders
+              </div>
+            </div>
+            <div class="kpi-icon-chip" style="background: #e6f0ef; color: #2d6a68;">
+              <i class="bi bi-hourglass-split"></i>
+            </div>
           </div>
-        </div>
+        </a>
       </div>
 
+      <!-- 2. Orders Today -->
       <div class="col-6 col-md-6 col-xl-3">
-        <div class="kpi-card">
-          <div class="kpi-title">Orders Today</div>
-          <div class="kpi-value tabular-nums"><%= stats.kpis.todayOrdersCount %></div>
-          <div class="kpi-sub text-muted text-truncate">
-            <i class="bi bi-calendar-event"></i> Today's intake
+        <a href="/orders" class="text-decoration-none">
+          <div class="kpi-card-compact">
+            <div class="kpi-compact-content">
+              <div class="kpi-compact-label">
+                <span>Orders Today</span>
+              </div>
+              <div class="kpi-compact-num text-dark tabular-nums">
+                <%= stats.kpis.todayOrdersCount %>
+              </div>
+              <div class="kpi-compact-sub">
+                <i class="bi bi-calendar-check text-muted"></i> Today's intake
+              </div>
+            </div>
+            <div class="kpi-icon-chip" style="background: #f1f5f9; color: #334155;">
+              <i class="bi bi-calendar2-week"></i>
+            </div>
           </div>
-        </div>
+        </a>
       </div>
 
+      <!-- 3. Completed -->
       <div class="col-6 col-md-6 col-xl-3">
-        <div class="kpi-card">
-          <div class="kpi-title">Completed</div>
-          <div class="kpi-value text-success tabular-nums"><%= stats.kpis.completedOrdersCount %></div>
-          <div class="kpi-sub text-muted text-truncate">
-            <i class="bi bi-check2-circle text-success"></i> Finished jobs
+        <a href="/orders?status=COMPLETED" class="text-decoration-none">
+          <div class="kpi-card-compact">
+            <div class="kpi-compact-content">
+              <div class="kpi-compact-label">
+                <span>Completed</span>
+              </div>
+              <div class="kpi-compact-num text-success tabular-nums">
+                <%= stats.kpis.completedOrdersCount %>
+              </div>
+              <div class="kpi-compact-sub">
+                <i class="bi bi-check2-circle text-success"></i> Finished jobs
+              </div>
+            </div>
+            <div class="kpi-icon-chip" style="background: #edf7ed; color: #16a34a;">
+              <i class="bi bi-check-circle-fill"></i>
+            </div>
           </div>
-        </div>
+        </a>
       </div>
 
+      <!-- 4. Low Stock (Clickable to open Stock Attention Modal) -->
       <div class="col-6 col-md-6 col-xl-3">
-        <div class="kpi-card">
-          <div class="kpi-title">Low Stock</div>
-          <div class="kpi-value <%= stats.kpis.lowStockCount > 0 ? 'text-danger' : 'text-success' %> tabular-nums">
-            <%= stats.kpis.lowStockCount %>
+        <div class="kpi-card-compact <%= stats.kpis.lowStockCount > 0 ? 'border-danger-subtle' : '' %>" 
+             data-bs-toggle="modal" 
+             data-bs-target="#stockAttentionModal" 
+             style="cursor: pointer;"
+             title="Click to view Stock Attention details">
+          <div class="kpi-compact-content">
+            <div class="kpi-compact-label">
+              <span>Low Stock</span>
+            </div>
+            <div class="kpi-compact-num <%= stats.kpis.lowStockCount > 0 ? 'text-danger' : 'text-success' %> tabular-nums">
+              <%= stats.kpis.lowStockCount %>
+            </div>
+            <div class="kpi-compact-sub <%= stats.kpis.lowStockCount > 0 ? 'text-danger fw-semibold' : '' %>">
+              <% if (stats.kpis.lowStockCount > 0) { %>
+                <i class="bi bi-exclamation-triangle"></i> Needs reorder
+              <% } else if (stats.kpis.totalStockItems === 0) { %>
+                <i class="bi bi-info-circle"></i> No materials
+              <% } else { %>
+                <i class="bi bi-shield-check text-success"></i> Stock adequate
+              <% } %>
+            </div>
           </div>
-          <div class="kpi-sub text-muted text-truncate">
-            <% if (stats.kpis.lowStockCount > 0) { %>
-              <span class="text-danger"><i class="bi bi-exclamation-triangle"></i> Materials need reordering</span>
-            <% } else if (stats.kpis.totalStockItems === 0) { %>
-              <span class="text-muted"><i class="bi bi-info-circle"></i> No materials registered</span>
-            <% } else { %>
-              <span class="text-success"><i class="bi bi-shield-check"></i> Stock levels adequate</span>
-            <% } %>
+          <div class="kpi-icon-chip <%= stats.kpis.lowStockCount > 0 ? 'bg-danger-subtle text-danger' : 'bg-light text-muted' %>">
+            <i class="bi <%= stats.kpis.lowStockCount > 0 ? 'bi-exclamation-triangle-fill' : 'bi-boxes' %>"></i>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Main Content Grid -->
+    <!-- Main Content: Full-Width Spacious Recent Orders Table -->
     <div class="row g-4">
-      <!-- Left Column: Active Print Orders (7 cols) -->
-      <div class="col-lg-7">
+      <div class="col-12">
         <div class="serene-card">
-          <div class="serene-card-header">
-            <h3 class="serene-card-title"><i class="bi bi-clipboard2-check me-2 text-muted"></i> Recent Orders</h3>
-            <a href="/orders" class="btn btn-serene-ghost py-1 px-2 small">All Orders &rarr;</a>
+          <div class="serene-card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div>
+              <h3 class="serene-card-title mb-0">
+                <i class="bi bi-clipboard2-check me-2 text-serene-primary"></i> Recent Printing Orders
+              </h3>
+              <div class="text-muted small mt-1">Live overview of recent customer orders, production status, and balances</div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <a href="/orders/new" class="btn btn-sm btn-serene-primary">
+                <i class="bi bi-plus-lg"></i> New Order
+              </a>
+              <a href="/orders" class="btn btn-sm btn-serene-secondary">
+                All Orders &rarr;
+              </a>
+            </div>
           </div>
           <div class="table-responsive">
             <table class="serene-table">
               <thead>
                 <tr>
                   <th>Order #</th>
-                  <th>Customer & Job</th>
-                  <th>Amount & Due</th>
+                  <th>Customer</th>
+                  <th>Job Description</th>
+                  <th>Order Date</th>
+                  <th>Amount & Balance</th>
                   <th>Status</th>
-                  <th>Action</th>
+                  <th class="text-end">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -103,22 +198,32 @@
                   <% stats.recentOrders.forEach(order => { %>
                     <tr>
                       <td>
-                        <a href="/orders/<%= order.id %>" class="fw-semibold text-decoration-none text-dark font-monospace">
+                        <a href="/orders/<%= order.id %>" class="fw-bold text-decoration-none text-dark font-monospace">
                           <%= order.orderNumber %>
                         </a>
                       </td>
                       <td>
-                        <div class="fw-semibold text-dark"><%= order.customer ? order.customer.name : 'Unknown' %></div>
-                        <div class="text-muted small text-truncate" style="max-width: 220px;" title="<%= order.jobTitle %>">
+                        <div class="fw-semibold text-dark"><%= order.customer ? order.customer.name : 'Walk-in / Unknown' %></div>
+                        <% if (order.customer && order.customer.phone) { %>
+                          <div class="text-muted small"><i class="bi bi-telephone text-muted me-1"></i><%= order.customer.phone %></div>
+                        <% } %>
+                      </td>
+                      <td>
+                        <div class="text-dark fw-medium text-truncate" style="max-width: 280px;" title="<%= order.jobTitle %>">
                           <%= order.jobTitle %>
                         </div>
                       </td>
                       <td>
-                        <div class="tabular-nums fw-medium text-dark">
+                        <div class="text-muted small tabular-nums">
+                          <%= order.orderDate || new Date(order.createdAt).toISOString().split('T')[0] %>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="tabular-nums fw-bold text-dark">
                           <%= currencySymbol %> <%= parseFloat(order.totalAmount).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
                         </div>
                         <% if (parseFloat(order.balanceAmount) <= 0) { %>
-                          <span class="badge mt-1" style="background:#edf7ed; color:#1e4620;">Paid</span>
+                          <span class="badge bg-success-subtle text-success border border-success-subtle mt-1" style="font-size: 0.72rem;">Paid</span>
                         <% } else { %>
                           <div class="text-danger small fw-semibold mt-1">
                             Due: <%= currencySymbol %> <%= parseFloat(order.balanceAmount).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
@@ -130,8 +235,8 @@
                           <span class="status-dot"></span> <%= order.status.replace('_', ' ') %>
                         </span>
                       </td>
-                      <td>
-                        <a href="/orders/<%= order.id %>" class="btn btn-sm btn-serene-secondary py-1 px-2" title="View Details">
+                      <td class="text-end">
+                        <a href="/orders/<%= order.id %>" class="btn btn-sm btn-serene-secondary py-1 px-3 d-inline-flex align-items-center gap-1 shadow-xs" title="View Details">
                           <i class="bi bi-eye"></i> View
                         </a>
                       </td>
@@ -139,7 +244,7 @@
                   <% }) %>
                 <% } else { %>
                   <tr>
-                    <td colspan="5" class="text-center py-5 text-muted">No orders recorded yet.</td>
+                    <td colspan="7" class="text-center py-5 text-muted">No orders recorded yet.</td>
                   </tr>
                 <% } %>
               </tbody>
@@ -147,75 +252,231 @@
           </div>
         </div>
       </div>
-
-      <!-- Right Column: Stock Health & Movements (5 cols) -->
-      <div class="col-lg-5">
-        <!-- Stock Attention Card -->
-        <div class="serene-card mb-4">
-          <div class="serene-card-header">
-            <h3 class="serene-card-title"><i class="bi bi-boxes me-2 text-muted"></i> Stock Attention</h3>
-            <a href="/stock" class="btn btn-serene-ghost py-0 px-2 small">Full Inventory &rarr;</a>
-          </div>
-          <div class="serene-card-body p-3">
-            <% if (stats.lowStockItems && stats.lowStockItems.length > 0) { %>
-              <% stats.lowStockItems.forEach(item => { %>
-                <div class="p-2 mb-2 rounded-2" style="background: #fafbfc; border: 1px solid var(--serene-border-subtle);">
-                  <div class="d-flex justify-content-between align-items-center mb-1">
-                    <span class="fw-semibold small text-dark"><%= item.name %></span>
-                    <span class="badge" style="background:#fdf2f2; color:#8a2c2c; border:1px solid #dc2626;">
-                      <%= parseFloat(item.currentStock) %> <%= item.unit %> left
-                    </span>
-                  </div>
-                  <div class="d-flex justify-content-between align-items-center text-muted" style="font-size: 0.75rem;">
-                    <span>Alert threshold: <%= parseFloat(item.minStockAlert) %> <%= item.unit %></span>
-                    <button class="btn btn-sm btn-serene-ghost py-0 px-2 text-success" onclick="quickStockIn(<%= item.id %>)">
-                      + Add Stock
-                    </button>
-                  </div>
-                </div>
-              <% }) %>
-            <% } else if (stats.allStockItems && stats.allStockItems.length === 0) { %>
-              <div class="text-center py-3 text-muted small">
-                No materials registered yet. <a href="/stock" class="text-decoration-none">Add materials &rarr;</a>
-              </div>
-            <% } else { %>
-              <div class="text-center py-3 text-muted small">
-                <i class="bi bi-check-circle text-success me-1"></i> All stock materials are currently above alert thresholds.
-              </div>
-            <% } %>
-          </div>
-        </div>
-
-        <!-- Recent Stock Movements -->
-        <div class="serene-card">
-          <div class="serene-card-header">
-            <h3 class="serene-card-title"><i class="bi bi-arrow-left-right me-2 text-muted"></i> Recent Stock Movements</h3>
-          </div>
-          <div class="serene-card-body p-3">
-            <% if (stats.recentTransactions && stats.recentTransactions.length > 0) { %>
-              <% stats.recentTransactions.forEach(t => { %>
-                <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-light">
-                  <div>
-                    <div class="small fw-semibold text-dark"><%= t.stockItem ? t.stockItem.name : 'Item' %></div>
-                    <div class="text-muted" style="font-size: 0.72rem;">
-                      <%= t.date %> &bull; <%= t.reference || (t.type === 'IN' ? 'Stock Arrival' : 'Job Usage') %>
-                    </div>
-                  </div>
-                  <div class="text-end">
-                    <span class="badge <%= t.type === 'IN' ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger' %> fw-bold">
-                      <%= t.type === 'IN' ? '+' : '-' %><%= parseFloat(t.quantity) %> <%= t.stockItem ? t.stockItem.unit : '' %>
-                    </span>
-                  </div>
-                </div>
-              <% }) %>
-            <% } else { %>
-              <div class="text-center py-3 text-muted small">No stock movements logged yet.</div>
-            <% } %>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </main>
+
+<!-- ========================================================================= -->
+<!-- POP-UP MODAL: STOCK ATTENTION & LOW INVENTORY ALERTS -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="stockAttentionModal" tabindex="-1" aria-labelledby="stockAttentionModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content shadow-lg border-0" style="border-radius: var(--serene-radius-lg);">
+      <div class="modal-header py-3 px-4 border-bottom" style="background: #fafbfc;">
+        <div class="d-flex align-items-center gap-2">
+          <div class="p-2 rounded-2 <%= stats.kpis.lowStockCount > 0 ? 'bg-danger-subtle text-danger' : 'bg-success-subtle text-success' %> d-flex align-items-center justify-content-center">
+            <i class="bi <%= stats.kpis.lowStockCount > 0 ? 'bi-exclamation-triangle-fill fs-5' : 'bi-shield-check fs-5' %>"></i>
+          </div>
+          <div>
+            <h5 class="modal-title fw-bold fs-6 mb-0 text-dark" id="stockAttentionModalLabel">Stock Attention & Low Inventory Alerts</h5>
+            <div class="text-muted small">Materials that have dropped to or below minimum reorder thresholds</div>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body p-4">
+        <% if (stats.lowStockItems && stats.lowStockItems.length > 0) { %>
+          <div class="alert alert-danger d-flex align-items-center gap-2 py-2 px-3 mb-3 border-danger-subtle" style="font-size: 0.84rem;">
+            <i class="bi bi-exclamation-circle-fill fs-5 flex-shrink-0"></i>
+            <div>
+              <strong><%= stats.lowStockItems.length %> material<%= stats.lowStockItems.length > 1 ? 's need' : ' needs' %> replenishment immediately</strong> to avoid printing disruptions.
+            </div>
+          </div>
+
+          <div class="table-responsive border rounded-3 bg-white">
+            <table class="table table-hover align-middle mb-0" style="font-size: 0.86rem;">
+              <thead class="table-light">
+                <tr>
+                  <th>Material / Item</th>
+                  <th>Current Stock</th>
+                  <th>Min Alert</th>
+                  <th>Deficit</th>
+                  <th class="text-end">Quick Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% stats.lowStockItems.forEach(item => { %>
+                  <tr>
+                    <td>
+                      <div class="fw-bold text-dark"><%= item.name %></div>
+                      <div class="text-muted small font-monospace"><%= item.code || 'NO-CODE' %></div>
+                    </td>
+                    <td>
+                      <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 fw-bold fs-6 tabular-nums">
+                        <%= parseFloat(item.currentStock) %> <%= item.unit %>
+                      </span>
+                    </td>
+                    <td>
+                      <span class="text-muted tabular-nums">
+                        <%= parseFloat(item.minStockAlert) %> <%= item.unit %>
+                      </span>
+                    </td>
+                    <td>
+                      <% const diff = parseFloat(item.currentStock) - parseFloat(item.minStockAlert); %>
+                      <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle tabular-nums">
+                        <%= diff < 0 ? diff.toFixed(1) : '0' %> <%= item.unit %>
+                      </span>
+                    </td>
+                    <td class="text-end">
+                      <button class="btn btn-sm btn-success py-1 px-3 d-inline-flex align-items-center gap-1 shadow-xs" 
+                              onclick="triggerQuickStockInFromModal(<%= item.id %>)">
+                        <i class="bi bi-plus-circle"></i> Add Stock
+                      </button>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        <% } else if (stats.allStockItems && stats.allStockItems.length === 0) { %>
+          <div class="text-center py-5">
+            <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light text-muted mb-3" style="width: 60px; height: 60px;">
+              <i class="bi bi-box-seam fs-2"></i>
+            </div>
+            <h6 class="fw-bold mb-1">No Materials Registered Yet</h6>
+            <p class="text-muted small mb-3">Add your printing papers, inks, and substrates to enable stock monitoring.</p>
+            <a href="/stock" class="btn btn-serene-primary btn-sm">Add Material to Stock</a>
+          </div>
+        <% } else { %>
+          <div class="text-center py-5">
+            <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-success-subtle text-success mb-3" style="width: 60px; height: 60px;">
+              <i class="bi bi-check2-circle fs-2"></i>
+            </div>
+            <h6 class="fw-bold text-success mb-1">All Stock Levels Healthy</h6>
+            <p class="text-muted small mb-0">Every registered material is currently above its minimum alert threshold. No action required!</p>
+          </div>
+        <% } %>
+      </div>
+
+      <div class="modal-footer border-top bg-light py-2 px-4 d-flex justify-content-between">
+        <a href="/stock" class="btn btn-serene-ghost btn-sm">
+          <i class="bi bi-boxes me-1"></i> Full Inventory Management &rarr;
+        </a>
+        <button type="button" class="btn btn-serene-secondary btn-sm px-3" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- POP-UP MODAL: RECENT STOCK MOVEMENTS -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="recentMovementsModal" tabindex="-1" aria-labelledby="recentMovementsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content shadow-lg border-0" style="border-radius: var(--serene-radius-lg);">
+      <div class="modal-header py-3 px-4 border-bottom" style="background: #fafbfc;">
+        <div class="d-flex align-items-center gap-2">
+          <div class="p-2 rounded-2 bg-light text-dark d-flex align-items-center justify-content-center">
+            <i class="bi bi-arrow-left-right text-serene-primary fs-5"></i>
+          </div>
+          <div>
+            <h5 class="modal-title fw-bold fs-6 mb-0 text-dark" id="recentMovementsModalLabel">Recent Stock Movements</h5>
+            <div class="text-muted small">Audit log of inventory arrivals (Stock In) and production usages (Stock Out)</div>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body p-4">
+        <% if (stats.recentTransactions && stats.recentTransactions.length > 0) { %>
+          <div class="table-responsive border rounded-3 bg-white">
+            <table class="table table-hover align-middle mb-0" style="font-size: 0.86rem;">
+              <thead class="table-light">
+                <tr>
+                  <th>Type</th>
+                  <th>Stock Item</th>
+                  <th>Quantity</th>
+                  <th>Reference / Source</th>
+                  <th>Date & Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% stats.recentTransactions.forEach(t => { %>
+                  <tr>
+                    <td>
+                      <% if (t.type === 'IN') { %>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                          <i class="bi bi-box-arrow-in-down me-1"></i> Stock In
+                        </span>
+                      <% } else { %>
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
+                          <i class="bi bi-box-arrow-up me-1"></i> Stock Out
+                        </span>
+                      <% } %>
+                    </td>
+                    <td>
+                      <div class="fw-bold text-dark"><%= t.stockItem ? t.stockItem.name : 'Item' %></div>
+                      <% if (t.stockItem && t.stockItem.code) { %>
+                        <div class="text-muted small font-monospace"><%= t.stockItem.code %></div>
+                      <% } %>
+                    </td>
+                    <td>
+                      <span class="fw-bold tabular-nums <%= t.type === 'IN' ? 'text-success' : 'text-danger' %>">
+                        <%= t.type === 'IN' ? '+' : '-' %><%= parseFloat(t.quantity) %> <%= t.stockItem ? t.stockItem.unit : '' %>
+                      </span>
+                    </td>
+                    <td>
+                      <div class="text-dark small"><%= t.reference || (t.type === 'IN' ? 'Stock Arrival' : 'Job Usage') %></div>
+                      <% if (t.notes) { %>
+                        <div class="text-muted small fst-italic text-truncate" style="max-width: 220px;"><%= t.notes %></div>
+                      <% } %>
+                    </td>
+                    <td class="text-muted small">
+                      <%= new Date(t.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) %><br>
+                      <%= new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) %>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        <% } else { %>
+          <div class="text-center py-5 text-muted">
+            <i class="bi bi-arrow-left-right display-6 d-block mb-2 text-muted opacity-50"></i>
+            <h6 class="fw-bold mb-1">No Stock Movements Logged Yet</h6>
+            <p class="small mb-0">Transactions will automatically record here as stock arrives or is consumed for jobs.</p>
+          </div>
+        <% } %>
+      </div>
+
+      <div class="modal-footer border-top bg-light py-2 px-4 d-flex justify-content-between">
+        <a href="/stock" class="btn btn-serene-ghost btn-sm">
+          <i class="bi bi-boxes me-1"></i> View Complete Stock Ledger &rarr;
+        </a>
+        <button type="button" class="btn btn-serene-secondary btn-sm px-3" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function triggerQuickStockInFromModal(itemId) {
+    const stockAttentionModalEl = document.getElementById('stockAttentionModal');
+    if (stockAttentionModalEl) {
+      const stockAttentionModal = bootstrap.Modal.getInstance(stockAttentionModalEl);
+      if (stockAttentionModal) {
+        stockAttentionModal.hide();
+      }
+    }
+    setTimeout(() => {
+      quickStockIn(itemId);
+    }, 300);
+  }
+
+  function quickStockIn(itemId) {
+    const modalEl = document.getElementById('stockInModal');
+    if (!modalEl) return;
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    const select = document.getElementById('stockInSelect');
+    if (select) {
+      select.value = itemId;
+      if (typeof onStockInItemChange === 'function') {
+        onStockInItemChange(select);
+      }
+    }
+    modal.show();
+  }
+</script>
 
 <%- include('../partials/footer') %>

@@ -350,6 +350,109 @@ h1, h2, h3, h4, h5, h6 {
   gap: 0.35rem;
 }
 
+/* Compact Modern Redesigned KPI Cards */
+.kpi-card-compact {
+  padding: 0.85rem 1rem;
+  background: var(--serene-surface);
+  border: 1px solid var(--serene-border);
+  border-radius: var(--serene-radius-lg);
+  box-shadow: var(--serene-shadow-sm);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  min-height: 76px;
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-card-compact:hover {
+  transform: translateY(-2px);
+  border-color: #cbd5e1;
+  box-shadow: var(--serene-shadow-card);
+}
+
+.kpi-compact-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.kpi-compact-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--serene-text-muted);
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.kpi-compact-num {
+  font-size: 1.45rem;
+  font-weight: 800;
+  font-family: 'Manrope', sans-serif;
+  color: var(--serene-text-main);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.kpi-compact-sub {
+  font-size: 0.72rem;
+  color: var(--serene-text-subtle);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.kpi-icon-chip {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 1.2rem;
+  transition: transform 0.2s ease;
+}
+
+.kpi-card-compact:hover .kpi-icon-chip {
+  transform: scale(1.08);
+}
+
+/* Red Pulsing Stock Alert Button Animation */
+@keyframes pulse-red-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(220, 38, 38, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+  }
+}
+
+.btn-stock-alert-active {
+  background-color: #fdf2f2 !important;
+  border-color: #f87171 !important;
+  color: #b91c1c !important;
+  animation: pulse-red-ring 2.2s infinite;
+}
+
+.btn-stock-alert-active:hover {
+  background-color: #fee2e2 !important;
+  border-color: #ef4444 !important;
+  color: #991b1b !important;
+}
+
 /* Custom Status Badges */
 .status-badge {
   display: inline-flex;
