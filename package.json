@@ -11,6 +11,9 @@
     "clear": "node src/seeders/clearData.js",
     "test": "node test/streamlined_test.js"
   },
+  "allowScripts": {
+    "sqlite3": true
+  },
   "keywords": [
     "printing",
     "order-management",

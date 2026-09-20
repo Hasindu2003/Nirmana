@@ -5,7 +5,24 @@ const config = require('./config');
 
 let sequelize;
 
-if (config.db.dialect === 'sqlite') {
+const dbUrl = process.env.DATABASE_URL || process.env.MYSQL_URL;
+
+if (dbUrl) {
+  sequelize = new Sequelize(dbUrl, {
+    dialect: 'mysql',
+    logging: config.nodeEnv === 'development' ? false : false,
+    pool: {
+      max: 10,
+      min: 0,
+      acquire: 30000,
+      idle: 10000,
+    },
+    define: {
+      timestamps: true,
+      underscored: false,
+    },
+  });
+} else if (config.db.dialect === 'sqlite') {
   const isVercel = Boolean(process.env.VERCEL);
   const storagePath = isVercel
     ? path.join('/tmp', 'nirmana.sqlite')

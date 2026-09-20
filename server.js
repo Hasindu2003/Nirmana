@@ -60,12 +60,28 @@ app.use((req, res, next) => {
   next();
 });
 
+// 5.1 Health Check (Guarantees instant 200 OK for uptime & Vercel verification)
+app.get(['/health', '/api/health'], (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    message: 'Nirmana service is operational',
+    environment: config.nodeEnv,
+    isVercel: Boolean(process.env.VERCEL),
+    dbDialect: config.db.dialect,
+    dbInitialized: isDbInitialized,
+    dbError: dbInitError ? dbInitError.message : null,
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // 5.5 Database Auto-Initialization (ensures DB & default admin exist on both serverless & local)
 let isDbInitialized = false;
 let initPromise = null;
+let dbInitError = null;
 
 async function ensureDbInitialized() {
-  if (isDbInitialized) return;
+  if (isDbInitialized) return true;
+  if (dbInitError) return false;
   if (!initPromise) {
     initPromise = (async () => {
       try {
@@ -88,9 +104,11 @@ async function ensureDbInitialized() {
           console.log('✓ Initialized default admin user (admin / Password123!).');
         }
         isDbInitialized = true;
+        return true;
       } catch (err) {
-        initPromise = null;
-        throw err;
+        console.error('Database connection / initialization failed:', err);
+        dbInitError = err;
+        return false;
       }
     })();
   }
@@ -98,13 +116,18 @@ async function ensureDbInitialized() {
 }
 
 app.use(async (req, res, next) => {
-  try {
-    await ensureDbInitialized();
-    next();
-  } catch (err) {
-    console.error('Database connection / initialization failed:', err);
-    next(err);
+  const ready = await ensureDbInitialized();
+  if (!ready && dbInitError) {
+    if (req.originalUrl && req.originalUrl.startsWith('/api/')) {
+      return res.status(500).json({
+        success: false,
+        message: 'Database connection failed: ' + dbInitError.message,
+        hint: 'On Vercel, connect a managed cloud MySQL database via environment variables: DB_DIALECT=mysql, DB_HOST, DB_USER, DB_PASS, DB_NAME (or DATABASE_URL).'
+      });
+    }
+    return next(new Error(`Database connection failed: ${dbInitError.message}. If running on Vercel, please configure cloud database environment variables.`));
   }
+  next();
 });
 
 // 6. Routes
