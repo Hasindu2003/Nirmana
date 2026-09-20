@@ -336,6 +336,7 @@ class QuickPrintController {
               mimeType: f.mimeType || driveMeta.mimeType,
               webViewLink: driveMeta.webViewLink,
               webContentLink: driveMeta.webContentLink,
+              paperSize: f.paperSize || paperSize || 'A4',
             });
           } catch (finErr) {
             console.warn('Finalize error for file:', finErr.message);
@@ -346,6 +347,7 @@ class QuickPrintController {
               mimeType: f.mimeType || 'application/octet-stream',
               webViewLink: `https://drive.google.com/file/d/${f.driveFileId}/view`,
               webContentLink: `https://drive.google.com/uc?id=${f.driveFileId}&export=download`,
+              paperSize: f.paperSize || paperSize || 'A4',
             });
           }
         }

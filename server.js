@@ -173,6 +173,13 @@ async function ensureDbInitialized() {
                 defaultValue: 'LOCAL',
               });
             }
+            if (!tableDesc.paperSize) {
+              await qi.addColumn('quick_print_files', 'paperSize', {
+                type: sequelize.Sequelize.STRING(50),
+                allowNull: true,
+                defaultValue: 'A4',
+              });
+            }
           }
         } catch (migErr) {
           // Non-fatal if table already updated

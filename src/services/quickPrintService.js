@@ -93,6 +93,28 @@ class QuickPrintService {
       }
 
       const tokenNumber = await this.generateTokenNumber(t);
+      // Parse per-file paper sizes if provided
+      let filePaperSizes = [];
+      if (data.filePaperSizes) {
+        try {
+          filePaperSizes = typeof data.filePaperSizes === 'string'
+            ? JSON.parse(data.filePaperSizes)
+            : data.filePaperSizes;
+        } catch (e) {
+          filePaperSizes = Array.isArray(data.filePaperSizes) ? data.filePaperSizes : [data.filePaperSizes];
+        }
+      }
+
+      // Calculate effective overall paper size
+      let effectivePaperSize = (data.paperSize || 'A4').trim();
+      if (filePaperSizes && filePaperSizes.length > 0) {
+        const uniqueSizes = [...new Set(filePaperSizes.map(s => (s || '').trim()).filter(Boolean))];
+        if (uniqueSizes.length > 1) {
+          effectivePaperSize = `Mixed (${uniqueSizes.join(', ')})`.substring(0, 100);
+        } else if (uniqueSizes.length === 1) {
+          effectivePaperSize = uniqueSizes[0];
+        }
+      }
 
       const job = await QuickPrintJob.create({
         tokenNumber,
@@ -101,7 +123,7 @@ class QuickPrintService {
         customerMessage: (data.customerMessage || data.message || '').trim() || null,
         colorMode: ['COLOR', 'BW', 'MIXED'].includes(data.colorMode) ? data.colorMode : 'NOT_SPECIFIED',
         copies: parseInt(data.copies, 10) > 0 ? parseInt(data.copies, 10) : 1,
-        paperSize: (data.paperSize || 'A4').trim(),
+        paperSize: effectivePaperSize,
         status: 'PENDING',
         customerId,
       }, { transaction: t });
@@ -110,7 +132,9 @@ class QuickPrintService {
       const fileRecords = [];
       const isDriveEnabled = googleDriveService.isConfigured();
 
-      for (const file of uploadedFiles) {
+      for (let i = 0; i < uploadedFiles.length; i++) {
+        const file = uploadedFiles[i];
+        const perFilePaperSize = (filePaperSizes && filePaperSizes[i]) || data.paperSize || 'A4';
         let driveFileId = null;
         let driveViewLink = null;
         let driveDownloadLink = null;
@@ -122,7 +146,7 @@ class QuickPrintService {
               file.path,
               `[${job.tokenNumber}] ${file.originalname}`,
               file.mimetype,
-              `Customer: ${customerName} (${customerPhone || 'N/A'}) - Token: ${job.tokenNumber}`
+              `Customer: ${customerName} (${customerPhone || 'N/A'}) - Token: ${job.tokenNumber} - Size: ${perFilePaperSize}`
             );
             if (driveUpload && driveUpload.id) {
               driveFileId = driveUpload.id;
@@ -148,6 +172,7 @@ class QuickPrintService {
           driveViewLink,
           driveDownloadLink,
           storageProvider,
+          paperSize: perFilePaperSize,
         }, { transaction: t });
         fileRecords.push(fileRecord);
       }
@@ -213,6 +238,16 @@ class QuickPrintService {
 
       const tokenNumber = await this.generateTokenNumber(t);
 
+      // Calculate effective overall paper size from driveFiles
+      let effectivePaperSize = (data.paperSize || 'A4').trim();
+      const drivePaperSizes = driveFiles.map(df => (df.paperSize || data.paperSize || 'A4').trim());
+      const uniqueSizes = [...new Set(drivePaperSizes.filter(Boolean))];
+      if (uniqueSizes.length > 1) {
+        effectivePaperSize = `Mixed (${uniqueSizes.join(', ')})`.substring(0, 100);
+      } else if (uniqueSizes.length === 1) {
+        effectivePaperSize = uniqueSizes[0];
+      }
+
       const job = await QuickPrintJob.create({
         tokenNumber,
         customerName,
@@ -220,13 +255,14 @@ class QuickPrintService {
         customerMessage: (data.customerMessage || data.message || '').trim() || null,
         colorMode: ['COLOR', 'BW', 'MIXED'].includes(data.colorMode) ? data.colorMode : 'NOT_SPECIFIED',
         copies: parseInt(data.copies, 10) > 0 ? parseInt(data.copies, 10) : 1,
-        paperSize: (data.paperSize || 'A4').trim(),
+        paperSize: effectivePaperSize,
         status: 'PENDING',
         customerId,
       }, { transaction: t });
 
       const fileRecords = [];
       for (const df of driveFiles) {
+        const perFilePaperSize = df.paperSize || data.paperSize || 'A4';
         const fileRecord = await QuickPrintFile.create({
           jobId: job.id,
           originalName: df.originalName || df.name || 'document',
@@ -239,6 +275,7 @@ class QuickPrintService {
           driveViewLink: df.webViewLink,
           driveDownloadLink: df.webContentLink,
           storageProvider: 'GDRIVE',
+          paperSize: perFilePaperSize,
         }, { transaction: t });
         fileRecords.push(fileRecord);
       }

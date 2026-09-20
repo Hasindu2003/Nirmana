@@ -58,6 +58,11 @@ const QuickPrintFile = sequelize.define('QuickPrintFile', {
     allowNull: false,
     defaultValue: 'LOCAL',
   },
+  paperSize: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+    defaultValue: 'A4',
+  },
 }, {
   tableName: 'quick_print_files',
   timestamps: true,

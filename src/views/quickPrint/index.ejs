@@ -666,7 +666,8 @@
         const a = document.createElement('a');
         a.className = 'nav-link btn-sm py-1 px-3 ' + (index === 0 ? 'active' : '');
         a.href = 'javascript:void(0)';
-        a.innerHTML = `<i class="bi bi-file-earmark me-1"></i> File ${index + 1}: <span class="text-truncate d-inline-block align-bottom" style="max-width: 140px;">${escapeHtml(file.originalName)}</span>`;
+        const fSize = file.paperSize || job.paperSize || 'A4';
+        a.innerHTML = `<i class="bi bi-file-earmark me-1"></i> File ${index + 1}: <span class="text-truncate d-inline-block align-bottom" style="max-width: 130px;">${escapeHtml(file.originalName)}</span> <span class="badge bg-secondary-subtle text-dark border ms-1" style="font-size: 0.68rem; font-weight: 600;">${escapeHtml(fSize)}</span>`;
         a.onclick = () => {
           navTabs.querySelectorAll('.nav-link').forEach(tab => tab.classList.remove('active'));
           a.classList.add('active');
@@ -706,6 +707,14 @@
     const mbSize = (file.fileSize / (1024 * 1024)).toFixed(2);
     const kbSize = (file.fileSize / 1024).toFixed(0);
     infoSize.textContent = mbSize > 0.05 ? `${mbSize} MB` : `${kbSize} KB`;
+
+    if (document.getElementById('previewModalSpecs') && currentPreviewJob) {
+      const activeSize = file.paperSize || currentPreviewJob.paperSize || 'A4';
+      document.getElementById('previewModalSpecs').innerHTML = 
+        `<i class="bi bi-copy me-1"></i>${currentPreviewJob.copies} ${currentPreviewJob.copies > 1 ? 'copies' : 'copy'} &bull; ` +
+        `<i class="bi ${currentPreviewJob.colorMode === 'COLOR' ? 'bi-palette-fill text-warning' : 'bi-circle-half'} me-1"></i>${currentPreviewJob.colorMode} &bull; ` +
+        `<i class="bi bi-file-earmark me-1"></i><span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0">${escapeHtml(activeSize)}</span>`;
+    }
 
     const viewUrl = file.id ? `/api/quick-print/files/${file.id}/view` : file.fileUrl;
     const downloadUrl = file.id ? `/api/quick-print/files/${file.id}/download` : file.fileUrl;

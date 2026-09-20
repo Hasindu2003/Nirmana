@@ -298,8 +298,9 @@
 
       <!-- 4. Paper Size Selection -->
       <div class="mb-3">
-        <label class="form-label fw-bold small text-muted text-uppercase mb-1">
-          4. Print Size එක (Paper Size) <span class="text-danger">*</span>
+        <label class="form-label fw-bold small text-muted text-uppercase mb-1 d-flex align-items-center justify-content-between">
+          <span>4. Print Size එක (Paper Size) <span class="text-danger">*</span></span>
+          <span id="multiFilesNotice" class="badge bg-secondary-subtle text-secondary fw-normal d-none" style="font-size: 0.72rem;">Default for all files</span>
         </label>
         <div class="pill-radio-group grid-sizes" id="paperSizeGroup">
           <input type="radio" id="sizeA4" name="paperSize" value="A4" checked>
@@ -486,7 +487,47 @@
     }
   });
 
-  // Paper size toggle custom input
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function getGlobalPaperSize() {
+    const checked = document.querySelector('input[name="paperSize"]:checked');
+    if (!checked) return 'A4';
+    if (checked.value === 'Other') {
+      const customVal = document.getElementById('customPaperSizeInput')?.value.trim();
+      return customVal || 'Other';
+    }
+    return checked.value;
+  }
+
+  function updateMultiFilesNotice() {
+    const notice = document.getElementById('multiFilesNotice');
+    if (!notice) return;
+    if (selectedFiles.length > 1) {
+      notice.classList.remove('d-none');
+    } else {
+      notice.classList.add('d-none');
+    }
+  }
+
+  function handleGlobalPaperSizeChange() {
+    const globalSize = getGlobalPaperSize();
+    // Update any file that hasn't been manually customized by the customer
+    selectedFiles.forEach(file => {
+      if (!file.hasCustomPaperSize) {
+        file.selectedPaperSize = globalSize;
+      }
+    });
+    renderFileList();
+  }
+
+  // Paper size toggle custom input & sync default
   document.querySelectorAll('input[name="paperSize"]').forEach(radio => {
     radio.addEventListener('change', (e) => {
       const customContainer = document.getElementById('customPaperSizeContainer');
@@ -497,8 +538,16 @@
       } else {
         customContainer.classList.add('d-none');
       }
+      handleGlobalPaperSizeChange();
     });
   });
+
+  const customPaperSizeInput = document.getElementById('customPaperSizeInput');
+  if (customPaperSizeInput) {
+    customPaperSizeInput.addEventListener('input', () => {
+      handleGlobalPaperSizeChange();
+    });
+  }
 
   // Dropzone click & drag handlers
   dropzoneBox.addEventListener('click', () => fileInput.click());
@@ -531,13 +580,17 @@
   });
 
   function handleFilesAdded(files) {
+    const defaultSize = getGlobalPaperSize();
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
       if (!selectedFiles.some(existing => existing.name === f.name && existing.size === f.size)) {
+        f.selectedPaperSize = defaultSize;
+        f.hasCustomPaperSize = false;
         selectedFiles.push(f);
       }
     }
     renderFileList();
+    updateMultiFilesNotice();
   }
 
   function formatBytes(bytes) {
@@ -550,27 +603,49 @@
 
   function renderFileList() {
     fileList.innerHTML = '';
-    if (selectedFiles.length === 0) return;
+    if (selectedFiles.length === 0) {
+      updateMultiFilesNotice();
+      return;
+    }
 
     selectedFiles.forEach((file, index) => {
       const item = document.createElement('div');
       item.className = 'file-preview-item';
 
-      const isImg = file.type.startsWith('image/');
+      const isImg = file.type && file.type.startsWith('image/');
       let thumbHtml = '';
       if (isImg) {
         const objectUrl = URL.createObjectURL(file);
         thumbHtml = `<img src="${objectUrl}" class="file-preview-thumb" alt="Thumbnail">`;
       } else {
-        const icon = file.type.includes('pdf') ? 'bi-filetype-pdf text-danger' : 'bi-file-earmark-text text-serene-primary';
+        const icon = (file.type && file.type.includes('pdf')) ? 'bi-filetype-pdf text-danger' : 'bi-file-earmark-text text-serene-primary';
         thumbHtml = `<div class="file-preview-thumb"><i class="bi ${icon}"></i></div>`;
       }
+
+      const curSize = file.selectedPaperSize || getGlobalPaperSize() || 'A4';
+      const standardSizes = ['A4', 'A3', 'Legal', 'A5'];
+      const isCustom = !standardSizes.includes(curSize);
 
       item.innerHTML = `
         ${thumbHtml}
         <div class="file-preview-info">
-          <div class="file-preview-name" title="${file.name}">${file.name}</div>
-          <div class="file-preview-size">${formatBytes(file.size)}</div>
+          <div class="file-preview-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</div>
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mt-1">
+            <div class="file-preview-size">${formatBytes(file.size)}</div>
+            <div class="d-flex align-items-center gap-1">
+              <span class="text-muted" style="font-size: 0.72rem; font-weight: 600;">Size:</span>
+              <select class="form-select form-select-sm py-0 px-1 border-secondary-subtle file-size-select" data-index="${index}" style="font-size: 0.75rem; height: 26px; border-radius: 6px; font-weight: 600; width: auto; max-width: 95px;">
+                <option value="A4" ${curSize === 'A4' ? 'selected' : ''}>A4</option>
+                <option value="A3" ${curSize === 'A3' ? 'selected' : ''}>A3</option>
+                <option value="Legal" ${curSize === 'Legal' ? 'selected' : ''}>Legal</option>
+                <option value="A5" ${curSize === 'A5' ? 'selected' : ''}>A5</option>
+                <option value="Other" ${isCustom ? 'selected' : ''}>Other...</option>
+              </select>
+              <input type="text" class="form-control form-control-sm py-0 px-1 file-custom-size-input ${isCustom ? '' : 'd-none'}" 
+                     data-index="${index}" placeholder="Size" value="${isCustom ? escapeHtml(curSize) : ''}" 
+                     style="font-size: 0.75rem; height: 26px; width: 65px; border-radius: 6px;">
+            </div>
+          </div>
         </div>
         <button type="button" class="btn-remove-file" title="Remove" data-index="${index}">
           <i class="bi bi-trash3-fill"></i>
@@ -585,8 +660,44 @@
         const idx = parseInt(btn.getAttribute('data-index'), 10);
         selectedFiles.splice(idx, 1);
         renderFileList();
+        updateMultiFilesNotice();
       });
     });
+
+    document.querySelectorAll('.file-size-select').forEach(select => {
+      select.addEventListener('change', (e) => {
+        const idx = parseInt(e.target.getAttribute('data-index'), 10);
+        const val = e.target.value;
+        const file = selectedFiles[idx];
+        if (!file) return;
+
+        const customInput = document.querySelector(`.file-custom-size-input[data-index="${idx}"]`);
+        if (val === 'Other') {
+          if (customInput) {
+            customInput.classList.remove('d-none');
+            customInput.focus();
+            file.selectedPaperSize = customInput.value.trim() || 'Other';
+          }
+        } else {
+          if (customInput) customInput.classList.add('d-none');
+          file.selectedPaperSize = val;
+        }
+        file.hasCustomPaperSize = true;
+      });
+    });
+
+    document.querySelectorAll('.file-custom-size-input').forEach(input => {
+      input.addEventListener('input', (e) => {
+        const idx = parseInt(e.target.getAttribute('data-index'), 10);
+        const file = selectedFiles[idx];
+        if (file) {
+          file.selectedPaperSize = e.target.value.trim() || 'Other';
+          file.hasCustomPaperSize = true;
+        }
+      });
+    });
+
+    updateMultiFilesNotice();
   }
 
   // Real-time phone input validation & error visibility
@@ -839,8 +950,10 @@
         if (f.type && f.type.startsWith('image/') && f.size > 3 * 1024 * 1024) {
           uploadStatusText.textContent = `Photo ${i + 1} Print Quality එකට Optimize කරනවා...`;
           const optimized = await optimizeImageIfLarge(f);
+          optimized.selectedPaperSize = f.selectedPaperSize || getGlobalPaperSize() || 'A4';
           processedFiles.push(optimized);
         } else {
+          f.selectedPaperSize = f.selectedPaperSize || getGlobalPaperSize() || 'A4';
           processedFiles.push(f);
         }
       }
@@ -882,6 +995,7 @@
           driveFiles.push(uploadedMeta);
         }
 
+        const filePaperSizes = processedFiles.map(f => f.selectedPaperSize || selectedPaperSize || 'A4');
         uploadStatusText.textContent = 'Order එක Counter එකට Save කරනවා...';
         const completeRes = await fetch(API_BASE + '/api/quick-print/complete-direct-upload', {
           method: 'POST',
@@ -893,7 +1007,11 @@
             colorMode,
             copies,
             paperSize: selectedPaperSize,
-            files: driveFiles,
+            files: driveFiles.map((df, idx) => ({
+              ...df,
+              paperSize: processedFiles[idx]?.selectedPaperSize || selectedPaperSize || 'A4',
+            })),
+            filePaperSizes,
           }),
         });
 
@@ -912,6 +1030,7 @@
 
       // Standard upload for small files under 3.5 MB
       uploadStatusText.textContent = 'Files Counter එකට Send වෙනවා...';
+      const filePaperSizes = processedFiles.map(f => f.selectedPaperSize || selectedPaperSize || 'A4');
       const formData = new FormData();
       formData.append('customerName', name);
       formData.append('customerPhone', phone);
@@ -919,6 +1038,7 @@
       formData.append('colorMode', colorMode);
       formData.append('copies', copies);
       formData.append('paperSize', selectedPaperSize);
+      formData.append('filePaperSizes', JSON.stringify(filePaperSizes));
 
       processedFiles.forEach(file => {
         formData.append('files', file);
