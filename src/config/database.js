@@ -18,7 +18,21 @@ const dbUrl = process.env.DATABASE_URL || process.env.MYSQL_URL;
 
 if (dbUrl) {
   try {
-    const isCloudDb = !dbUrl.includes('localhost') && !dbUrl.includes('127.0.0.1');
+    // Strip query parameters like ?ssl={"rejectUnauthorized":true} or ?sslaccept=strict
+    // mysql2 treats ?ssl=XYZ as a named profile instead of options and fails with:
+    // "Unknown SSL profile '{"rejectUnauthorized":true}'"
+    let cleanUrl = dbUrl;
+    cleanUrl = cleanUrl.replace(/[?&]ssl=[^&]*/gi, '');
+    cleanUrl = cleanUrl.replace(/[?&]sslaccept=[^&]*/gi, '');
+    cleanUrl = cleanUrl.replace(/[?&]sslmode=[^&]*/gi, '');
+    if (cleanUrl.endsWith('?')) {
+      cleanUrl = cleanUrl.slice(0, -1);
+    }
+    if (!cleanUrl.includes('?') && cleanUrl.includes('&')) {
+      cleanUrl = cleanUrl.replace('&', '?');
+    }
+
+    const isCloudDb = !cleanUrl.includes('localhost') && !cleanUrl.includes('127.0.0.1');
     const dialectOptions = {};
     if (isCloudDb || process.env.DB_SSL === 'true') {
       dialectOptions.ssl = {
@@ -27,7 +41,7 @@ if (dbUrl) {
       };
     }
 
-    sequelize = new Sequelize(dbUrl, {
+    sequelize = new Sequelize(cleanUrl, {
       dialect: 'mysql',
       dialectOptions,
       logging: config.nodeEnv === 'development' ? false : false,

@@ -67,7 +67,7 @@ app.get(['/health', '/api/health'], (req, res) => {
     message: 'Nirmana service is operational',
     environment: config.nodeEnv,
     isVercel: Boolean(process.env.VERCEL),
-    dbDialect: config.db.dialect,
+    dbDialect: sequelize && typeof sequelize.getDialect === 'function' ? sequelize.getDialect() : config.db.dialect,
     dbInitialized: isDbInitialized,
     dbError: dbInitError ? dbInitError.message : null,
     timestamp: new Date().toISOString(),
