@@ -2,15 +2,30 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Ensure destination directory exists
-const uploadDir = path.join(__dirname, '../../public/uploads/quick-print');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+// Ensure destination directory exists (use /tmp on serverless environments like Vercel)
+const isVercel = Boolean(process.env.VERCEL);
+const uploadDir = isVercel
+  ? path.join('/tmp', 'uploads', 'quick-print')
+  : path.join(__dirname, '../../public/uploads/quick-print');
+
+try {
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+} catch (err) {
+  console.warn('Warning: Could not create upload directory:', err.message);
 }
 
 // Storage engine
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    try {
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+    } catch (e) {
+      // ignore
+    }
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {

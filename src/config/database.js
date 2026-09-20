@@ -6,14 +6,23 @@ const config = require('./config');
 let sequelize;
 
 if (config.db.dialect === 'sqlite') {
-  const dbDir = path.dirname(path.resolve(config.db.storage));
-  if (!fs.existsSync(dbDir)) {
-    fs.mkdirSync(dbDir, { recursive: true });
+  const isVercel = Boolean(process.env.VERCEL);
+  const storagePath = isVercel
+    ? path.join('/tmp', 'nirmana.sqlite')
+    : config.db.storage;
+
+  const dbDir = path.dirname(path.resolve(storagePath));
+  try {
+    if (!fs.existsSync(dbDir)) {
+      fs.mkdirSync(dbDir, { recursive: true });
+    }
+  } catch (err) {
+    console.warn('Warning: Could not create database directory:', err.message);
   }
 
   sequelize = new Sequelize({
     dialect: 'sqlite',
-    storage: config.db.storage,
+    storage: storagePath,
     logging: config.nodeEnv === 'development' ? false : false, // set to console.log if debugging SQL queries
     define: {
       timestamps: true,

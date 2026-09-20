@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const session = require('express-session');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
@@ -12,6 +13,9 @@ const viewRoutes = require('./src/routes/viewRoutes');
 const errorHandler = require('./src/middleware/errorHandler');
 
 const app = express();
+
+// Trust reverse proxies (essential for Vercel HTTPS & secure cookies)
+app.set('trust proxy', 1);
 
 // 1. Basic Middleware
 app.use(cors());
@@ -33,11 +37,17 @@ app.use(session({
 }));
 
 // 3. Static Files
+if (process.env.VERCEL) {
+  app.use('/uploads', express.static(path.join('/tmp', 'uploads')));
+}
 app.use(express.static(path.join(__dirname, 'public')));
 
 // 4. View Engine (EJS)
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'src', 'views'));
+const viewsPath = fs.existsSync(path.join(__dirname, 'src', 'views'))
+  ? path.join(__dirname, 'src', 'views')
+  : path.join(process.cwd(), 'src', 'views');
+app.set('views', viewsPath);
 
 // 5. Global View Variables (Safe Defaults)
 app.use((req, res, next) => {
@@ -48,6 +58,53 @@ app.use((req, res, next) => {
   res.locals.activePage = '';
   res.locals.title = 'Nirmana Printing Management System';
   next();
+});
+
+// 5.5 Database Auto-Initialization (ensures DB & default admin exist on both serverless & local)
+let isDbInitialized = false;
+let initPromise = null;
+
+async function ensureDbInitialized() {
+  if (isDbInitialized) return;
+  if (!initPromise) {
+    initPromise = (async () => {
+      try {
+        await sequelize.authenticate();
+        await sequelize.sync();
+
+        // Seed default admin if User table is empty (e.g. fresh ephemeral /tmp SQLite on Vercel)
+        const { User } = require('./src/models');
+        const adminCount = await User.count().catch(() => 0);
+        if (adminCount === 0) {
+          await User.create({
+            username: 'admin',
+            email: 'admin@nirmana.lk',
+            password: 'Password123!',
+            fullName: 'Nirmana Shop Manager',
+            role: 'ADMIN',
+            phone: '0771234567',
+            isActive: true,
+          });
+          console.log('✓ Initialized default admin user (admin / Password123!).');
+        }
+        isDbInitialized = true;
+      } catch (err) {
+        initPromise = null;
+        throw err;
+      }
+    })();
+  }
+  return initPromise;
+}
+
+app.use(async (req, res, next) => {
+  try {
+    await ensureDbInitialized();
+    next();
+  } catch (err) {
+    console.error('Database connection / initialization failed:', err);
+    next(err);
+  }
 });
 
 // 6. Routes
@@ -73,14 +130,8 @@ app.use(errorHandler);
 // 9. Database Connection & Start Server
 const startServer = async () => {
   try {
-    await sequelize.authenticate();
+    await ensureDbInitialized();
     console.log(`✓ Database connection established successfully (${config.db.dialect}).`);
-
-    // Sync new QuickPrint tables safely without affecting existing data
-    const { QuickPrintJob, QuickPrintFile } = require('./src/models');
-    await QuickPrintJob.sync();
-    await QuickPrintFile.sync();
-    console.log('✓ Quick Print database tables synchronized.');
 
     const { getPrimaryLanIp } = require('./src/utils/network');
     const lanIp = getPrimaryLanIp();
