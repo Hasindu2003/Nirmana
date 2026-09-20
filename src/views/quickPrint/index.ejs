@@ -373,44 +373,36 @@
 
           <!-- Right: Controls & Dynamic Host Settings -->
           <div class="col-md-7">
-            <h6 class="fw-bold mb-2">Live Customer Upload URL</h6>
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                <i class="bi bi-broadcast me-1"></i> Express Mobile Intake
+              </span>
+              <span class="text-muted small">Instant Customer Upload</span>
+            </div>
+            <h6 class="fw-bold mb-1">Customer QR Upload Address</h6>
             <p class="text-muted small mb-3">
-              This QR code directs customers to your self-service upload page. It automatically adapts to your current host or domain.
+              Customers point their smartphone camera at this QR code to immediately upload documents and photos to your counter.
             </p>
 
             <div class="mb-3">
-              <label class="form-label small fw-bold text-muted mb-1">Network & Phone Access:</label>
-              <div class="p-2 rounded bg-light border mb-2">
-                <% if (typeof availableIps !== 'undefined' && availableIps.length > 0) { %>
-                  <% availableIps.forEach((ip, idx) => { %>
-                    <div class="form-check mb-1">
-                      <input class="form-check-input network-ip-radio" type="radio" name="networkIpChoice" id="netIp<%= idx %>" 
-                             value="http://<%= ip.address %>:<%= defaultUploadUrl.split(':')[2] ? defaultUploadUrl.split(':')[2].split('/')[0] : '3000' %>/upload" 
-                             <%= defaultUploadUrl.includes(ip.address) || idx === 0 ? 'checked' : '' %>>
-                      <label class="form-check-label small" for="netIp<%= idx %>">
-                        <strong><%= ip.name %>: <%= ip.address %></strong>
-                        <span class="badge bg-success-subtle text-success ms-1">Same Wi-Fi Phone Access</span>
-                      </label>
-                    </div>
-                  <% }) %>
-                <% } %>
-                <div class="form-check">
-                  <input class="form-check-input network-ip-radio" type="radio" name="networkIpChoice" id="netIpCustom" value="custom">
-                  <label class="form-check-label small" for="netIpCustom">
-                    Custom Domain / Cloud Tunnel (e.g. ngrok or custom domain)
-                  </label>
-                </div>
-              </div>
-
-              <label class="form-label small fw-bold text-muted">Active QR Destination URL:</label>
-              <div class="input-group">
-                <input type="text" class="form-control" id="customQrUrlInput" value="<%= defaultUploadUrl %>">
-                <button class="btn btn-outline-secondary" type="button" id="copyUrlBtn" title="Copy to clipboard">
-                  <i class="bi bi-clipboard"></i> Copy
+              <label class="form-label small fw-bold text-secondary mb-1">Upload Portal URL:</label>
+              <div class="input-group shadow-xs">
+                <span class="input-group-text bg-light text-primary border-end-0">
+                  <i class="bi bi-link-45deg fs-5"></i>
+                </span>
+                <input type="text" class="form-control fw-semibold font-monospace border-start-0 border-end-0 bg-white" 
+                       id="customQrUrlInput" value="<%= defaultUploadUrl %>" placeholder="https://your-domain.com/upload">
+                <button class="btn btn-outline-secondary px-3" type="button" id="copyUrlBtn" title="Copy to clipboard">
+                  <i class="bi bi-clipboard me-1"></i> Copy
                 </button>
               </div>
-              <div class="form-text small" style="font-size: 0.75rem;">
-                <span class="text-success"><i class="bi bi-wifi"></i> Phones connected to the shop Wi-Fi will open this link directly.</span>
+              <div class="d-flex align-items-center justify-content-between mt-2">
+                <span class="text-muted small" style="font-size: 0.8rem;">
+                  <i class="bi bi-check-circle-fill text-success me-1"></i> Direct link encoded in the QR code
+                </span>
+                <button class="btn btn-link btn-sm text-decoration-none p-0 text-secondary small" type="button" id="resetToOriginBtn" title="Reset to current website URL">
+                  <i class="bi bi-arrow-clockwise me-1"></i> Current Site URL
+                </button>
               </div>
             </div>
 
@@ -455,6 +447,7 @@
       <div style="font-size: 13px; font-weight: 700; color: #64748b; margin-top: 10px; letter-spacing: 0.05em; text-transform: uppercase;">
         Scan with Phone Camera
       </div>
+      <div id="flyerUrlText" style="font-size: 14px; font-weight: 700; color: #2d6a68; margin-top: 6px; font-family: monospace;"></div>
     </div>
 
     <div style="text-align: left; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
@@ -927,31 +920,32 @@
   const printFlyerBtn = document.getElementById('printFlyerBtn');
   const flyerQrImage = document.getElementById('flyerQrImage');
 
-  // Connect radio buttons for network interfaces
-  document.querySelectorAll('.network-ip-radio').forEach(radio => {
-    radio.addEventListener('change', (e) => {
-      if (e.target.value !== 'custom') {
-        qrUrlInput.value = e.target.value;
-        loadQrCode(qrUrlInput.value.trim());
-      } else {
-        qrUrlInput.focus();
-      }
-    });
-  });
+  const flyerUrlText = document.getElementById('flyerUrlText');
+  const resetToOriginBtn = document.getElementById('resetToOriginBtn');
 
-  if (!qrUrlInput.value) {
-    qrUrlInput.value = `<%= defaultUploadUrl %>`;
+  // Smart Initial URL:
+  // Automatically gives the nice, clean active web address (e.g. https://nirmana-iota.vercel.app/upload)
+  function getCleanUploadUrl() {
+    if (window.location.origin && window.location.origin.startsWith('http')) {
+      return `${window.location.origin}/upload`;
+    }
+    return `<%= defaultUploadUrl %>` || `${window.location.origin}/upload`;
   }
 
+  const initialUrl = getCleanUploadUrl();
+  qrUrlInput.value = initialUrl;
+
   async function loadQrCode(targetUrl) {
+    const cleanUrl = (targetUrl || '').trim();
     try {
       qrContainer.innerHTML = '<div class="spinner-border text-primary" role="status"></div>';
-      const res = await fetch(`/api/quick-print/qr?url=${encodeURIComponent(targetUrl)}`);
+      const res = await fetch(`/api/quick-print/qr?url=${encodeURIComponent(cleanUrl)}`);
       const data = await res.json();
       if (data.success && data.qrDataUrl) {
         currentQrDataUrl = data.qrDataUrl;
         qrContainer.innerHTML = `<img src="${data.qrDataUrl}" alt="Counter QR Code" style="width: 240px; height: 240px; border-radius: 8px;">`;
-        flyerQrImage.src = data.qrDataUrl;
+        if (flyerQrImage) flyerQrImage.src = data.qrDataUrl;
+        if (flyerUrlText) flyerUrlText.textContent = cleanUrl;
       }
     } catch (e) {
       qrContainer.innerHTML = '<span class="text-danger">Failed to generate QR</span>';
@@ -963,17 +957,23 @@
 
   // Dynamic QR update on input change
   qrUrlInput.addEventListener('input', () => {
-    const customRadio = document.getElementById('netIpCustom');
-    if (customRadio) customRadio.checked = true;
     loadQrCode(qrUrlInput.value.trim());
   });
+
+  // Reset to Current Site URL
+  if (resetToOriginBtn) {
+    resetToOriginBtn.addEventListener('click', () => {
+      qrUrlInput.value = `${window.location.origin}/upload`;
+      loadQrCode(qrUrlInput.value.trim());
+    });
+  }
 
   // Copy URL button
   copyUrlBtn.addEventListener('click', () => {
     navigator.clipboard.writeText(qrUrlInput.value.trim()).then(() => {
       copyUrlBtn.innerHTML = '<i class="bi bi-check-lg text-success"></i> Copied!';
       setTimeout(() => {
-        copyUrlBtn.innerHTML = '<i class="bi bi-clipboard"></i> Copy';
+        copyUrlBtn.innerHTML = '<i class="bi bi-clipboard me-1"></i> Copy';
       }, 2000);
     });
   });
