@@ -323,7 +323,7 @@ async function handleStockOutSubmit(e) {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function initFooterScripts() {
   loadStockDropdowns();
 
   // Update Quick Print pending badge in sidebar
@@ -348,8 +348,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   updateSidebarQuickPrintBadge();
-  setInterval(updateSidebarQuickPrintBadge, 15000);
-});
+  if (window._quickPrintBadgeInterval) {
+    clearInterval(window._quickPrintBadgeInterval);
+  }
+  window._quickPrintBadgeInterval = setInterval(updateSidebarQuickPrintBadge, 15000);
+}
+
+document.addEventListener('DOMContentLoaded', initFooterScripts);
+document.addEventListener('turbo:load', initFooterScripts);
 </script>
 </body>
 </html>

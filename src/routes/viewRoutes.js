@@ -54,7 +54,7 @@ router.get('/orders', async (req, res, next) => {
       search,
       customerId,
       page: parseInt(page, 10) || 1,
-      limit: parseInt(limit, 10) || 10,
+      limit: parseInt(limit, 10) || 50,
       paginate: true,
     });
     res.render('orders/index', {
@@ -215,7 +215,7 @@ router.get('/quick-print', async (req, res, next) => {
     const status = req.query.status || 'PENDING';
     const search = req.query.search || '';
     const [jobs, stats] = await Promise.all([
-      quickPrintService.getAllJobs({ status, search }),
+      quickPrintService.getAllJobs({ status: 'ALL', search }),
       quickPrintService.getQueueStats(),
     ]);
 

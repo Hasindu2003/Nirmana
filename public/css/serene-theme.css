@@ -1294,3 +1294,11 @@ textarea,
 textarea.form-control {
   resize: none !important;
 }
+
+/* Hotwire Turbo Seamless SPA Navigation */
+.turbo-progress-bar {
+  height: 3px !important;
+  background: var(--serene-primary) !important;
+  box-shadow: 0 0 10px rgba(45, 106, 104, 0.6) !important;
+  z-index: 99999 !important;
+}

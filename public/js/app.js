@@ -255,7 +255,7 @@ window.alert = function(msg) {
 /**
  * DOM Ready Initializations
  */
-document.addEventListener('DOMContentLoaded', () => {
+function initSereneApp() {
   // A. Check and display any pending toast from previous page action / redirect
   try {
     const pending = sessionStorage.getItem('serene_pending_toast');
@@ -290,7 +290,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.style.overflow = '';
   }
 
-  if (sidebarToggle) {
+  if (sidebarToggle && !sidebarToggle.dataset.bound) {
+    sidebarToggle.dataset.bound = 'true';
     sidebarToggle.addEventListener('click', (e) => {
       e.stopPropagation();
       if (sidebar && sidebar.classList.contains('open')) {
@@ -301,21 +302,26 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  if (sidebarClose) {
+  if (sidebarClose && !sidebarClose.dataset.bound) {
+    sidebarClose.dataset.bound = 'true';
     sidebarClose.addEventListener('click', closeSidebar);
   }
 
-  if (sidebarBackdrop) {
+  if (sidebarBackdrop && !sidebarBackdrop.dataset.bound) {
+    sidebarBackdrop.dataset.bound = 'true';
     sidebarBackdrop.addEventListener('click', closeSidebar);
   }
 
   if (sidebar) {
     sidebar.querySelectorAll('.nav-item-link').forEach(link => {
-      link.addEventListener('click', () => {
-        if (window.innerWidth < 992) {
-          closeSidebar();
-        }
-      });
+      if (!link.dataset.bound) {
+        link.dataset.bound = 'true';
+        link.addEventListener('click', () => {
+          if (window.innerWidth < 992) {
+            closeSidebar();
+          }
+        });
+      }
     });
   }
 
@@ -333,30 +339,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
 
-  // D. Status Transition Trigger helper with Serene Dialog Prompt
-  window.updateOrderStatus = async (orderId, newStatus) => {
-    const notes = await window.serenePrompt({
-      title: 'Transition Order Status',
-      message: `Moving order to status: <span class="badge bg-light text-dark border">${newStatus}</span>`,
-      label: 'Production Notes / Reason (Optional):',
-      placeholder: 'e.g. Printing completed on Canon press',
-      defaultValue: '',
-      confirmText: `Move to ${newStatus}`,
-      cancelText: 'Cancel',
-    });
-
-    if (notes === null) return; // cancelled
-
+  // D. Quick Order Status Update helper
+  window.updateOrderStatus = async function(orderId, newStatus) {
     try {
       const res = await fetch(`/api/orders/${orderId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus, notes }),
+        body: JSON.stringify({ status: newStatus }),
       });
       const data = await res.json();
       if (data.success) {
-        window.setPendingToast(data.message || `Order transitioned to ${newStatus}`, 'success');
-        window.location.reload();
+        window.setPendingToast(`Order #${orderId} status updated to ${newStatus}`, 'success');
+        if (window.Turbo) {
+          window.Turbo.visit(window.location.href);
+        } else {
+          window.location.reload();
+        }
       } else {
         window.toast.error('Status transition failed: ' + data.message);
       }
@@ -367,7 +365,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // E. Quick Record Payment modal submission
   const paymentForm = document.getElementById('quickPaymentForm');
-  if (paymentForm) {
+  if (paymentForm && !paymentForm.dataset.bound) {
+    paymentForm.dataset.bound = 'true';
     paymentForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const orderId = document.getElementById('paymentOrderId').value;
@@ -385,7 +384,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await res.json();
         if (data.success) {
           window.setPendingToast('Payment recorded successfully!', 'success');
-          window.location.reload();
+          if (window.Turbo) {
+            window.Turbo.visit(window.location.href);
+          } else {
+            window.location.reload();
+          }
         } else {
           window.toast.error('Payment failed: ' + data.message);
         }
@@ -394,4 +397,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
-});
+}
+
+document.addEventListener('DOMContentLoaded', initSereneApp);
+document.addEventListener('turbo:load', initSereneApp);

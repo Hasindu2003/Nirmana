@@ -139,15 +139,15 @@
 
     <!-- 2 Primary Filter Tabs: Pending vs Completed -->
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
-      <ul class="nav nav-pills custom-pills gap-2">
+      <ul class="nav nav-pills custom-pills gap-2" id="queueStatusTabs">
         <li class="nav-item">
-          <a class="nav-link <%= currentStatus === 'PENDING' ? 'active' : '' %>" href="/quick-print?status=PENDING">
+          <a class="nav-link <%= currentStatus === 'PENDING' ? 'active' : '' %>" href="/quick-print?status=PENDING" data-status-filter="PENDING" id="tabFilterPending">
             <i class="bi bi-hourglass-split me-1"></i> Pending Orders 
             <span class="badge rounded-pill bg-danger ms-1" id="tabPendingBadge"><%= stats.pending %></span>
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link <%= currentStatus === 'COMPLETED' ? 'active' : '' %>" href="/quick-print?status=COMPLETED">
+          <a class="nav-link <%= currentStatus === 'COMPLETED' ? 'active' : '' %>" href="/quick-print?status=COMPLETED" data-status-filter="COMPLETED" id="tabFilterCompleted">
             <i class="bi bi-check2-all me-1"></i> Completed Orders 
             <span class="badge rounded-pill bg-secondary ms-1" id="tabCompletedBadge"><%= stats.completedToday %></span>
           </a>
@@ -172,6 +172,7 @@
           <% jobs.forEach(job => { %>
             <div class="job-card-wrapper w-100 transition-all position-relative" 
                  id="job-card-<%= job.id %>" 
+                 data-status="<%= job.status %>"
                  data-token="<%= (job.tokenNumber || '').toLowerCase() %>"
                  data-name="<%= (job.customerName || '').toLowerCase() %>"
                  data-phone="<%= (job.customerPhone || '').toLowerCase() %>"
@@ -966,13 +967,14 @@
   }
 
   // Live polling for queue updates every 5s
-  // Real-time instant search filter (0ms client-side filtering)
+  // Real-time instant in-memory tab switching (0ms) & search filter
   const searchInput = document.getElementById('queueSearchInput');
   const clearBtn = document.getElementById('clearSearchBtn');
   const noResultsBox = document.getElementById('searchNoResults');
   const searchKeywordDisplay = document.getElementById('searchKeywordDisplay');
+  let activeTabStatus = '<%= currentStatus %>' || 'PENDING';
 
-  function applyRealtimeSearch() {
+  function applyCombinedFilter() {
     const rawVal = searchInput ? searchInput.value : '';
     const term = rawVal.trim().toLowerCase();
     const cards = document.querySelectorAll('.job-card-wrapper');
@@ -983,6 +985,14 @@
     }
 
     cards.forEach(card => {
+      const cardStatus = card.getAttribute('data-status') || 'PENDING';
+      const statusMatches = (activeTabStatus === 'ALL') || (cardStatus === activeTabStatus);
+
+      if (!statusMatches) {
+        card.style.display = 'none';
+        return;
+      }
+
       if (!term) {
         card.style.display = '';
         visibleCount++;
@@ -1016,9 +1026,11 @@
     });
 
     if (noResultsBox) {
-      if (term && visibleCount === 0 && cards.length > 0) {
+      if (visibleCount === 0 && cards.length > 0) {
         noResultsBox.style.display = 'block';
-        if (searchKeywordDisplay) searchKeywordDisplay.textContent = rawVal.trim();
+        if (searchKeywordDisplay) {
+          searchKeywordDisplay.textContent = term ? `"${rawVal.trim()}"` : `in ${activeTabStatus.toLowerCase()} orders`;
+        }
       } else {
         noResultsBox.style.display = 'none';
       }
@@ -1028,28 +1040,48 @@
   function clearSearchFilter() {
     if (searchInput) {
       searchInput.value = '';
-      applyRealtimeSearch();
+      applyCombinedFilter();
       searchInput.focus();
     }
   }
 
   if (searchInput) {
-    searchInput.addEventListener('input', applyRealtimeSearch);
+    searchInput.addEventListener('input', applyCombinedFilter);
   }
 
   if (clearBtn) {
     clearBtn.addEventListener('click', clearSearchFilter);
   }
 
-  // Trigger search on page load if search parameter was in URL
-  if (searchInput && searchInput.value.trim()) {
-    applyRealtimeSearch();
-  }
+  // Bind click handlers to tabs for 0ms in-memory instant switching
+  document.querySelectorAll('#queueStatusTabs .nav-link').forEach(tab => {
+    tab.addEventListener('click', (e) => {
+      e.preventDefault();
+      const targetStatus = tab.getAttribute('data-status-filter');
+      if (!targetStatus) return;
+
+      activeTabStatus = targetStatus;
+      currentViewStatus = targetStatus;
+
+      document.querySelectorAll('#queueStatusTabs .nav-link').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+
+      applyCombinedFilter();
+
+      // Silently update browser address bar without reload
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.set('status', targetStatus);
+      history.replaceState(null, '', newUrl.toString());
+    });
+  });
+
+  // Apply combined filter on initial load
+  applyCombinedFilter();
 
   // Live polling for queue updates every 5s
   async function pollQueue() {
     try {
-      const res = await fetch(`/api/quick-print/jobs?status=${encodeURIComponent(currentViewStatus)}`);
+      const res = await fetch(`/api/quick-print/jobs?status=${encodeURIComponent(activeTabStatus)}`);
       const result = await res.json();
 
       if (result.success) {
@@ -1059,7 +1091,7 @@
         }
 
         // Check for newly arrived pending jobs
-        if (currentViewStatus === 'PENDING') {
+        if (activeTabStatus === 'PENDING') {
           let hasNew = false;
           result.data.forEach(job => {
             if (!knownJobIds.has(job.id)) {
@@ -1070,10 +1102,13 @@
 
           if (hasNew) {
             playChime();
-            // Don't disrupt the user if they are currently typing in the search box
             const activeSearch = searchInput ? searchInput.value.trim() : '';
             if (!activeSearch) {
-              window.location.reload();
+              if (window.Turbo) {
+                window.Turbo.visit(window.location.href);
+              } else {
+                window.location.reload();
+              }
             }
           }
         }
@@ -1083,7 +1118,10 @@
     }
   }
 
-  setInterval(pollQueue, 5000);
+  if (window._quickPrintPollInterval) {
+    clearInterval(window._quickPrintPollInterval);
+  }
+  window._quickPrintPollInterval = setInterval(pollQueue, 5000);
 
   // Ensure dropdown menu in queue cards floats cleanly above all other cards
   document.addEventListener('show.bs.dropdown', function (e) {
