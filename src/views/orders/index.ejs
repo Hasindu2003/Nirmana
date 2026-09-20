@@ -125,14 +125,15 @@
 </main>
 
 <script>
-  let currentOrderStatus = '<%= currentStatus %>';
-  const orderSearchInput = document.getElementById('orderSearchInput');
-  const clearOrderSearchBtn = document.getElementById('clearOrderSearchBtn');
-  const tabButtons = document.querySelectorAll('.order-tab-btn');
-  const orderRows = document.querySelectorAll('.order-table-row');
-  const noOrdersRow = document.getElementById('noOrdersRow');
+(function() {
+  window.currentOrderStatus = '<%= currentStatus %>' || 'ALL';
 
-  function filterOrdersTable() {
+  window.filterOrdersTable = function() {
+    const orderSearchInput = document.getElementById('orderSearchInput');
+    const clearOrderSearchBtn = document.getElementById('clearOrderSearchBtn');
+    const orderRows = document.querySelectorAll('.order-table-row');
+    const noOrdersRow = document.getElementById('noOrdersRow');
+
     const term = orderSearchInput ? orderSearchInput.value.trim().toLowerCase() : '';
     let visibleCount = 0;
 
@@ -144,7 +145,7 @@
       const status = row.getAttribute('data-status') || '';
       const searchData = row.getAttribute('data-search') || '';
 
-      const matchesStatus = currentOrderStatus === 'ALL' || status === currentOrderStatus;
+      const matchesStatus = window.currentOrderStatus === 'ALL' || status === window.currentOrderStatus;
       const matchesSearch = !term || searchData.includes(term);
 
       if (matchesStatus && matchesSearch) {
@@ -158,10 +159,11 @@
     if (noOrdersRow) {
       noOrdersRow.style.display = visibleCount === 0 ? '' : 'none';
     }
-  }
+  };
 
-  function switchOrderStatusTab(status, updateUrl = true) {
-    currentOrderStatus = status;
+  window.switchOrderStatusTab = function(status, updateUrl = true) {
+    window.currentOrderStatus = status;
+    const tabButtons = document.querySelectorAll('.order-tab-btn');
 
     tabButtons.forEach(btn => {
       const isTarget = btn.getAttribute('data-status') === status;
@@ -179,29 +181,62 @@
       window.history.pushState({ status }, '', url.toString());
     }
 
-    filterOrdersTable();
+    window.filterOrdersTable();
+  };
+
+  function initOrdersPage() {
+    const orderSearchInput = document.getElementById('orderSearchInput');
+    const clearOrderSearchBtn = document.getElementById('clearOrderSearchBtn');
+    if (!orderSearchInput && !document.getElementById('orderStatusTabs')) return;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const statusFromUrl = urlParams.get('status') || '<%= currentStatus %>' || 'ALL';
+    window.switchOrderStatusTab(statusFromUrl, false);
+
+    if (orderSearchInput && !orderSearchInput.dataset.ordersBound) {
+      orderSearchInput.dataset.ordersBound = 'true';
+      orderSearchInput.addEventListener('input', window.filterOrdersTable);
+    }
+
+    if (clearOrderSearchBtn && !clearOrderSearchBtn.dataset.ordersBound) {
+      clearOrderSearchBtn.dataset.ordersBound = 'true';
+      clearOrderSearchBtn.addEventListener('click', () => {
+        orderSearchInput.value = '';
+        window.filterOrdersTable();
+        orderSearchInput.focus();
+      });
+    }
   }
 
-  if (orderSearchInput) {
-    orderSearchInput.addEventListener('input', filterOrdersTable);
-  }
-
-  if (clearOrderSearchBtn) {
-    clearOrderSearchBtn.addEventListener('click', () => {
-      orderSearchInput.value = '';
-      filterOrdersTable();
-      orderSearchInput.focus();
+  // Delegated click listener so tab button clicks ALWAYS trigger even across Turbo transitions
+  if (!window._ordersTabDelegationAttached) {
+    window._ordersTabDelegationAttached = true;
+    document.addEventListener('click', function(e) {
+      const btn = e.target.closest('.order-tab-btn');
+      if (btn) {
+        const status = btn.getAttribute('data-status');
+        if (status && typeof window.switchOrderStatusTab === 'function') {
+          window.switchOrderStatusTab(status);
+        }
+      }
     });
   }
 
-  window.addEventListener('popstate', () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const status = urlParams.get('status') || 'ALL';
-    switchOrderStatusTab(status, false);
-  });
+  if (!window._ordersPopstateAttached) {
+    window._ordersPopstateAttached = true;
+    window.addEventListener('popstate', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const status = urlParams.get('status') || 'ALL';
+      if (typeof window.switchOrderStatusTab === 'function') {
+        window.switchOrderStatusTab(status, false);
+      }
+    });
+  }
 
-  // Initial filter run
-  filterOrdersTable();
+  initOrdersPage();
+  document.addEventListener('turbo:load', initOrdersPage);
+  document.addEventListener('DOMContentLoaded', initOrdersPage);
+})();
 </script>
 
 <%- include('../partials/footer') %>

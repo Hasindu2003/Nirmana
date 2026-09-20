@@ -604,21 +604,21 @@
 </script>
 
 <script>
-  let currentViewStatus = '<%= currentStatus %>';
-  let knownJobIds = new Set([<%= jobs.map(j => j.id).join(',') %>]);
-  let soundEnabled = true;
-  let currentQrDataUrl = '';
+  var currentViewStatus = '<%= currentStatus %>';
+  var knownJobIds = new Set([<%= jobs.map(j => j.id).join(',') %>]);
+  var soundEnabled = true;
+  var currentQrDataUrl = '';
 
   // Client-side cache of jobs for immediate document preview
-  let quickPrintJobsData = [];
+  var quickPrintJobsData = [];
   try {
     quickPrintJobsData = JSON.parse(document.getElementById('quickPrintJobsJson').textContent);
   } catch (e) {
     quickPrintJobsData = [];
   }
 
-  let currentPreviewJob = null;
-  let currentPreviewActiveFile = null;
+  var currentPreviewJob = null;
+  var currentPreviewActiveFile = null;
 
   // Open pop-up document preview window
   function openDocumentPreviewModal(jobId) {
@@ -1031,15 +1031,7 @@
   // -------------------------------------------------------------
   // Instant In-Memory Tab Switching & Real-Time Search (0ms)
   // -------------------------------------------------------------
-  const searchInput = document.getElementById('queueSearchInput');
-  const clearBtn = document.getElementById('clearSearchBtn');
-  const noResultsBox = document.getElementById('searchNoResults');
-  const searchKeywordDisplay = document.getElementById('searchKeywordDisplay');
-  const emptyBox = document.getElementById('queueEmptyState');
-  const emptyTitle = document.getElementById('emptyStateTitle');
-  const emptySubtitle = document.getElementById('emptyStateSubtitle');
-
-  function switchQuickPrintTab(newStatus, updateUrl = true) {
+  window.switchQuickPrintTab = function(newStatus, updateUrl = true) {
     currentViewStatus = newStatus;
 
     // 1. Toggle Tab Button classes instantly (0ms)
@@ -1057,16 +1049,43 @@
 
     // 3. Filter the in-memory cards instantly (0ms)
     applyRealtimeSearch();
+  };
+
+  // Delegated tab click listener across Turbo navigation
+  if (!window._qpTabDelegationAttached) {
+    window._qpTabDelegationAttached = true;
+    document.addEventListener('click', function(e) {
+      const btn = e.target.closest('#tabPendingBtn, #tabCompletedBtn');
+      if (btn) {
+        const isPending = btn.id === 'tabPendingBtn';
+        if (typeof window.switchQuickPrintTab === 'function') {
+          window.switchQuickPrintTab(isPending ? 'PENDING' : 'COMPLETED');
+        }
+      }
+    });
   }
 
   // Handle browser Back / Forward buttons without reloading
-  window.addEventListener('popstate', () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const statusFromUrl = urlParams.get('status') || 'PENDING';
-    switchQuickPrintTab(statusFromUrl, false);
-  });
+  if (!window._qpPopstateAttached) {
+    window._qpPopstateAttached = true;
+    window.addEventListener('popstate', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const statusFromUrl = urlParams.get('status') || 'PENDING';
+      if (typeof window.switchQuickPrintTab === 'function') {
+        window.switchQuickPrintTab(statusFromUrl, false);
+      }
+    });
+  }
 
   function applyRealtimeSearch() {
+    const searchInput = document.getElementById('queueSearchInput');
+    const clearBtn = document.getElementById('clearSearchBtn');
+    const noResultsBox = document.getElementById('searchNoResults');
+    const searchKeywordDisplay = document.getElementById('searchKeywordDisplay');
+    const emptyBox = document.getElementById('queueEmptyState');
+    const emptyTitle = document.getElementById('emptyStateTitle');
+    const emptySubtitle = document.getElementById('emptyStateSubtitle');
+
     const rawVal = searchInput ? searchInput.value : '';
     const term = rawVal.trim().toLowerCase();
     const cards = document.querySelectorAll('.job-card-wrapper');
@@ -1147,19 +1166,24 @@
   }
 
   function clearSearchFilter() {
-    if (searchInput) {
-      searchInput.value = '';
+    const input = document.getElementById('queueSearchInput');
+    if (input) {
+      input.value = '';
       applyRealtimeSearch();
-      searchInput.focus();
+      input.focus();
     }
   }
 
-  if (searchInput) {
-    searchInput.addEventListener('input', applyRealtimeSearch);
+  const liveSearchInput = document.getElementById('queueSearchInput');
+  if (liveSearchInput && !liveSearchInput.dataset.qpBound) {
+    liveSearchInput.dataset.qpBound = 'true';
+    liveSearchInput.addEventListener('input', applyRealtimeSearch);
   }
 
-  if (clearBtn) {
-    clearBtn.addEventListener('click', clearSearchFilter);
+  const liveClearBtn = document.getElementById('clearSearchBtn');
+  if (liveClearBtn && !liveClearBtn.dataset.qpBound) {
+    liveClearBtn.dataset.qpBound = 'true';
+    liveClearBtn.addEventListener('click', clearSearchFilter);
   }
 
   // Trigger search / initial tab layout on page load

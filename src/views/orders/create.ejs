@@ -227,7 +227,7 @@
 <%- include('../partials/footer') %>
 
 <script>
-let currentMode = '<%= customers.length === 0 ? "new" : "existing" %>';
+var currentMode = '<%= customers.length === 0 ? "new" : "existing" %>';
 
 function clearIfZero(input) {
   if (input.value === '0' || input.value === '0.00' || parseFloat(input.value) === 0) {
