@@ -28,7 +28,7 @@
           </button>
         <% } else if (order.status === 'PRINTING') { %>
           <button class="btn btn-serene-primary" onclick="setOrderStatus(<%= order.id %>, 'READY')">
-            <i class="bi bi-box-seam"></i> Mark Ready for Pickup
+            <i class="bi bi-box-seam"></i> Mark Ready
           </button>
         <% } else if (order.status === 'READY') { %>
           <button class="btn btn-serene-primary" onclick="setOrderStatus(<%= order.id %>, 'COMPLETED')">
