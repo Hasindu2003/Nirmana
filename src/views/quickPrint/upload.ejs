@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title><%= title || 'Express Print Counter · Nirmana Printing' %></title>
+
+  <!-- Google Fonts: Plus Jakarta Sans, Manrope & Noto Sans Sinhala -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Noto+Sans+Sinhala:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Bootstrap 5.3 & Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+  <!-- Serene Theme & Custom Upload Styles -->
+  <link rel="stylesheet" href="/css/serene-theme.css">
+  <link rel="icon" type="image/png" href="/images/logo.png">
+
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', 'Noto Sans Sinhala', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding-bottom: 2rem;
+    }
+    .mobile-upload-container {
+      max-width: 560px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 1rem;
+    }
+    .kiosk-header {
+      text-align: center;
+      padding: 1.25rem 0 1rem;
+    }
+    .kiosk-logo {
+      height: 48px;
+      width: auto;
+      object-fit: contain;
+      margin-bottom: 0.75rem;
+    }
+    .kiosk-card {
+      background: #ffffff;
+      border-radius: 18px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.03);
+      padding: 1.5rem;
+    }
+    .dropzone-box {
+      border: 2px dashed #94a3b8;
+      background: #f8fafc;
+      border-radius: 14px;
+      padding: 1.5rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+    }
+    .dropzone-box:hover, .dropzone-box.dragover {
+      border-color: #2d6a68;
+      background: #e6f0ef;
+    }
+    .dropzone-icon {
+      font-size: 2.2rem;
+      color: #2d6a68;
+      margin-bottom: 0.35rem;
+    }
+    .file-preview-item {
+      display: flex;
+      align-items: center;
+      padding: 0.6rem 0.75rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      margin-bottom: 0.5rem;
+      gap: 0.75rem;
+    }
+    .file-preview-thumb {
+      width: 44px;
+      height: 44px;
+      border-radius: 6px;
+      object-fit: cover;
+      background: #e2e8f0;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      color: #64748b;
+    }
+    .file-preview-info {
+      flex-grow: 1;
+      min-width: 0;
+    }
+    .file-preview-name {
+      font-weight: 600;
+      font-size: 0.88rem;
+      color: #1e293b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .file-preview-size {
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+    .btn-remove-file {
+      border: none;
+      background: transparent;
+      color: #dc2626;
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .btn-remove-file:hover {
+      background: #fee2e2;
+    }
+    .pill-radio-group {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .pill-radio-group label {
+      flex: 1;
+      text-align: center;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      margin-bottom: 0;
+    }
+    .pill-radio-group input[type="radio"]:checked + label {
+      border-color: #2d6a68;
+      background: #2d6a68;
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(45, 106, 104, 0.25);
+    }
+    .pill-radio-group input[type="radio"]:checked + label .text-muted {
+      color: rgba(255, 255, 255, 0.85) !important;
+    }
+    .pill-radio-group.grid-sizes {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(65px, 1fr));
+      gap: 0.5rem;
+    }
+    .pill-radio-group input[type="radio"] {
+      display: none;
+    }
+    .token-display-badge {
+      display: inline-block;
+      font-family: 'Manrope', sans-serif;
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #2d6a68;
+      background: #e6f0ef;
+      border: 2px dashed #2d6a68;
+      border-radius: 12px;
+      padding: 0.4rem 1.5rem;
+      letter-spacing: 0.05em;
+    }
+    .status-stepper {
+      display: flex;
+      justify-content: space-between;
+      position: relative;
+      margin: 1.5rem 0;
+    }
+    .status-stepper::before {
+      content: '';
+      position: absolute;
+      top: 18px;
+      left: 20%;
+      right: 20%;
+      height: 3px;
+      background: #e2e8f0;
+      z-index: 1;
+    }
+    .step-node {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      width: 50%;
+    }
+    .step-circle {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #e2e8f0;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 0.4rem;
+      font-weight: 700;
+      font-size: 0.85rem;
+      transition: all 0.3s ease;
+    }
+    .step-node.active .step-circle {
+      background: #2d6a68;
+      color: #ffffff;
+      box-shadow: 0 0 0 4px #e6f0ef;
+    }
+    .step-node.completed .step-circle {
+      background: #16a34a;
+      color: #ffffff;
+    }
+    .step-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #64748b;
+    }
+    .step-node.active .step-label {
+      color: #2d6a68;
+      font-weight: 700;
+    }
+    .step-node.completed .step-label {
+      color: #16a34a;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+
+<div class="mobile-upload-container">
+  <!-- Brand Header: Natural Singlish (Sinhala + English loanwords) -->
+  <header class="kiosk-header">
+    <img src="/images/logo.png" alt="Nirmana Printing" class="kiosk-logo">
+    <h1 class="fs-4 fw-bold mb-1 text-dark">Nirmana Express Print Counter</h1>
+    <p class="text-muted small mb-0">
+      WhatsApp වලට දාන්න ඕනෙ නෑ! ඔයාගේ Photos හෝ Documents මෙතනින් කෙලින්ම අපේ Counter Printer එකට Send කරන්න.
+    </p>
+  </header>
+
+  <!-- FORM VIEW -->
+  <div id="uploadView" class="kiosk-card">
+    <form id="printUploadForm" enctype="multipart/form-data">
+      
+      <!-- Customer Name -->
+      <div class="mb-3">
+        <label for="customerName" class="form-label fw-bold small text-muted text-uppercase mb-1">
+          1. ඔයාගේ Name එක <span class="text-danger">*</span>
+        </label>
+        <div class="input-group">
+          <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-person"></i></span>
+          <input type="text" class="form-control border-start-0" id="customerName" name="customerName" 
+                 placeholder="Name එක මෙතන Type කරන්න (Eg: Kamal Perera)" required autocomplete="name">
+        </div>
+      </div>
+
+      <!-- Customer Phone -->
+      <div class="mb-3">
+        <label for="customerPhone" class="form-label fw-bold small text-muted text-uppercase mb-1">
+          2. WhatsApp / Phone Number එක <span class="text-danger">*</span>
+        </label>
+        <div class="input-group">
+          <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-whatsapp text-success"></i></span>
+          <input type="tel" class="form-control border-start-0" id="customerPhone" name="customerPhone" 
+                 placeholder="Eg: 0771234567" maxlength="10" inputmode="numeric" required autocomplete="tel">
+        </div>
+        <div id="phoneHelpText" class="form-text small text-muted" style="font-size: 0.74rem;">
+          Print out එක Ready වුණාම කතා කරන්න මේ Number එක අවශ්‍ය වේ.
+        </div>
+        <div id="phoneErrorMsg" class="text-danger small mt-1 d-none fw-semibold" style="font-size: 0.78rem;">
+          <i class="bi bi-exclamation-circle-fill me-1"></i> Phone number can have only 10 digits. No less or more.
+        </div>
+      </div>
+
+      <!-- File Dropzone -->
+      <div class="mb-3">
+        <label class="form-label fw-bold small text-muted text-uppercase mb-1">
+          3. Print කරන්න ඕන Files / Photos මෙතනට Upload කරන්න <span class="text-danger">*</span>
+        </label>
+        
+        <div class="dropzone-box" id="dropzoneBox">
+          <div class="dropzone-icon">
+            <i class="bi bi-cloud-arrow-up"></i>
+          </div>
+          <div class="fw-bold mb-1 text-dark">Photos හෝ Files මෙතන Tap කරලා Select කරන්න</div>
+          <div class="text-muted small mb-2">Phone Gallery එකෙන් හෝ Camera එකෙන් Select කරන්න පුළුවන්</div>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="browseBtn">
+            <i class="bi bi-images me-1"></i> Files / Photos Select කරන්න
+          </button>
+          <input type="file" id="fileInput" name="files" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" class="d-none">
+        </div>
+
+        <!-- Selected Files List -->
+        <div id="fileList" class="mt-2"></div>
+      </div>
+
+      <!-- 4. Paper Size Selection -->
+      <div class="mb-3">
+        <label class="form-label fw-bold small text-muted text-uppercase mb-1">
+          4. Print Size එක (Paper Size) <span class="text-danger">*</span>
+        </label>
+        <div class="pill-radio-group grid-sizes" id="paperSizeGroup">
+          <input type="radio" id="sizeA4" name="paperSize" value="A4" checked>
+          <label for="sizeA4">
+            <span class="d-block fw-bold fs-6">A4</span>
+            <span class="d-block text-muted" style="font-size: 0.7rem;">Normal</span>
+          </label>
+
+          <input type="radio" id="sizeA3" name="paperSize" value="A3">
+          <label for="sizeA3">
+            <span class="d-block fw-bold fs-6">A3</span>
+            <span class="d-block text-muted" style="font-size: 0.7rem;">Large (2×A4)</span>
+          </label>
+
+          <input type="radio" id="sizeLegal" name="paperSize" value="Legal">
+          <label for="sizeLegal">
+            <span class="d-block fw-bold fs-6">Legal</span>
+            <span class="d-block text-muted" style="font-size: 0.7rem;">Long sheet</span>
+          </label>
+
+          <input type="radio" id="sizeA5" name="paperSize" value="A5">
+          <label for="sizeA5">
+            <span class="d-block fw-bold fs-6">A5</span>
+            <span class="d-block text-muted" style="font-size: 0.7rem;">Small (½ A4)</span>
+          </label>
+
+          <input type="radio" id="sizeOther" name="paperSize" value="Other">
+          <label for="sizeOther">
+            <span class="d-block fw-bold fs-6">Other</span>
+            <span class="d-block text-muted" style="font-size: 0.7rem;">වෙනත් Size</span>
+          </label>
+        </div>
+
+        <div id="customPaperSizeContainer" class="mt-2 d-none">
+          <input type="text" class="form-control form-control-sm" id="customPaperSizeInput" 
+                 placeholder="ඔයාට අවශ්‍ය Size එක මෙතන Type කරන්න (Eg: 12x18, Passport, Banner...)">
+        </div>
+      </div>
+
+      <!-- 5. Quick Options: Color Mode & Copies -->
+      <div class="row g-2 mb-3">
+        <div class="col-6">
+          <label class="form-label fw-bold small text-muted text-uppercase mb-1">5. Color ද B&W ද?</label>
+          <div class="pill-radio-group">
+            <input type="radio" id="modeBw" name="colorMode" value="BW" checked>
+            <label for="modeBw"><i class="bi bi-circle-half me-1"></i> B&W</label>
+            
+            <input type="radio" id="modeColor" name="colorMode" value="COLOR">
+            <label for="modeColor"><i class="bi bi-palette-fill me-1 text-warning"></i> Color</label>
+          </div>
+        </div>
+
+        <div class="col-6">
+          <label class="form-label fw-bold small text-muted text-uppercase mb-1">Copies ගණන</label>
+          <div class="input-group">
+            <button class="btn btn-outline-secondary btn-sm" type="button" id="decCopies">-</button>
+            <input type="number" class="form-control text-center fw-bold" id="copies" name="copies" value="1" min="1" max="99">
+            <button class="btn btn-outline-secondary btn-sm" type="button" id="incCopies">+</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6. Customer Message / Instructions -->
+      <div class="mb-4">
+        <label for="customerMessage" class="form-label fw-bold small text-muted text-uppercase mb-1">
+          6. Print Instructions / Notes (විශේෂ උපදෙස්)
+        </label>
+        <div class="input-group">
+          <textarea class="form-control" id="customerMessage" name="customerMessage" rows="2" 
+                    placeholder="Eg: Color copy 2යි, staple කරන්න, page 1 ඉඳලා 5 වෙනකන් විතරක් print කරන්න..."></textarea>
+        </div>
+      </div>
+
+      <!-- Progress Bar -->
+      <div id="uploadProgressContainer" class="mb-3 d-none">
+        <div class="d-flex justify-content-between small text-muted mb-1">
+          <span id="uploadStatusText">Files Counter එකට Upload වෙනවා... කරුණාකර රැඳී සිටින්න.</span>
+          <span id="uploadPercent">0%</span>
+        </div>
+        <div class="progress" style="height: 10px; border-radius: 5px;">
+          <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+               role="progressbar" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <div class="d-grid">
+        <button type="submit" id="submitBtn" class="btn btn-serene-primary py-3 fs-6 fw-bold">
+          <i class="bi bi-send-fill me-2"></i> Counter එකට Send කරන්න 🚀
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- SUCCESS / TRACKING VIEW -->
+  <div id="successView" class="kiosk-card d-none text-center">
+    <div class="mb-3">
+      <div class="token-display-badge" id="ticketTokenNumber">QP-000</div>
+    </div>
+    <h3 class="fs-5 fw-bold text-dark mb-1">Files Counter එකට ලැබුණා! 🎉</h3>
+    <p class="text-muted small mb-3">
+      ඔයාගේ Files අපේ Print Counter එකට ලැබුණා. කරුණාකර මේ <strong>Token Number එක</strong> Counter එකේ ඉන්න කෙනාට කියලා ඔයාගේ Print out එක ලබාගන්න.
+    </p>
+
+    <!-- 2-Step Status Stepper -->
+    <div class="status-stepper">
+      <div class="step-node active" id="stepReceived">
+        <div class="step-circle"><i class="bi bi-clock"></i></div>
+        <div class="step-label">1. Received (Counter එකට ආවා)</div>
+      </div>
+      <div class="step-node" id="stepCompleted">
+        <div class="step-circle"><i class="bi bi-check2-all"></i></div>
+        <div class="step-label">2. Ready (Print එක Ready!)</div>
+      </div>
+    </div>
+
+    <!-- Live Status Box -->
+    <div class="p-3 rounded-3 bg-light border mb-3 text-start small">
+      <div class="d-flex justify-content-between mb-1">
+        <span class="text-muted">Name:</span>
+        <strong id="ticketCustomerName" class="text-dark">-</strong>
+      </div>
+      <div class="d-flex justify-content-between mb-1">
+        <span class="text-muted">Files ගණන:</span>
+        <strong id="ticketFilesCount" class="text-dark">-</strong>
+      </div>
+      <div class="d-flex justify-content-between mb-1">
+        <span class="text-muted">Print Size & Specs:</span>
+        <strong id="ticketSpecs" class="text-dark">-</strong>
+      </div>
+      <div class="d-flex justify-content-between mb-1">
+        <span class="text-muted">Status:</span>
+        <strong id="ticketCurrentStatus" class="text-primary">RECEIVED &bull; Counter එකෙන් තවම Print කරමින් පවතී</strong>
+      </div>
+    </div>
+
+    <div class="d-grid gap-2">
+      <button type="button" class="btn btn-outline-secondary" id="newUploadBtn">
+        <i class="bi bi-plus-circle me-1"></i> තව Files Upload කරන්න
+      </button>
+    </div>
+  </div>
+
+  <!-- Footer Note -->
+  <div class="text-center mt-3 text-muted small" style="font-size: 0.75rem;">
+    Nirmana Printing Management System &bull; Fast Counter Service
+  </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  let selectedFiles = [];
+  let currentJobId = null;
+  let statusPollInterval = null;
+
+  const dropzoneBox = document.getElementById('dropzoneBox');
+  const fileInput = document.getElementById('fileInput');
+  const browseBtn = document.getElementById('browseBtn');
+  const fileList = document.getElementById('fileList');
+  const form = document.getElementById('printUploadForm');
+  const submitBtn = document.getElementById('submitBtn');
+  const uploadProgressContainer = document.getElementById('uploadProgressContainer');
+  const uploadProgressBar = document.getElementById('uploadProgressBar');
+  const uploadPercent = document.getElementById('uploadPercent');
+  const uploadStatusText = document.getElementById('uploadStatusText');
+
+  const uploadView = document.getElementById('uploadView');
+  const successView = document.getElementById('successView');
+  const newUploadBtn = document.getElementById('newUploadBtn');
+
+  // Copies +/- controls
+  document.getElementById('incCopies').addEventListener('click', () => {
+    const copiesInput = document.getElementById('copies');
+    copiesInput.value = parseInt(copiesInput.value, 10) + 1;
+  });
+  document.getElementById('decCopies').addEventListener('click', () => {
+    const copiesInput = document.getElementById('copies');
+    if (parseInt(copiesInput.value, 10) > 1) {
+      copiesInput.value = parseInt(copiesInput.value, 10) - 1;
+    }
+  });
+
+  // Paper size toggle custom input
+  document.querySelectorAll('input[name="paperSize"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      const customContainer = document.getElementById('customPaperSizeContainer');
+      const customInput = document.getElementById('customPaperSizeInput');
+      if (e.target.value === 'Other') {
+        customContainer.classList.remove('d-none');
+        customInput.focus();
+      } else {
+        customContainer.classList.add('d-none');
+      }
+    });
+  });
+
+  // Dropzone click & drag handlers
+  dropzoneBox.addEventListener('click', () => fileInput.click());
+  browseBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    fileInput.click();
+  });
+
+  ['dragenter', 'dragover'].forEach(eventName => {
+    dropzoneBox.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      dropzoneBox.classList.add('dragover');
+    });
+  });
+
+  ['dragleave', 'drop'].forEach(eventName => {
+    dropzoneBox.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      dropzoneBox.classList.remove('dragover');
+    });
+  });
+
+  dropzoneBox.addEventListener('drop', (e) => {
+    const files = e.dataTransfer.files;
+    handleFilesAdded(files);
+  });
+
+  fileInput.addEventListener('change', (e) => {
+    handleFilesAdded(e.target.files);
+  });
+
+  function handleFilesAdded(files) {
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      if (!selectedFiles.some(existing => existing.name === f.name && existing.size === f.size)) {
+        selectedFiles.push(f);
+      }
+    }
+    renderFileList();
+  }
+
+  function formatBytes(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  function renderFileList() {
+    fileList.innerHTML = '';
+    if (selectedFiles.length === 0) return;
+
+    selectedFiles.forEach((file, index) => {
+      const item = document.createElement('div');
+      item.className = 'file-preview-item';
+
+      const isImg = file.type.startsWith('image/');
+      let thumbHtml = '';
+      if (isImg) {
+        const objectUrl = URL.createObjectURL(file);
+        thumbHtml = `<img src="${objectUrl}" class="file-preview-thumb" alt="Thumbnail">`;
+      } else {
+        const icon = file.type.includes('pdf') ? 'bi-filetype-pdf text-danger' : 'bi-file-earmark-text text-primary';
+        thumbHtml = `<div class="file-preview-thumb"><i class="bi ${icon}"></i></div>`;
+      }
+
+      item.innerHTML = `
+        ${thumbHtml}
+        <div class="file-preview-info">
+          <div class="file-preview-name" title="${file.name}">${file.name}</div>
+          <div class="file-preview-size">${formatBytes(file.size)}</div>
+        </div>
+        <button type="button" class="btn-remove-file" title="Remove" data-index="${index}">
+          <i class="bi bi-trash3-fill"></i>
+        </button>
+      `;
+      fileList.appendChild(item);
+    });
+
+    document.querySelectorAll('.btn-remove-file').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.getAttribute('data-index'), 10);
+        selectedFiles.splice(idx, 1);
+        renderFileList();
+      });
+    });
+  }
+
+  // Real-time phone input validation & error visibility
+  const phoneInput = document.getElementById('customerPhone');
+  const phoneHelpText = document.getElementById('phoneHelpText');
+  const phoneErrorMsg = document.getElementById('phoneErrorMsg');
+
+  function validatePhoneNumber(showError = false) {
+    const val = phoneInput.value.replace(/\D/g, '').trim();
+    if (val.length === 10) {
+      phoneErrorMsg.classList.add('d-none');
+      if (phoneHelpText) phoneHelpText.classList.remove('d-none');
+      phoneInput.classList.remove('is-invalid');
+      return true;
+    } else {
+      if (showError) {
+        phoneErrorMsg.classList.remove('d-none');
+        if (phoneHelpText) phoneHelpText.classList.add('d-none');
+        phoneInput.classList.add('is-invalid');
+      }
+      return false;
+    }
+  }
+
+  phoneInput.addEventListener('input', (e) => {
+    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
+    if (e.target.value.length === 10) {
+      validatePhoneNumber(false);
+    } else if (!phoneErrorMsg.classList.contains('d-none')) {
+      validatePhoneNumber(true);
+    }
+  });
+
+  phoneInput.addEventListener('blur', () => {
+    if (phoneInput.value.length > 0 && phoneInput.value.length !== 10) {
+      validatePhoneNumber(true);
+    } else if (phoneInput.value.length === 10) {
+      validatePhoneNumber(false);
+    }
+  });
+
+  // Form submission
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    if (selectedFiles.length === 0) {
+      alert('කරුණාකර Print කරන්න ඕන Photo එකක් හෝ File එකක් Select කරන්න.');
+      return;
+    }
+
+    const name = document.getElementById('customerName').value.trim();
+    if (!name) {
+      alert('කරුණාකර ඔයාගේ Name එක ඇතුළත් කරන්න.');
+      document.getElementById('customerName').focus();
+      return;
+    }
+
+    if (!validatePhoneNumber(true)) {
+      phoneInput.focus();
+      return;
+    }
+
+    const phone = phoneInput.value.replace(/\D/g, '').trim();
+
+    const formData = new FormData();
+    formData.append('customerName', name);
+    formData.append('customerPhone', phone);
+    formData.append('customerMessage', document.getElementById('customerMessage').value);
+    
+    const colorModeChecked = document.querySelector('input[name="colorMode"]:checked');
+    formData.append('colorMode', colorModeChecked ? colorModeChecked.value : 'BW');
+    formData.append('copies', document.getElementById('copies').value || '1');
+
+    let selectedPaperSize = 'A4';
+    const paperSizeChecked = document.querySelector('input[name="paperSize"]:checked');
+    if (paperSizeChecked) {
+      if (paperSizeChecked.value === 'Other') {
+        const customVal = document.getElementById('customPaperSizeInput').value.trim();
+        selectedPaperSize = customVal || 'Other';
+      } else {
+        selectedPaperSize = paperSizeChecked.value;
+      }
+    }
+    formData.append('paperSize', selectedPaperSize);
+
+    selectedFiles.forEach(file => {
+      formData.append('files', file);
+    });
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Send වෙනවා...';
+    uploadProgressContainer.classList.remove('d-none');
+    uploadProgressBar.style.width = '0%';
+    uploadPercent.textContent = '0%';
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/quick-print/upload', true);
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percentComplete = Math.round((event.loaded / event.total) * 100);
+        uploadProgressBar.style.width = percentComplete + '%';
+        uploadPercent.textContent = percentComplete + '%';
+        if (percentComplete >= 100) {
+          uploadStatusText.textContent = 'Counter Server එක Process කරනවා... කරුණාකර රැඳී සිටින්න.';
+        }
+      }
+    };
+
+    xhr.onload = function () {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="bi bi-send-fill me-2"></i> Counter එකට Send කරන්න 🚀';
+      
+      try {
+        const response = JSON.parse(xhr.responseText);
+        if (xhr.status === 201 && response.success) {
+          showSuccessScreen(response.data);
+        } else {
+          alert(response.message || 'Upload එක අසාර්ථක විය. කරුණාකර නැවත උත්සාහ කරන්න.');
+          uploadProgressContainer.classList.add('d-none');
+        }
+      } catch (err) {
+        alert('Server response එකේ ගැටලුවක් ඇත. කරුණාකර නැවත උත්සාහ කරන්න.');
+        uploadProgressContainer.classList.add('d-none');
+      }
+    };
+
+    xhr.onerror = function () {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="bi bi-send-fill me-2"></i> Counter එකට Send කරන්න 🚀';
+      uploadProgressContainer.classList.add('d-none');
+      alert('Network error එකක් ආවා. කරුණාකර ඔබගේ Connection එක පරීක්ෂා කර නැවත උත්සාහ කරන්න.');
+    };
+
+    xhr.send(formData);
+  });
+
+  function showSuccessScreen(data) {
+    uploadView.classList.add('d-none');
+    successView.classList.remove('d-none');
+
+    currentJobId = data.jobId;
+    document.getElementById('ticketTokenNumber').textContent = data.tokenNumber;
+    document.getElementById('ticketCustomerName').textContent = data.customerName;
+    document.getElementById('ticketFilesCount').textContent = `${data.filesCount} file(s)`;
+    if (document.getElementById('ticketSpecs')) {
+      const modeLabel = (data.colorMode === 'COLOR' ? 'Color' : 'B&W');
+      const copiesLabel = (data.copies && data.copies > 1 ? `${data.copies} copies` : '1 copy');
+      document.getElementById('ticketSpecs').textContent = `${data.paperSize || 'A4'} • ${modeLabel} • ${copiesLabel}`;
+    }
+
+    try {
+      localStorage.setItem('nirmana_customer_name', document.getElementById('customerName').value);
+      localStorage.setItem('nirmana_customer_phone', document.getElementById('customerPhone').value);
+    } catch(e) {}
+
+    pollJobStatus(currentJobId);
+  }
+
+  function updateStatusUI(status) {
+    const sReceived = document.getElementById('stepReceived');
+    const sCompleted = document.getElementById('stepCompleted');
+    const statusText = document.getElementById('ticketCurrentStatus');
+
+    if (status === 'PENDING') {
+      sReceived.classList.add('active');
+      sReceived.classList.remove('completed');
+      sCompleted.classList.remove('active', 'completed');
+      statusText.innerHTML = '<span class="text-primary"><i class="bi bi-clock"></i> RECEIVED &bull; Counter එකෙන් තවම Print කරමින් පවතී</span>';
+    } else if (status === 'COMPLETED') {
+      sReceived.classList.remove('active');
+      sReceived.classList.add('completed');
+      sCompleted.classList.add('active', 'completed');
+      statusText.innerHTML = '<span class="text-success fw-bold"><i class="bi bi-check-circle-fill"></i> PRINT EKA READY! කරුණාකර Counter එකෙන් ලබාගන්න.</span>';
+    }
+  }
+
+  function pollJobStatus(jobId) {
+    if (statusPollInterval) clearInterval(statusPollInterval);
+
+    statusPollInterval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/quick-print/status/${jobId}`);
+        const data = await res.json();
+        if (data.success && data.data) {
+          updateStatusUI(data.data.status);
+          if (data.data.status === 'COMPLETED') {
+            clearInterval(statusPollInterval);
+          }
+        }
+      } catch (err) {
+        console.warn('Status poll error:', err);
+      }
+    }, 3000);
+  }
+
+  newUploadBtn.addEventListener('click', () => {
+    if (statusPollInterval) clearInterval(statusPollInterval);
+    selectedFiles = [];
+    renderFileList();
+    form.reset();
+    uploadProgressContainer.classList.add('d-none');
+    successView.classList.add('d-none');
+    uploadView.classList.remove('d-none');
+
+    try {
+      const savedName = localStorage.getItem('nirmana_customer_name');
+      const savedPhone = localStorage.getItem('nirmana_customer_phone');
+      if (savedName) document.getElementById('customerName').value = savedName;
+      if (savedPhone) document.getElementById('customerPhone').value = savedPhone;
+    } catch(e) {}
+  });
+
+  window.addEventListener('DOMContentLoaded', () => {
+    try {
+      const savedName = localStorage.getItem('nirmana_customer_name');
+      const savedPhone = localStorage.getItem('nirmana_customer_phone');
+      if (savedName) document.getElementById('customerName').value = savedName;
+      if (savedPhone) document.getElementById('customerPhone').value = savedPhone;
+    } catch(e) {}
+  });
+</script>
+
+</body>
+</html>

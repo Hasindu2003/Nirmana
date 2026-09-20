@@ -1,0 +1,419 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<main class="main-wrapper">
+  <div class="content-body">
+    <!-- Header with Quick Action Buttons -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between mb-4">
+      <div>
+        <h2 class="fs-4 fw-bold mb-1">Stock & Materials Management</h2>
+        <div class="text-muted small">Real-time inventory levels, stock arrival records, and usage tracking</div>
+      </div>
+      <div class="d-flex flex-wrap align-items-center gap-2 mt-3 mt-sm-0">
+        <button class="btn btn-serene-primary" data-bs-toggle="modal" data-bs-target="#newStockItemModal">
+          <i class="bi bi-plus-lg"></i> Add New Item
+        </button>
+        <button class="btn btn-serene-secondary" data-bs-toggle="modal" data-bs-target="#stockInModal">
+          <i class="bi bi-box-arrow-in-down text-success"></i> Stock In (Arrival)
+        </button>
+        <button class="btn btn-serene-secondary" data-bs-toggle="modal" data-bs-target="#stockOutModal">
+          <i class="bi bi-box-arrow-up text-danger"></i> Stock Out (Use)
+        </button>
+      </div>
+    </div>
+
+    <!-- Filters & Search -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+      <div class="d-flex flex-wrap gap-1">
+        <a href="/stock" class="btn btn-sm <%= currentCategory === 'ALL' ? 'btn-serene-primary' : 'btn-serene-secondary' %>">
+          All (<%= items.length %>)
+        </a>
+        <% categories.forEach(cat => { %>
+          <a href="/stock?category=<%= encodeURIComponent(cat) %>" class="btn btn-sm <%= currentCategory === cat ? 'btn-serene-primary' : 'btn-serene-secondary' %>">
+            <%= cat %>
+          </a>
+        <% }) %>
+      </div>
+
+      <form action="/stock" method="GET" class="d-flex align-items-center gap-2 flex-grow-1 flex-sm-grow-0" style="min-width: 200px; max-width: 100%;">
+        <input type="text" name="search" value="<%= search %>" class="form-control form-control-sm flex-grow-1" placeholder="Search stock items...">
+        <button type="submit" class="btn btn-sm btn-serene-secondary">Search</button>
+      </form>
+    </div>
+
+    <!-- Live Inventory Table Card -->
+    <div class="serene-card mb-4">
+      <div class="serene-card-header">
+        <h3 class="serene-card-title"><i class="bi bi-boxes me-2 text-muted"></i> Current Stock Levels</h3>
+        <span class="small text-muted"><%= items.length %> Tracked Items</span>
+      </div>
+      <div class="table-responsive">
+        <table class="serene-table">
+          <thead>
+            <tr>
+              <th>Material / Item Name</th>
+              <th>Current Stock</th>
+              <th>Unit Pricing</th>
+              <th>Status</th>
+              <th>Quick Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (items && items.length > 0) { %>
+              <% items.forEach(item => { %>
+                <% const statusObj = item.getStockStatus(); %>
+                <tr>
+                  <td>
+                    <div class="fw-semibold text-dark">
+                      <a href="/stock/<%= item.id %>" class="text-dark text-decoration-none hover-primary"><%= item.name %></a>
+                    </div>
+                    <div class="d-flex flex-wrap align-items-center gap-1 mt-1">
+                      <span class="badge bg-light text-muted border font-monospace" style="font-size: 0.72rem;"><%= item.code %></span>
+                      <span class="badge bg-light text-dark border" style="font-size: 0.72rem;"><%= item.category %></span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="tabular-nums fw-bold fs-6">
+                      <%= parseFloat(item.currentStock) %> <span class="fw-normal text-muted fs-6"><%= item.unit %></span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="tabular-nums small">
+                      <span class="text-muted">Buy:</span> <%= currencySymbol %> <%= parseFloat(item.unitCost || 0).toFixed(2) %>
+                    </div>
+                    <% if (item.sellingPrice !== null && item.sellingPrice !== undefined && parseFloat(item.sellingPrice) > 0) { %>
+                      <div class="tabular-nums small text-success fw-medium">
+                        <span class="text-muted">Sell:</span> <%= currencySymbol %> <%= parseFloat(item.sellingPrice).toFixed(2) %>
+                      </div>
+                    <% } %>
+                  </td>
+                  <td>
+                    <span class="status-badge <%= statusObj.badgeClass %>">
+                      <span class="status-dot"></span> <%= statusObj.label %>
+                    </span>
+                  </td>
+                  <td>
+                    <div class="d-flex align-items-center gap-1">
+                      <button class="btn btn-sm btn-serene-secondary py-1 px-2 text-success small" onclick="quickStockIn(<%= item.id %>)" title="Record Stock In">
+                        <i class="bi bi-plus-circle"></i> In
+                      </button>
+                      <button class="btn btn-sm btn-serene-secondary py-1 px-2 text-danger small" onclick="quickStockOut(<%= item.id %>)" title="Record Stock Out">
+                        <i class="bi bi-dash-circle"></i> Out
+                      </button>
+                      <a href="/stock/<%= item.id %>" class="btn btn-sm btn-serene-secondary py-1 px-2" title="View Full Details">
+                        <i class="bi bi-eye"></i> Details
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              <% }) %>
+            <% } else { %>
+              <tr>
+                <td colspan="5" class="text-center py-5 text-muted">
+                  No stock items found. Click "+ Add New Item" to add your raw paper or materials.
+                </td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+      <%- include('../partials/pagination', { 
+        pagination: itemsPagination, 
+        baseUrl: '/stock', 
+        queryParams: { 
+          category: currentCategory !== 'ALL' ? currentCategory : undefined, 
+          search: search || undefined, 
+          txPage: typeof currentTxPage !== 'undefined' ? currentTxPage : undefined 
+        } 
+      }) %>
+    </div>
+
+    <!-- Stock Movement History (Ledger) -->
+    <div class="serene-card">
+      <div class="serene-card-header">
+        <h3 class="serene-card-title"><i class="bi bi-clock-history me-2 text-muted"></i> Recent Stock Movements (Audit Log)</h3>
+        <span class="small text-muted"><%= typeof transactionsPagination !== 'undefined' ? transactionsPagination.totalItems : transactions.length %> Total Records</span>
+      </div>
+      <div class="table-responsive">
+        <table class="serene-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Material Item</th>
+              <th>Movement</th>
+              <th>Reference & Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (transactions && transactions.length > 0) { %>
+              <% transactions.forEach(t => { %>
+                <tr>
+                  <td class="text-muted small font-monospace"><%= t.date %></td>
+                  <td class="fw-medium text-dark">
+                    <a href="/stock/<%= t.stockItemId %>" class="text-dark text-decoration-none hover-primary">
+                      <%= t.stockItem ? t.stockItem.name : 'Unknown Item' %>
+                    </a>
+                  </td>
+                  <td>
+                    <div class="d-flex align-items-center gap-2">
+                      <% if (t.type === 'IN') { %>
+                        <span class="badge" style="background:#edf7ed; color:#1e4620; border:1px solid #16a34a;">
+                          <i class="bi bi-arrow-down"></i> In
+                        </span>
+                      <% } else { %>
+                        <span class="badge" style="background:#fdf2f2; color:#8a2c2c; border:1px solid #dc2626;">
+                          <i class="bi bi-arrow-up"></i> Out
+                        </span>
+                      <% } %>
+                      <span class="tabular-nums fw-bold <%= t.type === 'IN' ? 'text-success' : 'text-danger' %>">
+                        <%= t.type === 'IN' ? '+' : '-' %><%= parseFloat(t.quantity) %> <%= t.stockItem ? t.stockItem.unit : '' %>
+                      </span>
+                    </div>
+                    <div class="text-muted" style="font-size: 0.75rem;">
+                      Bal: <%= parseFloat(t.balanceAfter) %> <%= t.stockItem ? t.stockItem.unit : '' %>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="fw-medium text-dark small"><%= t.reference || '-' %></div>
+                    <% if (t.notes) { %>
+                      <div class="text-muted small"><%= t.notes %></div>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }) %>
+            <% } else { %>
+              <tr>
+                <td colspan="4" class="text-center py-4 text-muted small">No stock transactions recorded yet.</td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+      <%- include('../partials/pagination', { 
+        pagination: transactionsPagination, 
+        baseUrl: '/stock', 
+        queryParams: { 
+          category: currentCategory !== 'ALL' ? currentCategory : undefined, 
+          search: search || undefined, 
+          page: typeof currentPage !== 'undefined' ? currentPage : undefined 
+        }, 
+        pageParam: 'txPage' 
+      }) %>
+    </div>
+  </div>
+</main>
+
+<!-- Modal: Create New Stock Item -->
+<div class="modal fade" id="newStockItemModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius: var(--serene-radius-lg); border: 1px solid var(--serene-border);">
+      <div class="modal-header border-bottom" style="background:#fafbfc;">
+        <h5 class="modal-title fs-6 fw-semibold">Add New Material / Stock Item</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form onsubmit="handleCreateStockItem(event)">
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label">Item / Material Name *</label>
+            <input type="text" name="name" class="form-control" placeholder="e.g. Sappi 300gsm Art Board" required>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label">Category</label>
+              <select name="category" class="form-select">
+                <option value="Paper / Substrate" selected>Paper / Substrate</option>
+                <option value="Ink / Toner">Ink / Toner</option>
+                <option value="Vinyl / Film">Vinyl / Film</option>
+                <option value="Finishing / Binding">Finishing / Binding</option>
+                <option value="Merchandise / Blank">Merchandise / Blank</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Unit of Measure</label>
+              <select name="unit" class="form-select">
+                <option value="Sheets" selected>Sheets</option>
+                <option value="Rolls">Rolls</option>
+                <option value="Pcs">Pieces (Pcs)</option>
+                <option value="Reams">Reams</option>
+                <option value="Boxes">Boxes</option>
+                <option value="Bottles">Bottles</option>
+              </select>
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label">Initial Stock on Hand</label>
+              <input type="number" name="initialStock" id="newItemQuantity" class="form-control" placeholder="0" min="0" value="0" oninput="calculateNewItemProfit('qty')">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Min Alert Level</label>
+              <input type="number" name="minStockAlert" class="form-control" value="20" min="1">
+            </div>
+          </div>
+
+          <!-- Pricing & Estimated Profit Section -->
+          <div class="p-3 mb-3 rounded-2" style="background:#fafbfc; border: 1px solid var(--serene-border-subtle);">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <label class="form-label fw-semibold mb-0 text-dark small"><i class="bi bi-tag me-1"></i> Cost & Estimated Profit</label>
+              <span class="badge bg-light text-muted border" style="font-size: 0.7rem;">Auto-Calculated</span>
+            </div>
+
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label small text-muted">Buying Price / Unit (<%= currencySymbol %>)</label>
+                <input type="number" name="unitCost" id="newItemUnitCost" class="form-control form-control-sm" placeholder="0.00" step="any" min="0" oninput="calculateNewItemProfit('unit')">
+              </div>
+              <div class="col-6">
+                <label class="form-label small text-muted">Total Batch Price (<%= currencySymbol %>)</label>
+                <input type="number" name="batchCost" id="newItemBatchCost" class="form-control form-control-sm" placeholder="0.00" step="any" min="0" oninput="calculateNewItemProfit('batch')">
+              </div>
+            </div>
+
+            <div class="mb-2">
+              <div class="d-flex justify-content-between align-items-center">
+                <label class="form-label small text-muted mb-1">Selling Price / Unit (<%= currencySymbol %>)</label>
+                <span class="text-muted" style="font-size: 0.72rem;">Optional</span>
+              </div>
+              <input type="number" name="sellingPrice" id="newItemSellingPrice" class="form-control form-control-sm" placeholder="0.00" step="any" min="0" oninput="calculateNewItemProfit('sell')">
+            </div>
+
+            <!-- Live Estimated Profit Box -->
+            <div id="newItemProfitBox" class="p-2 rounded-2 mt-2" style="background: #ffffff; border: 1px dashed var(--serene-border); display: none;">
+              <div class="d-flex justify-content-between align-items-center small mb-1">
+                <span class="text-muted">Est. Profit / Unit:</span>
+                <span class="fw-bold tabular-nums" id="newItemUnitProfit">Rs. 0.00</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center small mb-1">
+                <span class="text-muted">Total Batch Profit:</span>
+                <span class="fw-bold tabular-nums" id="newItemBatchProfit">Rs. 0.00</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center small">
+                <span class="text-muted">Profit Margin:</span>
+                <span class="badge" id="newItemMarginBadge">0.0%</span>
+              </div>
+            </div>
+            <div id="newItemProfitHint" class="text-muted small mt-1" style="font-size: 0.75rem;">
+              Enter buying cost & optional selling price to calculate estimated profit and margin.
+            </div>
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label">Notes</label>
+            <input type="text" name="notes" class="form-control" placeholder="Supplier or storage shelf location">
+          </div>
+        </div>
+        <div class="modal-footer border-top bg-light">
+          <button type="button" class="btn btn-serene-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-serene-primary">Save Item</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>
+
+<script>
+function quickStockIn(itemId) {
+  const modalEl = document.getElementById('stockInModal');
+  const modal = new bootstrap.Modal(modalEl);
+  const select = document.getElementById('stockInSelect');
+  if (select) {
+    select.value = itemId;
+    if (typeof onStockInItemChange === 'function') {
+      onStockInItemChange(select);
+    }
+  }
+  modal.show();
+}
+
+function quickStockOut(itemId) {
+  const modalEl = document.getElementById('stockOutModal');
+  const modal = new bootstrap.Modal(modalEl);
+  const select = document.getElementById('stockOutSelect');
+  select.value = itemId;
+  showCurrentAvailableStock(select);
+  modal.show();
+}
+
+function calculateNewItemProfit(trigger) {
+  const qty = parseFloat(document.getElementById('newItemQuantity').value) || 0;
+  const unitCostInput = document.getElementById('newItemUnitCost');
+  const batchCostInput = document.getElementById('newItemBatchCost');
+  const sellPriceInput = document.getElementById('newItemSellingPrice');
+
+  let unitCost = parseFloat(unitCostInput.value) || 0;
+  let batchCost = parseFloat(batchCostInput.value) || 0;
+  const sellPrice = parseFloat(sellPriceInput.value) || 0;
+
+  if (trigger === 'unit' && qty > 0) {
+    batchCost = parseFloat((unitCost * qty).toFixed(2));
+    batchCostInput.value = batchCost > 0 ? batchCost : '';
+  } else if (trigger === 'batch' && qty > 0) {
+    unitCost = parseFloat((batchCost / qty).toFixed(2));
+    unitCostInput.value = unitCost > 0 ? unitCost : '';
+  } else if (trigger === 'qty' && qty > 0) {
+    if (unitCost > 0) {
+      batchCost = parseFloat((unitCost * qty).toFixed(2));
+      batchCostInput.value = batchCost > 0 ? batchCost : '';
+    } else if (batchCost > 0) {
+      unitCost = parseFloat((batchCost / qty).toFixed(2));
+      unitCostInput.value = unitCost > 0 ? unitCost : '';
+    }
+  }
+
+  const profitBox = document.getElementById('newItemProfitBox');
+  const profitHint = document.getElementById('newItemProfitHint');
+
+  if (sellPrice > 0 && (unitCost > 0 || batchCost > 0)) {
+    const effectiveUnitCost = unitCost > 0 ? unitCost : (qty > 0 ? batchCost / qty : 0);
+    const unitProfit = sellPrice - effectiveUnitCost;
+    const totalProfit = unitProfit * (qty > 0 ? qty : 1);
+    const margin = ((unitProfit / sellPrice) * 100);
+    const isProfit = unitProfit >= 0;
+
+    profitBox.style.display = 'block';
+    profitHint.style.display = 'none';
+
+    const unitEl = document.getElementById('newItemUnitProfit');
+    const batchEl = document.getElementById('newItemBatchProfit');
+    const marginEl = document.getElementById('newItemMarginBadge');
+
+    unitEl.innerText = `${isProfit ? '+' : ''}${formatCurrency(unitProfit)}`;
+    unitEl.className = `fw-bold tabular-nums ${isProfit ? 'text-success' : 'text-danger'}`;
+
+    batchEl.innerText = `${isProfit ? '+' : ''}${formatCurrency(totalProfit)}`;
+    batchEl.className = `fw-bold tabular-nums ${isProfit ? 'text-success' : 'text-danger'}`;
+
+    marginEl.innerText = `${margin.toFixed(1)}% margin`;
+    marginEl.className = `badge ${isProfit ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'}`;
+  } else {
+    profitBox.style.display = 'none';
+    profitHint.style.display = 'block';
+  }
+}
+
+async function handleCreateStockItem(e) {
+  e.preventDefault();
+  const form = e.target;
+  const formData = new FormData(form);
+  const payload = Object.fromEntries(formData.entries());
+
+  try {
+    const res = await fetch('/api/stock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (result.success) {
+      setPendingToast(result.message || 'Stock item created successfully!', 'success');
+      window.location.reload();
+    } else {
+      toast.error('Error: ' + result.message);
+    }
+  } catch (err) {
+    toast.error('Failed to save stock item: ' + err.message);
+  }
+}
+</script>

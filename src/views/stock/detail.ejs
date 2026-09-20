@@ -1,0 +1,227 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<main class="main-wrapper">
+  <div class="content-body">
+    <!-- Header -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+      <div>
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb mb-1 small text-muted">
+            <li class="breadcrumb-item"><a href="/stock" class="text-decoration-none text-muted">Stock Management</a></li>
+            <li class="breadcrumb-item active"><%= item.name %></li>
+          </ol>
+        </nav>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <h2 class="fs-4 fw-bold mb-0"><%= item.name %></h2>
+          <span class="badge bg-light text-muted border font-monospace"><%= item.code %></span>
+          <span class="badge bg-light text-dark border"><%= item.category %></span>
+          <span class="status-badge <%= statusObj.badgeClass %>">
+            <span class="status-dot"></span> <%= statusObj.label %>
+          </span>
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap align-items-center gap-2 mt-2 mt-sm-0">
+        <a href="/stock" class="btn btn-serene-secondary">
+          <i class="bi bi-arrow-left"></i> Back to Inventory
+        </a>
+      </div>
+    </div>
+
+    <!-- Key Metrics Cards -->
+    <div class="row g-2 g-md-3 mb-4">
+      <div class="col-6 col-md-4">
+        <div class="kpi-card">
+          <div class="kpi-title">Current In-Stock</div>
+          <div class="kpi-value tabular-nums <%= statusObj.status === 'LOW_STOCK' ? 'text-danger' : (statusObj.status === 'OUT_OF_STOCK' ? 'text-danger' : 'text-primary') %>">
+            <%= parseFloat(item.currentStock) %> <span class="fs-6 fw-normal text-muted"><%= item.unit %></span>
+          </div>
+          <div class="kpi-sub text-muted text-truncate">
+            Min Alert: <%= parseFloat(item.minStockAlert) %> <%= item.unit %>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-6 col-md-4">
+        <div class="kpi-card">
+          <div class="kpi-title">Unit Cost (Buy Price)</div>
+          <div class="kpi-value tabular-nums text-dark">
+            <%= currencySymbol %> <%= parseFloat(item.unitCost || 0).toFixed(2) %>
+          </div>
+          <div class="kpi-sub text-muted text-truncate">
+            Stock Valuation: <%= currencySymbol %> <%= (parseFloat(item.currentStock) * parseFloat(item.unitCost || 0)).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-4">
+        <div class="kpi-card">
+          <div class="kpi-title">Selling Price & Profit</div>
+          <div class="kpi-value tabular-nums <%= profit && profit.isProfit ? 'text-success' : 'text-dark' %>">
+            <% if (item.sellingPrice) { %>
+              <%= currencySymbol %> <%= parseFloat(item.sellingPrice).toFixed(2) %>
+            <% } else { %>
+              <span class="text-muted fs-5">Not set</span>
+            <% } %>
+          </div>
+          <div class="kpi-sub text-muted text-truncate">
+            <% if (profit) { %>
+              Est. Profit: <strong>+<%= currencySymbol %> <%= profit.unitProfit.toFixed(2) %></strong> (<%= profit.marginPercent %>% margin)
+            <% } else { %>
+              Selling price optional
+            <% } %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <!-- Left: Stock Movement Audit History (7 cols) -->
+      <div class="col-lg-7">
+        <div class="serene-card mb-4">
+          <div class="serene-card-header d-flex align-items-center justify-content-between">
+            <h3 class="serene-card-title"><i class="bi bi-clock-history me-2 text-muted"></i> Movement History (Audit Ledger)</h3>
+            <span class="small text-muted"><%= item.transactions ? item.transactions.length : 0 %> Recent Records</span>
+          </div>
+          <div class="table-responsive">
+            <table class="serene-table">
+              <thead>
+                <tr>
+                  <th>Date & Time</th>
+                  <th>Action</th>
+                  <th>Quantity</th>
+                  <th>Balance After</th>
+                  <th>Reference / Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (item.transactions && item.transactions.length > 0) { %>
+                  <% item.transactions.forEach(t => { %>
+                    <tr>
+                      <td class="text-muted small font-monospace">
+                        <%= new Date(t.date || t.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
+                      </td>
+                      <td>
+                        <% if (t.type === 'IN') { %>
+                          <span class="badge" style="background:#edf7ed; color:#1e4620; border:1px solid #16a34a;">
+                            <i class="bi bi-arrow-down"></i> Stock In
+                          </span>
+                        <% } else { %>
+                          <span class="badge" style="background:#fdf2f2; color:#8a2c2c; border:1px solid #dc2626;">
+                            <i class="bi bi-arrow-up"></i> Stock Out
+                          </span>
+                        <% } %>
+                      </td>
+                      <td class="tabular-nums fw-bold <%= t.type === 'IN' ? 'text-success' : 'text-danger' %>">
+                        <%= t.type === 'IN' ? '+' : '-' %><%= parseFloat(t.quantity) %> <%= item.unit %>
+                      </td>
+                      <td class="tabular-nums text-muted small">
+                        <%= parseFloat(t.balanceAfter) %> <%= item.unit %>
+                      </td>
+                      <td class="small text-muted">
+                        <div class="fw-medium text-dark"><%= t.reference || '-' %></div>
+                        <% if (t.notes) { %>
+                          <div class="text-muted small"><%= t.notes %></div>
+                        <% } %>
+                      </td>
+                    </tr>
+                  <% }) %>
+                <% } else { %>
+                  <tr>
+                    <td colspan="5" class="text-center py-4 text-muted small">
+                      No stock movements recorded for this material yet.
+                    </td>
+                  </tr>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Detailed Specifications & Pricing Breakdown (5 cols) -->
+      <div class="col-lg-5">
+        <!-- Profitability Analysis Card -->
+        <div class="serene-card mb-4">
+          <div class="serene-card-header">
+            <h3 class="serene-card-title"><i class="bi bi-graph-up-arrow me-2 text-muted"></i> Pricing & Profit Breakdown</h3>
+          </div>
+          <div class="serene-card-body">
+            <div class="d-flex justify-content-between py-2 border-bottom">
+              <span class="text-muted small">Buying Price (Per Unit)</span>
+              <span class="fw-semibold text-dark tabular-nums"><%= currencySymbol %> <%= parseFloat(item.unitCost || 0).toFixed(2) %></span>
+            </div>
+            <div class="d-flex justify-content-between py-2 border-bottom">
+              <span class="text-muted small">Selling Price (Per Unit)</span>
+              <span class="fw-semibold text-dark tabular-nums">
+                <%= item.sellingPrice ? `${currencySymbol} ${parseFloat(item.sellingPrice).toFixed(2)}` : 'Not Set' %>
+              </span>
+            </div>
+            <div class="d-flex justify-content-between py-2 border-bottom">
+              <span class="text-muted small">Estimated Unit Profit</span>
+              <span class="fw-bold tabular-nums <%= profit && profit.isProfit ? 'text-success' : 'text-muted' %>">
+                <% if (profit) { %>
+                  +<%= currencySymbol %> <%= profit.unitProfit.toFixed(2) %>
+                <% } else { %>
+                  -
+                <% } %>
+              </span>
+            </div>
+            <div class="d-flex justify-content-between py-2">
+              <span class="text-muted small">Estimated Profit Margin</span>
+              <span class="fw-bold tabular-nums <%= profit && profit.isProfit ? 'text-success' : 'text-muted' %>">
+                <% if (profit) { %>
+                  <%= profit.marginPercent %>%
+                <% } else { %>
+                  -
+                <% } %>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Material Specifications Card -->
+        <div class="serene-card">
+          <div class="serene-card-header">
+            <h3 class="serene-card-title"><i class="bi bi-info-circle me-2 text-muted"></i> Material Details</h3>
+          </div>
+          <div class="serene-card-body">
+            <div class="mb-3">
+              <span class="text-muted d-block small">Material Name</span>
+              <span class="fw-bold text-dark fs-6"><%= item.name %></span>
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <span class="text-muted d-block small">SKU / Code</span>
+                <span class="badge bg-light text-muted border font-monospace"><%= item.code %></span>
+              </div>
+              <div class="col-6">
+                <span class="text-muted d-block small">Category</span>
+                <span class="badge bg-light text-dark border"><%= item.category %></span>
+              </div>
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <span class="text-muted d-block small">Measurement Unit</span>
+                <span class="fw-medium text-dark"><%= item.unit %></span>
+              </div>
+              <div class="col-6">
+                <span class="text-muted d-block small">Reorder Alert Level</span>
+                <span class="fw-medium text-danger"><%= parseFloat(item.minStockAlert) %> <%= item.unit %></span>
+              </div>
+            </div>
+            <% if (item.notes) { %>
+              <div class="pt-2 border-top">
+                <span class="text-muted d-block small mb-1">Internal Notes & Description</span>
+                <div class="p-2 rounded bg-light border small text-dark"><%= item.notes %></div>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<%- include('../partials/footer') %>

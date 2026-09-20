@@ -1,0 +1,94 @@
+<% 
+  const p = typeof pagination !== 'undefined' ? pagination : null;
+  const paramName = typeof pageParam !== 'undefined' ? pageParam : 'page';
+  const query = { ...(typeof queryParams !== 'undefined' && queryParams ? queryParams : {}) };
+
+  function getPageUrl(targetPage) {
+    const params = new URLSearchParams();
+    Object.keys(query).forEach(key => {
+      if (query[key] !== undefined && query[key] !== null && query[key] !== '' && query[key] !== 'ALL') {
+        params.set(key, query[key]);
+      }
+    });
+    params.set(paramName, targetPage);
+    return `${baseUrl}?${params.toString()}`;
+  }
+%>
+
+<% if (p) { %>
+  <div class="serene-pagination-container d-flex flex-wrap align-items-center justify-content-between gap-3 px-3 py-3 border-top" style="background:#fafbfc;">
+    <div class="small text-muted">
+      <% if (p.totalItems > 0) { %>
+        Showing <span class="fw-semibold text-dark"><%= p.startItem %></span> to <span class="fw-semibold text-dark"><%= p.endItem %></span> of <span class="fw-semibold text-dark"><%= p.totalItems %></span> entries
+      <% } else { %>
+        Showing <span class="fw-semibold text-dark">0</span> entries
+      <% } %>
+    </div>
+
+    <% if (p.totalPages > 1) { %>
+      <nav aria-label="Table navigation">
+        <ul class="pagination pagination-sm mb-0 align-items-center gap-1">
+          <!-- Previous Button -->
+          <li class="page-item <%= !p.hasPrevPage ? 'disabled' : '' %>">
+            <% if (p.hasPrevPage) { %>
+              <a class="page-link" href="<%= getPageUrl(p.currentPage - 1) %>" aria-label="Previous">
+                <i class="bi bi-chevron-left"></i>
+              </a>
+            <% } else { %>
+              <span class="page-link"><i class="bi bi-chevron-left"></i></span>
+            <% } %>
+          </li>
+
+          <!-- Page Numbers -->
+          <% 
+            const current = p.currentPage;
+            const total = p.totalPages;
+            let pagesToShow = [];
+
+            if (total <= 7) {
+              for (let i = 1; i <= total; i++) pagesToShow.push(i);
+            } else {
+              pagesToShow.push(1);
+              if (current > 3) pagesToShow.push('...');
+
+              const start = Math.max(2, current - 1);
+              const end = Math.min(total - 1, current + 1);
+
+              for (let i = start; i <= end; i++) {
+                if (!pagesToShow.includes(i)) pagesToShow.push(i);
+              }
+
+              if (current < total - 2) pagesToShow.push('...');
+              if (!pagesToShow.includes(total)) pagesToShow.push(total);
+            }
+          %>
+
+          <% pagesToShow.forEach(pageNum => { %>
+            <% if (pageNum === '...') { %>
+              <li class="page-item disabled"><span class="page-link border-0 text-muted px-2">&hellip;</span></li>
+            <% } else { %>
+              <li class="page-item <%= pageNum === current ? 'active' : '' %>">
+                <% if (pageNum === current) { %>
+                  <span class="page-link"><%= pageNum %></span>
+                <% } else { %>
+                  <a class="page-link" href="<%= getPageUrl(pageNum) %>"><%= pageNum %></a>
+                <% } %>
+              </li>
+            <% } %>
+          <% }) %>
+
+          <!-- Next Button -->
+          <li class="page-item <%= !p.hasNextPage ? 'disabled' : '' %>">
+            <% if (p.hasNextPage) { %>
+              <a class="page-link" href="<%= getPageUrl(p.currentPage + 1) %>" aria-label="Next">
+                <i class="bi bi-chevron-right"></i>
+              </a>
+            <% } else { %>
+              <span class="page-link"><i class="bi bi-chevron-right"></i></span>
+            <% } %>
+          </li>
+        </ul>
+      </nav>
+    <% } %>
+  </div>
+<% } %>

@@ -1,0 +1,244 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<main class="main-wrapper">
+  <div class="content-body">
+    <!-- Header -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between mb-4">
+      <div>
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb mb-1 small text-muted">
+            <li class="breadcrumb-item"><a href="/orders" class="text-decoration-none text-muted">Orders</a></li>
+            <li class="breadcrumb-item active"><%= order.orderNumber %></li>
+          </ol>
+        </nav>
+        <div class="d-flex align-items-center gap-3">
+          <h2 class="fs-4 fw-bold mb-0">Order: <%= order.orderNumber %></h2>
+          <span class="status-badge status-<%= order.status.toLowerCase() %>">
+            <span class="status-dot"></span> <%= order.status.replace('_', ' ') %>
+          </span>
+        </div>
+      </div>
+
+      <!-- Quick Status Actions -->
+      <div class="d-flex flex-wrap align-items-center gap-2 mt-3 mt-sm-0">
+        <% if (order.status === 'RECEIVED') { %>
+          <button class="btn btn-serene-primary" onclick="setOrderStatus(<%= order.id %>, 'PRINTING')">
+            <i class="bi bi-printer"></i> Send to Printing
+          </button>
+        <% } else if (order.status === 'PRINTING') { %>
+          <button class="btn btn-serene-primary" onclick="setOrderStatus(<%= order.id %>, 'READY')">
+            <i class="bi bi-box-seam"></i> Mark Ready for Pickup
+          </button>
+        <% } else if (order.status === 'READY') { %>
+          <button class="btn btn-serene-primary" onclick="setOrderStatus(<%= order.id %>, 'COMPLETED')">
+            <i class="bi bi-check-circle"></i> Complete & Deliver
+          </button>
+        <% } %>
+
+        <% if (order.status !== 'CANCELLED' && order.status !== 'COMPLETED') { %>
+          <button class="btn btn-serene-secondary text-danger" onclick="setOrderStatus(<%= order.id %>, 'CANCELLED')">
+            Cancel
+          </button>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <!-- Left: Job Details & Specifications (7 cols) -->
+      <div class="col-lg-7">
+        <div class="serene-card mb-4">
+          <div class="serene-card-header">
+            <h3 class="serene-card-title"><i class="bi bi-file-earmark-text me-2 text-muted"></i> Job Specifications</h3>
+          </div>
+          <div class="serene-card-body">
+            <h4 class="fs-5 fw-bold mb-2"><%= order.jobTitle %></h4>
+            <div class="d-flex flex-wrap gap-2 mb-3">
+              <span class="spec-chip"><i class="bi bi-boxes me-1"></i> Quantity: <strong><%= order.quantity %></strong></span>
+              <% if (order.paperMaterial) { %>
+                <span class="spec-chip"><i class="bi bi-file-richtext me-1"></i> Material: <strong><%= order.paperMaterial %></strong></span>
+              <% } %>
+            </div>
+
+            <% if (order.specifications) { %>
+              <div class="mb-3">
+                <span class="fw-semibold small text-muted d-block mb-1">Specifications & Finishing:</span>
+                <div class="p-3 rounded-2 bg-light border text-dark small" style="white-space: pre-line;"><%= order.specifications %></div>
+              </div>
+            <% } %>
+
+            <div class="row g-3 small text-muted">
+              <div class="col-6">
+                <span>Order Placed:</span> <strong class="text-dark"><%= order.orderDate %></strong>
+              </div>
+              <div class="col-6">
+                <span>Target Due Date:</span> <strong class="text-dark"><%= order.dueDate || 'Standard Turnaround' %></strong>
+              </div>
+            </div>
+
+            <% if (order.notes) { %>
+              <div class="mt-3 pt-3 border-top small">
+                <span class="fw-semibold text-muted d-block">Internal Production Notes:</span>
+                <div class="text-dark"><%= order.notes %></div>
+              </div>
+            <% } %>
+          </div>
+        </div>
+
+        <!-- Material Usage Quick Shortcut -->
+        <div class="serene-card">
+          <div class="serene-card-header">
+            <h3 class="serene-card-title"><i class="bi bi-box-arrow-up text-danger me-2"></i> Stock Used for this Job</h3>
+            <button class="btn btn-serene-secondary py-0 px-2 small" data-bs-toggle="modal" data-bs-target="#stockOutModal">
+              - Record Stock Out
+            </button>
+          </div>
+          <div class="serene-card-body p-3 small text-muted">
+            Need to deduct paper reams, vinyl, or ink used for this order? Click <strong>"Record Stock Out"</strong> above to update inventory.
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Financial Summary & Customer Info (5 cols) -->
+      <div class="col-lg-5">
+        <!-- Financial Card -->
+        <div class="serene-card mb-4">
+          <div class="serene-card-header">
+            <h3 class="serene-card-title">Financials & Balance</h3>
+            <% if (parseFloat(order.balanceAmount) > 0) { %>
+              <button class="btn btn-serene-primary py-1 px-2 small" onclick="openPaymentModal(<%= order.id %>, <%= order.balanceAmount %>)">
+                + Record Payment
+              </button>
+            <% } %>
+          </div>
+          <div class="serene-card-body">
+            <div class="d-flex justify-content-between py-1 text-muted small">
+              <span>Total Job Price:</span>
+              <span class="fs-6 fw-bold text-dark tabular-nums">
+                <%= currencySymbol %> <%= parseFloat(order.totalAmount).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+              </span>
+            </div>
+            <div class="d-flex justify-content-between py-1 text-success small">
+              <span>Advance / Amount Paid:</span>
+              <span class="fw-semibold tabular-nums">
+                <%= currencySymbol %> <%= parseFloat(order.advancePaid).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+              </span>
+            </div>
+            <hr class="my-2">
+            <div class="d-flex justify-content-between py-1">
+              <span class="fw-bold">Remaining Balance:</span>
+              <span class="fs-5 fw-bold tabular-nums <%= parseFloat(order.balanceAmount) > 0 ? 'text-danger' : 'text-success' %>">
+                <%= currencySymbol %> <%= parseFloat(order.balanceAmount).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Customer Card -->
+        <div class="serene-card">
+          <div class="serene-card-header">
+            <h3 class="serene-card-title">Customer Information</h3>
+            <span class="badge bg-light text-muted border font-monospace"><%= order.customer ? order.customer.customerCode : '' %></span>
+          </div>
+          <div class="serene-card-body small">
+            <% if (order.customer) { %>
+              <div class="mb-2">
+                <span class="text-muted d-block">Client Name</span>
+                <strong class="fs-6 text-dark"><%= order.customer.name %></strong>
+              </div>
+              <div class="mb-2">
+                <span class="text-muted d-block">Phone Contact</span>
+                <span class="text-dark"><i class="bi bi-telephone me-1"></i> <%= order.customer.phone %></span>
+              </div>
+              <% if (order.customer.companyName) { %>
+                <div class="mb-2">
+                  <span class="text-muted d-block">Company</span>
+                  <span class="text-dark"><%= order.customer.companyName %></span>
+                </div>
+              <% } %>
+              <% if (order.customer.email) { %>
+                <div class="mb-2">
+                  <span class="text-muted d-block">Email</span>
+                  <span class="text-dark"><%= order.customer.email %></span>
+                </div>
+              <% } %>
+              <% if (order.customer.address) { %>
+                <div class="mb-2">
+                  <span class="text-muted d-block">Address</span>
+                  <span class="text-dark"><%= order.customer.address %></span>
+                </div>
+              <% } %>
+            <% } else { %>
+              <div class="text-muted">No customer details recorded.</div>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<%- include('../partials/footer') %>
+
+<script>
+async function setOrderStatus(orderId, newStatus) {
+  const confirmed = await window.sereneConfirm({
+    title: 'Update Order Status',
+    message: `Are you sure you want to transition this order to status: <strong>${newStatus}</strong>?`,
+    confirmText: `Move to ${newStatus}`,
+    cancelText: 'Cancel',
+  });
+  if (!confirmed) return;
+
+  try {
+    const res = await fetch(`/api/orders/${orderId}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    const result = await res.json();
+    if (result.success) {
+      setPendingToast(result.message || `Order transitioned to ${newStatus}`, 'success');
+      window.location.reload();
+    } else {
+      toast.error('Error: ' + result.message);
+    }
+  } catch (err) {
+    toast.error('Request failed: ' + err.message);
+  }
+}
+
+async function openPaymentModal(orderId, balance) {
+  const amount = await window.serenePrompt({
+    title: 'Record Payment',
+    message: `Enter the payment amount received for this order.<br><span class="text-muted small">Current Balance Due: <strong>Rs. ${parseFloat(balance).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</strong></span>`,
+    label: 'Payment Amount (Rs.) *',
+    defaultValue: balance,
+    placeholder: 'Enter amount',
+    type: 'number',
+    min: 1,
+    max: balance,
+    step: 'any',
+    confirmText: 'Record Payment',
+    cancelText: 'Cancel',
+  });
+  if (!amount) return;
+
+  try {
+    const res = await fetch(`/api/orders/${orderId}/payment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount }),
+    });
+    const result = await res.json();
+    if (result.success) {
+      setPendingToast(result.message, 'success');
+      window.location.reload();
+    } else {
+      toast.error('Payment failed: ' + result.message);
+    }
+  } catch (err) {
+    toast.error('Request failed: ' + err.message);
+  }
+}
+</script>

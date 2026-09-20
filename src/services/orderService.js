@@ -1,0 +1,176 @@
+const { Op } = require('sequelize');
+const { sequelize, Order, Customer } = require('../models');
+
+const { buildPagination } = require('../utils/pagination');
+
+class OrderService {
+  async generateOrderNumber() {
+    const year = new Date().getFullYear();
+    const count = await Order.count();
+    return `ORD-${year}-${(count + 1).toString().padStart(4, '0')}`;
+  }
+
+  async getAllOrders({ status, search, customerId, page = 1, limit = 10, paginate = true } = {}) {
+    const where = {};
+
+    if (status && status !== 'ALL') {
+      where.status = status;
+    }
+
+    if (customerId) {
+      where.customerId = customerId;
+    }
+
+    if (search && search.trim()) {
+      const q = `%${search.trim()}%`;
+      where[Op.or] = [
+        { orderNumber: { [Op.like]: q } },
+        { jobTitle: { [Op.like]: q } },
+        { paperMaterial: { [Op.like]: q } },
+        { notes: { [Op.like]: q } },
+      ];
+    }
+
+    const queryOptions = {
+      where,
+      order: [['createdAt', 'DESC']],
+      include: [
+        {
+          model: Customer,
+          as: 'customer',
+          attributes: ['id', 'name', 'phone', 'companyName', 'email', 'customerCode'],
+        },
+      ],
+      distinct: true,
+    };
+
+    if (!paginate) {
+      return await Order.findAll(queryOptions);
+    }
+
+    const totalCount = await Order.count({ where, distinct: true });
+    const pagination = buildPagination(totalCount, page, limit);
+
+    queryOptions.limit = pagination.limit;
+    queryOptions.offset = pagination.offset;
+
+    const orders = await Order.findAll(queryOptions);
+
+    return {
+      orders,
+      pagination,
+    };
+  }
+
+  async getOrderById(id) {
+    const order = await Order.findByPk(id, {
+      include: [
+        {
+          model: Customer,
+          as: 'customer',
+        },
+      ],
+    });
+    if (!order) throw new Error('Order not found.');
+    return order;
+  }
+
+  async createOrder(data) {
+    return await sequelize.transaction(async (t) => {
+      let customerId = data.customerId;
+
+      // Check if user is creating an inline new customer
+      if (!customerId && (data.newCustomerName || data.name)) {
+        const custName = (data.newCustomerName || data.name).trim();
+        const custPhone = (data.newCustomerPhone || data.phone || '').trim();
+
+        if (!custName) {
+          throw new Error('Customer name is required when adding a new customer.');
+        }
+        if (!custPhone) {
+          throw new Error('Customer phone number is required when adding a new customer.');
+        }
+        if (!/^0\d{9}$/.test(custPhone)) {
+          throw new Error('Phone number must be exactly 10 digits starting with 0 (e.g. 0771234567).');
+        }
+
+        // Auto generate customer code
+        const custCount = await Customer.count({ transaction: t });
+        const customerCode = `CUST-${(custCount + 1).toString().padStart(4, '0')}`;
+
+        const newCustomer = await Customer.create({
+          customerCode,
+          name: custName,
+          phone: custPhone,
+          email: (data.newCustomerEmail || data.email || null),
+          companyName: (data.newCustomerCompany || data.companyName || null),
+          address: (data.newCustomerAddress || data.address || null),
+          notes: 'Created automatically during new order intake',
+        }, { transaction: t });
+
+        customerId = newCustomer.id;
+      }
+
+      if (!customerId) {
+        throw new Error('Please select an existing customer or enter new customer details.');
+      }
+
+      // Verify customer exists
+      const customer = await Customer.findByPk(customerId, { transaction: t });
+      if (!customer) throw new Error('Customer not found.');
+
+      const orderNumber = data.orderNumber || (await this.generateOrderNumber());
+
+      const qty = parseInt(data.quantity, 10) || 1;
+      const total = parseFloat(data.totalAmount) || 0.00;
+      const advance = parseFloat(data.advancePaid) || 0.00;
+      const balance = Math.max(0, total - advance);
+
+      const order = await Order.create({
+        orderNumber,
+        customerId: customer.id,
+        orderDate: data.orderDate || new Date(),
+        dueDate: data.dueDate || null,
+        jobTitle: data.jobTitle || 'Print Job Order',
+        paperMaterial: data.paperMaterial || null,
+        specifications: data.specifications || null,
+        quantity: qty,
+        totalAmount: total,
+        advancePaid: advance,
+        balanceAmount: balance,
+        status: data.status || 'RECEIVED',
+        notes: data.notes || null,
+      }, { transaction: t });
+
+      return order;
+    });
+  }
+
+  async updateOrderStatus(id, newStatus, notes) {
+    const order = await Order.findByPk(id);
+    if (!order) throw new Error('Order not found.');
+
+    order.status = newStatus;
+    if (notes) {
+      order.notes = order.notes ? `${order.notes}\n[${newStatus}]: ${notes}` : `[${newStatus}]: ${notes}`;
+    }
+    await order.save();
+    return order;
+  }
+
+  async recordPayment(id, paymentAmount) {
+    const order = await Order.findByPk(id);
+    if (!order) throw new Error('Order not found.');
+
+    const amt = parseFloat(paymentAmount);
+    if (isNaN(amt) || amt <= 0) throw new Error('Payment amount must be greater than zero.');
+
+    order.advancePaid = (parseFloat(order.advancePaid) || 0) + amt;
+    order.balanceAmount = Math.max(0, (parseFloat(order.balanceAmount) || 0) - amt);
+    await order.save();
+
+    return order;
+  }
+}
+
+module.exports = new OrderService();

@@ -1,0 +1,334 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<main class="main-wrapper">
+  <div class="content-body">
+    <!-- Header -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+      <div>
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb mb-1 small text-muted">
+            <li class="breadcrumb-item"><a href="/orders" class="text-decoration-none text-muted">Orders</a></li>
+            <li class="breadcrumb-item active">New Order</li>
+          </ol>
+        </nav>
+        <h2 class="fs-4 fw-bold mb-0">Record New Printing Order</h2>
+      </div>
+      <div>
+        <a href="/orders" class="btn btn-serene-secondary">
+          <i class="bi bi-arrow-left"></i> Back to Orders
+        </a>
+      </div>
+    </div>
+
+    <form id="newOrderForm" onsubmit="handleOrderSubmit(event)">
+      <div class="row g-4">
+        <!-- Left: Customer Intake & Job Specifications (7 cols) -->
+        <div class="col-lg-7">
+          <!-- Customer Selection Card -->
+          <div class="serene-card mb-4">
+            <div class="serene-card-header d-flex align-items-center justify-content-between">
+              <h3 class="serene-card-title"><i class="bi bi-person me-2 text-muted"></i> Customer Information</h3>
+              <span class="small text-muted">Who placed this order?</span>
+            </div>
+
+            <div class="serene-card-body">
+              <!-- Redesigned Customer Selection Buttons / Cards -->
+              <div class="customer-mode-selector mb-3">
+                <button type="button" 
+                        class="customer-mode-card <%= customers.length === 0 ? 'disabled' : 'active' %>" 
+                        id="btnModeExisting" 
+                        onclick="toggleCustomerMode('existing')" 
+                        <%= customers.length === 0 ? 'disabled' : '' %>>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="mode-icon-box">
+                      <i class="bi bi-person-check-fill"></i>
+                    </div>
+                    <div>
+                      <div class="mode-title">Existing Customer</div>
+                      <div class="mode-sub">From directory (<%= customers.length %>)</div>
+                    </div>
+                  </div>
+                  <div class="mode-radio-dot"></div>
+                </button>
+
+                <button type="button" 
+                        class="customer-mode-card <%= customers.length === 0 ? 'active' : '' %>" 
+                        id="btnModeNew" 
+                        onclick="toggleCustomerMode('new')">
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="mode-icon-box mode-icon-new">
+                      <i class="bi bi-person-plus-fill"></i>
+                    </div>
+                    <div>
+                      <div class="mode-title">+ New Customer</div>
+                      <div class="mode-sub">Auto-creates account</div>
+                    </div>
+                  </div>
+                  <div class="mode-radio-dot"></div>
+                </button>
+              </div>
+              <!-- Mode 1: Existing Customer Dropdown -->
+              <div id="existingCustomerSection" class="<%= customers.length === 0 ? 'd-none' : '' %>">
+                <label class="form-label">Select Registered Customer *</label>
+                <select name="customerId" id="existingCustomerSelect" class="form-select" onchange="onExistingCustomerSelect(this)" <%= customers.length === 0 ? '' : 'required' %>>
+                  <option value="">-- Choose Customer from Directory --</option>
+                  <% customers.forEach(c => { %>
+                    <option value="<%= c.id %>" data-phone="<%= c.phone %>" data-company="<%= c.companyName || '' %>">
+                      <%= c.name %> &bull; <%= c.phone %> <%= c.companyName ? `(${c.companyName})` : '' %> (<%= c.customerCode %>)
+                    </option>
+                  <% }) %>
+                </select>
+                <div class="form-text small text-muted mt-2">
+                  Can't find the customer? Click <strong>"+ New Customer"</strong> above to enter their details right now.
+                </div>
+              </div>
+
+              <!-- Mode 2: New Customer Form (Auto-created) -->
+              <div id="newCustomerSection" class="<%= customers.length === 0 ? '' : 'd-none' %>">
+                <div class="alert alert-light border small text-muted mb-3 py-2 px-3 rounded-2">
+                  <i class="bi bi-info-circle text-primary me-1"></i> A new customer account will be created automatically with these details.
+                </div>
+
+                <div class="row g-3 mb-3">
+                  <div class="col-md-6">
+                    <label class="form-label">Customer Name *</label>
+                    <input type="text" name="newCustomerName" id="newCustomerName" class="form-control" placeholder="Full Name / Contact Person">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Phone Number *</label>
+                    <input type="tel" name="newCustomerPhone" id="newCustomerPhone" class="form-control" placeholder="0771234567" pattern="0[0-9]{9}" maxlength="10" minlength="10" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 10)">
+                  </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                  <div class="col-md-6">
+                    <label class="form-label">Company / Business Name (Optional)</label>
+                    <input type="text" name="newCustomerCompany" class="form-control" placeholder="Company or brand name">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Email Address (Optional)</label>
+                    <input type="email" name="newCustomerEmail" class="form-control" placeholder="client@domain.com">
+                  </div>
+                </div>
+
+                <div>
+                  <label class="form-label">Address / Location (Optional)</label>
+                  <input type="text" name="newCustomerAddress" class="form-control" placeholder="Street, City">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Job Specifications Card -->
+          <div class="serene-card">
+            <div class="serene-card-header">
+              <h3 class="serene-card-title"><i class="bi bi-sliders me-2 text-muted"></i> Job & Print Specifications</h3>
+            </div>
+            <div class="serene-card-body">
+              <div class="mb-3">
+                <label class="form-label">Job Title / Item Description *</label>
+                <input type="text" name="jobTitle" class="form-control" placeholder="e.g. 500x Business Cards, 2x Vinyl Banners (10x4ft)" required>
+              </div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                  <label class="form-label">Paper Substrate / Material</label>
+                  <input type="text" name="paperMaterial" list="stockPaperList" class="form-control" placeholder="e.g. 350gsm Ivory Art Card, Gloss Vinyl">
+                  <datalist id="stockPaperList">
+                    <% stockItems.forEach(item => { %>
+                      <option value="<%= item.name %> (<%= item.currentStock %> <%= item.unit %> in stock)">
+                    <% }) %>
+                  </datalist>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Print Quantity *</label>
+                  <input type="number" name="quantity" id="orderQuantity" class="form-control" value="100" min="1" required>
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Specifications (Sides, Colors, Finishing)</label>
+                <textarea name="specifications" class="form-control" rows="3" style="resize: none;" placeholder="e.g. Double-sided Full Color, Matte Lamination, Corner Rounding"></textarea>
+              </div>
+
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label">Order Date</label>
+                  <input type="date" name="orderDate" class="form-control" value="<%= new Date().toISOString().split('T')[0] %>">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Due Date for Collection</label>
+                  <input type="date" name="dueDate" id="dueDateField" class="form-control">
+                </div>
+              </div>
+
+              <div class="mt-3">
+                <label class="form-label">Internal Production Notes (Optional)</label>
+                <input type="text" name="notes" class="form-control" placeholder="Special client instructions, artwork file location">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Pricing & Confirmation (5 cols) -->
+        <div class="col-lg-5">
+          <div class="serene-card sticky-lg-top" style="top: 80px;">
+            <div class="serene-card-header">
+              <h3 class="serene-card-title">Billing & Payment</h3>
+            </div>
+            <div class="serene-card-body">
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Total Job Amount (<%= currencySymbol %>) *</label>
+                <input type="number" name="totalAmount" id="totalAmountInput" class="form-control fs-5 fw-bold" placeholder="0.00" step="any" min="0" onfocus="clearIfZero(this)" onclick="clearIfZero(this)" oninput="updateBalanceCalc()" required>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Advance Payment Paid (<%= currencySymbol %>)</label>
+                <input type="number" name="advancePaid" id="advancePaidInput" class="form-control text-success fw-semibold" placeholder="0.00" step="any" min="0" onfocus="clearIfZero(this)" onclick="clearIfZero(this)" oninput="updateBalanceCalc()">
+              </div>
+
+              <div class="p-3 mb-4 rounded-2" style="background:#fafbfc; border:1px solid var(--serene-border-subtle);">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <span class="text-muted small">Total:</span>
+                  <span class="fw-semibold tabular-nums text-dark" id="calcTotal">Rs. 0.00</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <span class="text-muted small">Advance Paid:</span>
+                  <span class="fw-semibold tabular-nums text-success" id="calcAdvance">Rs. 0.00</span>
+                </div>
+                <hr class="my-2">
+                <div class="d-flex justify-content-between align-items-center">
+                  <span class="fw-bold">Remaining Balance:</span>
+                  <span class="fs-5 fw-bold tabular-nums text-danger" id="calcBalance">Rs. 0.00</span>
+                </div>
+              </div>
+
+              <div class="mb-4">
+                <label class="form-label">Initial Status</label>
+                <select name="status" class="form-select">
+                  <option value="RECEIVED" selected>Received (Pending Design / Pre-press)</option>
+                  <option value="PRINTING">Printing (Direct to Press)</option>
+                  <option value="READY">Ready for Pickup</option>
+                </select>
+              </div>
+
+              <button type="submit" class="btn btn-serene-primary w-100 py-2 justify-content-center">
+                <i class="bi bi-check2-circle"></i> Save & Record Order
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</main>
+
+<%- include('../partials/footer') %>
+
+<script>
+let currentMode = '<%= customers.length === 0 ? "new" : "existing" %>';
+
+function clearIfZero(input) {
+  if (input.value === '0' || input.value === '0.00' || parseFloat(input.value) === 0) {
+    input.value = '';
+  }
+}
+
+function toggleCustomerMode(mode) {
+  currentMode = mode;
+  const existingSec = document.getElementById('existingCustomerSection');
+  const newSec = document.getElementById('newCustomerSection');
+  const existingSelect = document.getElementById('existingCustomerSelect');
+  const newName = document.getElementById('newCustomerName');
+  const newPhone = document.getElementById('newCustomerPhone');
+  const btnExisting = document.getElementById('btnModeExisting');
+  const btnNew = document.getElementById('btnModeNew');
+
+  if (mode === 'new') {
+    if (btnExisting) btnExisting.classList.remove('active');
+    if (btnNew) btnNew.classList.add('active');
+    existingSec.classList.add('d-none');
+    newSec.classList.remove('d-none');
+    existingSelect.removeAttribute('required');
+    newName.setAttribute('required', 'required');
+    newPhone.setAttribute('required', 'required');
+    newName.focus();
+  } else {
+    if (btnNew) btnNew.classList.remove('active');
+    if (btnExisting) btnExisting.classList.add('active');
+    newSec.classList.add('d-none');
+    existingSec.classList.remove('d-none');
+    existingSelect.setAttribute('required', 'required');
+    newName.removeAttribute('required');
+    newPhone.removeAttribute('required');
+    existingSelect.focus();
+  }
+}
+
+function updateBalanceCalc() {
+  const totalVal = document.getElementById('totalAmountInput').value;
+  const advanceVal = document.getElementById('advancePaidInput').value;
+  const total = totalVal !== '' ? (parseFloat(totalVal) || 0) : 0;
+  const advance = advanceVal !== '' ? (parseFloat(advanceVal) || 0) : 0;
+  const balance = Math.max(0, total - advance);
+
+  document.getElementById('calcTotal').innerText = formatCurrency(total);
+  document.getElementById('calcAdvance').innerText = formatCurrency(advance);
+  document.getElementById('calcBalance').innerText = formatCurrency(balance);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Set default due date to 2 days from today
+  const d = new Date();
+  d.setDate(d.getDate() + 2);
+  document.getElementById('dueDateField').value = d.toISOString().split('T')[0];
+  updateBalanceCalc();
+
+  <% if (customers.length === 0) { %>
+  toggleCustomerMode('new');
+  <% } %>
+});
+
+async function handleOrderSubmit(e) {
+  e.preventDefault();
+  const form = e.target;
+  const formData = new FormData(form);
+  const payload = Object.fromEntries(formData.entries());
+
+  if (currentMode === 'existing' && !payload.customerId) {
+    toast.warning('Please select an existing customer or switch to "+ New Customer".');
+    return;
+  }
+
+  if (currentMode === 'new') {
+    delete payload.customerId; // Ensure customerId is empty so backend creates new customer
+    const phone = (payload.newCustomerPhone || '').trim();
+    if (!phone) {
+      toast.warning('Please enter a phone number for the new customer.');
+      return;
+    }
+    if (!/^0\d{9}$/.test(phone)) {
+      toast.warning('Customer phone number must be exactly 10 digits starting with 0 (e.g. 0771234567).');
+      return;
+    }
+  }
+
+  try {
+    const res = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (result.success) {
+      setPendingToast(result.message, 'success');
+      window.location.href = `/orders/${result.data.id}`;
+    } else {
+      toast.error('Failed to create order: ' + result.message);
+    }
+  } catch (err) {
+    toast.error('Network error: ' + err.message);
+  }
+}
+</script>

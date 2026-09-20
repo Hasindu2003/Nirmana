@@ -1,0 +1,209 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<%
+  const ordersList = customer.orders || [];
+  const totalSpend = ordersList.reduce((acc, o) => acc + (parseFloat(o.totalAmount) || 0), 0);
+  const totalBalanceDue = ordersList.reduce((acc, o) => acc + (parseFloat(o.balanceAmount) || 0), 0);
+%>
+
+<main class="main-wrapper">
+  <div class="content-body">
+    <!-- Header -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+      <div>
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb mb-1 small text-muted">
+            <li class="breadcrumb-item"><a href="/customers" class="text-decoration-none text-muted">Customers</a></li>
+            <li class="breadcrumb-item active"><%= customer.name %></li>
+          </ol>
+        </nav>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <h2 class="fs-4 fw-bold mb-0"><%= customer.name %></h2>
+          <span class="badge bg-light text-muted border font-monospace"><%= customer.customerCode %></span>
+          <% if (customer.companyName) { %>
+            <span class="badge bg-light text-dark border"><%= customer.companyName %></span>
+          <% } %>
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap align-items-center gap-2 mt-2 mt-sm-0">
+        <a href="/orders/new" class="btn btn-serene-primary">
+          <i class="bi bi-plus-lg"></i> Record Order for Client
+        </a>
+        <a href="/customers" class="btn btn-serene-secondary">
+          <i class="bi bi-arrow-left"></i> All Customers
+        </a>
+      </div>
+    </div>
+
+    <!-- Client Metrics Summary -->
+    <div class="row g-2 g-md-3 mb-4">
+      <div class="col-6 col-md-4">
+        <div class="kpi-card">
+          <div class="kpi-title">Total Orders Placed</div>
+          <div class="kpi-value tabular-nums text-primary"><%= ordersList.length %></div>
+          <div class="kpi-sub text-muted text-truncate">
+            <i class="bi bi-clipboard2-check"></i> Lifetime orders
+          </div>
+        </div>
+      </div>
+
+      <div class="col-6 col-md-4">
+        <div class="kpi-card">
+          <div class="kpi-title">Total Job Value</div>
+          <div class="kpi-value tabular-nums text-dark">
+            <%= currencySymbol %> <%= totalSpend.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+          </div>
+          <div class="kpi-sub text-muted text-truncate">
+            <i class="bi bi-receipt"></i> Cumulative spend
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-4">
+        <div class="kpi-card">
+          <div class="kpi-title">Pending Balance Due</div>
+          <div class="kpi-value tabular-nums <%= totalBalanceDue > 0 ? 'text-danger' : 'text-success' %>">
+            <%= currencySymbol %> <%= totalBalanceDue.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+          </div>
+          <div class="kpi-sub text-muted text-truncate">
+            <% if (totalBalanceDue > 0) { %>
+              <span class="text-danger"><i class="bi bi-exclamation-circle"></i> Unsettled balances</span>
+            <% } else { %>
+              <span class="text-success"><i class="bi bi-check2-circle"></i> Account fully settled</span>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <!-- Left: Client Order History (7 cols) -->
+      <div class="col-lg-7">
+        <div class="serene-card mb-4">
+          <div class="serene-card-header d-flex align-items-center justify-content-between">
+            <h3 class="serene-card-title"><i class="bi bi-clock-history me-2 text-muted"></i> Printing Orders History</h3>
+            <span class="small text-muted"><%= ordersList.length %> Total Orders</span>
+          </div>
+          <div class="table-responsive">
+            <table class="serene-table">
+              <thead>
+                <tr>
+                  <th>Order #</th>
+                  <th>Job Description</th>
+                  <th>Amount & Balance</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (ordersList.length > 0) { %>
+                  <% ordersList.forEach(o => { %>
+                    <tr>
+                      <td>
+                        <a href="/orders/<%= o.id %>" class="fw-semibold text-decoration-none text-dark font-monospace">
+                          <%= o.orderNumber %>
+                        </a>
+                      </td>
+                      <td>
+                        <div class="fw-medium text-dark"><%= o.jobTitle %></div>
+                        <span class="badge bg-light text-muted border small mt-1"><%= o.quantity %> units</span>
+                      </td>
+                      <td>
+                        <div class="tabular-nums fw-semibold text-dark">
+                          <%= currencySymbol %> <%= parseFloat(o.totalAmount).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+                        </div>
+                        <% if (parseFloat(o.balanceAmount) <= 0) { %>
+                          <span class="badge mt-1" style="background:#edf7ed; color:#1e4620;">Paid</span>
+                        <% } else { %>
+                          <div class="text-danger small fw-semibold mt-1">
+                            Due: <%= currencySymbol %> <%= parseFloat(o.balanceAmount).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+                          </div>
+                        <% } %>
+                      </td>
+                      <td>
+                        <span class="status-badge status-<%= o.status.toLowerCase() %>">
+                          <span class="status-dot"></span> <%= o.status.replace('_', ' ') %>
+                        </span>
+                      </td>
+                      <td>
+                        <a href="/orders/<%= o.id %>" class="btn btn-sm btn-serene-secondary py-1 px-2" title="View Order">
+                          <i class="bi bi-eye"></i> View
+                        </a>
+                      </td>
+                    </tr>
+                  <% }) %>
+                <% } else { %>
+                  <tr>
+                    <td colspan="5" class="text-center py-5 text-muted">
+                      No orders placed by this customer yet.
+                    </td>
+                  </tr>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Detailed Client Profile (5 cols) -->
+      <div class="col-lg-5">
+        <div class="serene-card mb-4">
+          <div class="serene-card-header">
+            <h3 class="serene-card-title"><i class="bi bi-person-lines-fill me-2 text-muted"></i> Client Profile Details</h3>
+          </div>
+          <div class="serene-card-body">
+            <div class="mb-3">
+              <span class="text-muted d-block small">Primary Contact Name</span>
+              <span class="fw-bold text-dark fs-6"><%= customer.name %></span>
+            </div>
+
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <span class="text-muted d-block small">Customer Code</span>
+                <span class="badge bg-light text-muted border font-monospace"><%= customer.customerCode %></span>
+              </div>
+              <div class="col-6">
+                <span class="text-muted d-block small">Company / Brand</span>
+                <span class="fw-medium text-dark"><%= customer.companyName || 'Individual' %></span>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <span class="text-muted d-block small">Phone Number</span>
+              <a href="tel:<%= customer.phone %>" class="text-decoration-none fw-medium text-dark">
+                <i class="bi bi-telephone text-primary me-1"></i> <%= customer.phone %>
+              </a>
+            </div>
+
+            <div class="mb-3">
+              <span class="text-muted d-block small">Email Address</span>
+              <% if (customer.email) { %>
+                <a href="mailto:<%= customer.email %>" class="text-decoration-none text-dark">
+                  <i class="bi bi-envelope text-muted me-1"></i> <%= customer.email %>
+                </a>
+              <% } else { %>
+                <span class="text-muted small">Not provided</span>
+              <% } %>
+            </div>
+
+            <div class="mb-3">
+              <span class="text-muted d-block small">Billing / Delivery Address</span>
+              <span class="text-dark"><%= customer.address || 'Not specified' %></span>
+            </div>
+
+            <% if (customer.notes) { %>
+              <div class="pt-2 border-top">
+                <span class="text-muted d-block small mb-1">Account Notes</span>
+                <div class="p-2 rounded bg-light border small text-dark"><%= customer.notes %></div>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<%- include('../partials/footer') %>

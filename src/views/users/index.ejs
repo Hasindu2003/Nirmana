@@ -1,0 +1,222 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<main class="main-wrapper">
+  <div class="content-body">
+    <!-- Header -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between mb-4">
+      <div>
+        <h2 class="fs-4 fw-bold mb-1">User & Role Administration</h2>
+        <div class="text-muted small">Manage staff logins, role-based access control (RBAC), and user status</div>
+      </div>
+      <div class="mt-2 mt-sm-0">
+        <button class="btn btn-serene-primary" data-bs-toggle="modal" data-bs-target="#newUserModal">
+          <i class="bi bi-person-plus"></i> Create New User
+        </button>
+      </div>
+    </div>
+
+    <!-- Users Table Card -->
+    <div class="serene-card">
+      <div class="table-responsive">
+        <table class="serene-table">
+          <thead>
+            <tr>
+              <th>Full Name</th>
+              <th>Username</th>
+              <th>Email</th>
+              <th>Role (RBAC)</th>
+              <th>Status</th>
+              <th>Last Active</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% users.forEach(u => { %>
+              <tr>
+                <td>
+                  <div class="fw-semibold text-dark"><%= u.fullName %></div>
+                  <div class="text-muted small"><%= u.phone || 'No phone' %></div>
+                </td>
+                <td class="font-monospace small"><%= u.username %></td>
+                <td class="text-muted small"><%= u.email %></td>
+                <td>
+                  <span class="badge bg-light text-dark border"><%= u.role %></span>
+                </td>
+                <td>
+                  <% if (u.isActive) { %>
+                    <span class="status-badge status-ready"><span class="status-dot"></span> Active</span>
+                  <% } else { %>
+                    <span class="status-badge status-cancelled"><span class="status-dot"></span> Inactive</span>
+                  <% } %>
+                </td>
+                <td class="text-muted small">
+                  <%= u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString() : 'Never' %>
+                </td>
+                <td>
+                  <div class="d-flex align-items-center gap-1">
+                    <% if (currentUser.id !== u.id) { %>
+                      <button class="btn btn-serene-ghost py-1 px-2 small" onclick="toggleUserStatus(<%= u.id %>)">
+                        <%= u.isActive ? 'Deactivate' : 'Activate' %>
+                      </button>
+                    <% } %>
+                    <button class="btn btn-serene-ghost py-1 px-2 small" onclick="resetUserPassword(<%= u.id %>, '<%= u.username %>')">
+                      Reset Password
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Modal: Add New User -->
+<div class="modal fade" id="newUserModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius: var(--serene-radius-lg); border: 1px solid var(--serene-border);">
+      <div class="modal-header border-bottom" style="background:#fafbfc;">
+        <h5 class="modal-title fs-6 fw-semibold">Create Staff User</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form onsubmit="handleCreateUser(event)">
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label">Full Name *</label>
+            <input type="text" name="fullName" class="form-control" placeholder="e.g. Ruwan Wickramasinghe" required>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label">Username *</label>
+              <input type="text" name="username" class="form-control" placeholder="e.g. rwickrama" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">System Role *</label>
+              <select name="role" class="form-select" required>
+                <option value="SALES">Sales Staff</option>
+                <option value="PRODUCTION">Production Staff</option>
+                <option value="INVENTORY">Inventory Staff</option>
+                <option value="ACCOUNTANT">Accountant</option>
+                <option value="MANAGER">Operations Manager</option>
+                <option value="ADMIN">Owner / Admin</option>
+              </select>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Email Address *</label>
+            <input type="email" name="email" class="form-control" placeholder="user@nirmana.lk" required>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label">Phone Number</label>
+              <input type="tel" name="phone" class="form-control" placeholder="0771234567" pattern="0[0-9]{9}" maxlength="10" minlength="10" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 10)">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Initial Password *</label>
+              <input type="password" name="password" class="form-control" value="Password123!" required>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-top bg-light">
+          <button type="button" class="btn btn-serene-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-serene-primary">Create User</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>
+
+<script>
+async function handleCreateUser(e) {
+  e.preventDefault();
+  const form = e.target;
+  const formData = new FormData(form);
+  const data = Object.fromEntries(formData.entries());
+
+  if (data.phone && data.phone.trim()) {
+    data.phone = data.phone.trim();
+    if (!/^0\d{9}$/.test(data.phone)) {
+      toast.warning('Phone number must be exactly 10 digits starting with 0 (e.g. 0771234567).');
+      return;
+    }
+  } else {
+    delete data.phone;
+  }
+
+  try {
+    const res = await fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const result = await res.json();
+    if (result.success) {
+      setPendingToast('User created successfully: ' + result.data.username, 'success');
+      window.location.reload();
+    } else {
+      toast.error('Error: ' + result.message);
+    }
+  } catch (err) {
+    toast.error('Request failed: ' + err.message);
+  }
+}
+
+async function toggleUserStatus(userId) {
+  const confirmed = await window.sereneConfirm({
+    title: 'Change User Status',
+    message: 'Are you sure you want to toggle this user status?',
+    confirmText: 'Change Status',
+    cancelText: 'Cancel',
+  });
+  if (!confirmed) return;
+
+  try {
+    const res = await fetch(`/api/users/${userId}/toggle-status`, {
+      method: 'PUT',
+    });
+    const result = await res.json();
+    if (result.success) {
+      setPendingToast('User status updated successfully', 'success');
+      window.location.reload();
+    } else {
+      toast.error('Error: ' + result.message);
+    }
+  } catch (err) {
+    toast.error('Request failed: ' + err.message);
+  }
+}
+
+async function resetUserPassword(userId, username) {
+  const newPass = await window.serenePrompt({
+    title: 'Reset Password',
+    message: `Enter new password for user <strong>${username}</strong>:`,
+    label: 'New Password:',
+    defaultValue: 'Password123!',
+    type: 'text',
+    confirmText: 'Update Password',
+    cancelText: 'Cancel',
+  });
+  if (!newPass) return;
+
+  try {
+    const res = await fetch(`/api/users/${userId}/reset-password`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newPassword: newPass }),
+    });
+    const result = await res.json();
+    if (result.success) {
+      toast.success(`Password reset for ${username} successfully!`);
+    } else {
+      toast.error('Error: ' + result.message);
+    }
+  } catch (err) {
+    toast.error('Request failed: ' + err.message);
+  }
+}
+</script>
