@@ -429,6 +429,18 @@ class QuickPrintController {
       return res.status(500).json({ success: false, message: error.message });
     }
   }
+
+  /**
+   * Check current Google Drive cloud storage connectivity status
+   */
+  async getStorageStatus(req, res) {
+    try {
+      const status = await googleDriveService.verifyConnection();
+      return res.json({ success: true, ...status });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  }
 }
 
 module.exports = new QuickPrintController();
