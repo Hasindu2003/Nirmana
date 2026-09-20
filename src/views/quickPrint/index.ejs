@@ -35,14 +35,6 @@
     color: #ffffff !important;
   }
 
-  .kpi-card-active-pending {
-    border-color: var(--serene-primary) !important;
-    box-shadow: 0 0 0 1.5px var(--serene-primary) !important;
-  }
-  .kpi-card-active-completed {
-    border-color: #16a34a !important;
-    box-shadow: 0 0 0 1.5px #16a34a !important;
-  }
 
   #previewFilesNavTabs .nav-link {
     color: var(--serene-text-muted);
@@ -100,52 +92,48 @@
     <div class="row g-2 g-md-3 mb-4">
       <!-- 1. Pending Queue -->
       <div class="col-6">
-        <a href="/quick-print?status=PENDING" class="text-decoration-none">
-          <div class="kpi-card-compact <%= currentStatus === 'PENDING' ? 'kpi-card-active-pending' : '' %>" style="cursor: pointer;">
-            <div class="kpi-compact-content">
-              <div class="kpi-compact-label">
-                <span>Pending Queue</span>
-                <span class="badge bg-danger-subtle text-danger rounded-pill px-2 py-0 ms-1" style="font-size: 0.68rem; font-weight: 600;">
-                  <i class="bi bi-clock me-1"></i>In Queue
-                </span>
-              </div>
-              <div class="kpi-compact-num text-danger tabular-nums" id="statPending">
-                <%= stats.pending %>
-              </div>
-              <div class="kpi-compact-sub text-muted">
-                <span class="status-dot" style="background:#dc2626;"></span> Awaiting print & handover
-              </div>
+        <div class="kpi-card-compact">
+          <div class="kpi-compact-content">
+            <div class="kpi-compact-label">
+              <span>Pending Queue</span>
+              <span class="badge bg-danger-subtle text-danger rounded-pill px-2 py-0 ms-1" style="font-size: 0.68rem; font-weight: 600;">
+                <i class="bi bi-clock me-1"></i>In Queue
+              </span>
             </div>
-            <div class="kpi-icon-chip" style="background: #fee2e2; color: #dc2626;">
-              <i class="bi bi-clock-history"></i>
+            <div class="kpi-compact-num text-danger tabular-nums" id="statPending">
+              <%= stats.pending %>
+            </div>
+            <div class="kpi-compact-sub text-muted">
+              <span class="status-dot" style="background:#dc2626;"></span> Awaiting print & handover
             </div>
           </div>
-        </a>
+          <div class="kpi-icon-chip" style="background: #fee2e2; color: #dc2626;">
+            <i class="bi bi-clock-history"></i>
+          </div>
+        </div>
       </div>
 
       <!-- 2. Completed Today -->
       <div class="col-6">
-        <a href="/quick-print?status=COMPLETED" class="text-decoration-none">
-          <div class="kpi-card-compact <%= currentStatus === 'COMPLETED' ? 'kpi-card-active-completed' : '' %>" style="cursor: pointer;">
-            <div class="kpi-compact-content">
-              <div class="kpi-compact-label">
-                <span>Completed Today</span>
-                <span class="badge bg-success-subtle text-success rounded-pill px-2 py-0 ms-1" style="font-size: 0.68rem; font-weight: 600;">
-                  <i class="bi bi-check2-circle me-1"></i>Done
-                </span>
-              </div>
-              <div class="kpi-compact-num text-success tabular-nums" id="statCompletedToday">
-                <%= stats.completedToday %>
-              </div>
-              <div class="kpi-compact-sub text-muted">
-                <span class="status-dot" style="background:#16a34a;"></span> Finished walk-in print jobs
-              </div>
+        <div class="kpi-card-compact">
+          <div class="kpi-compact-content">
+            <div class="kpi-compact-label">
+              <span>Completed Today</span>
+              <span class="badge bg-success-subtle text-success rounded-pill px-2 py-0 ms-1" style="font-size: 0.68rem; font-weight: 600;">
+                <i class="bi bi-check2-circle me-1"></i>Done
+              </span>
             </div>
-            <div class="kpi-icon-chip" style="background: #edf7ed; color: #16a34a;">
-              <i class="bi bi-check-circle-fill"></i>
+            <div class="kpi-compact-num text-success tabular-nums" id="statCompletedToday">
+              <%= stats.completedToday %>
+            </div>
+            <div class="kpi-compact-sub text-muted">
+              <span class="status-dot" style="background:#16a34a;"></span> Finished walk-in print jobs
             </div>
           </div>
-        </a>
+          <div class="kpi-icon-chip" style="background: #edf7ed; color: #16a34a;">
+            <i class="bi bi-check-circle-fill"></i>
+          </div>
+        </div>
       </div>
     </div>
 
