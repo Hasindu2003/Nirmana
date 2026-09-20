@@ -100,7 +100,7 @@
                   <% item.transactions.forEach(t => { %>
                     <tr>
                       <td class="text-muted small font-monospace">
-                        <%= new Date(t.date || t.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
+                        <%= formatDate(t.date || t.createdAt) %>
                       </td>
                       <td>
                         <% if (t.type === 'IN') { %>

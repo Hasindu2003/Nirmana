@@ -1,5 +1,6 @@
 const { Op } = require('sequelize');
 const { sequelize, StockItem, StockTransaction } = require('../models');
+const { getSriLankaTodayString } = require('../utils/dateUtils');
 
 const { buildPagination } = require('../utils/pagination');
 
@@ -108,7 +109,7 @@ class StockService {
           sellingPrice: sellingPrice !== null ? parseFloat(sellingPrice.toFixed(2)) : null,
           reference: 'Initial Stock Setup',
           notes: 'Initial stock recorded on creation',
-          date: new Date(),
+          date: getSriLankaTodayString(),
         }, { transaction: t });
       }
 
@@ -183,7 +184,7 @@ class StockService {
         sellingPrice: parsedSellingPrice !== null ? parseFloat(parsedSellingPrice.toFixed(2)) : null,
         reference: reference || 'Stock Arrival',
         notes: notes || 'New stock added to inventory',
-        date: date || new Date(),
+        date: date || getSriLankaTodayString(),
       }, { transaction: t });
 
       let profitInfo = null;
@@ -233,7 +234,7 @@ class StockService {
         balanceAfter: newBalance,
         reference: reference || 'Job Usage',
         notes: notes || 'Materials deducted for print production',
-        date: date || new Date(),
+        date: date || getSriLankaTodayString(),
       }, { transaction: t });
 
       return { item, transaction };

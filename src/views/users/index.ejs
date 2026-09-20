@@ -52,7 +52,7 @@
                     <% } %>
                   </td>
                   <td class="text-muted small">
-                    <%= u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString() : 'Never' %>
+                    <%= u.lastLoginAt ? formatDateTime(u.lastLoginAt) : 'Never' %>
                   </td>
                   <td>
                     <div class="d-flex align-items-center gap-1">

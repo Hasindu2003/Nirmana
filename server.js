@@ -1,3 +1,6 @@
+// Enforce Sri Lanka timezone across Node.js runtime (Asia/Colombo, UTC+05:30)
+process.env.TZ = 'Asia/Colombo';
+
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -34,6 +37,12 @@ const sequelize = require('./src/config/database');
 const apiRoutes = require('./src/routes/api');
 const viewRoutes = require('./src/routes/viewRoutes');
 const errorHandler = require('./src/middleware/errorHandler');
+const {
+  formatSriLankaDate,
+  formatSriLankaDateTime,
+  formatSriLankaTime,
+  getSriLankaTodayString,
+} = require('./src/utils/dateUtils');
 
 const app = express();
 
@@ -85,6 +94,10 @@ app.use(async (req, res, next) => {
   res.locals.currentPath = req.path;
   res.locals.activePage = '';
   res.locals.title = 'Nirmana Printing Management System';
+  res.locals.formatDate = formatSriLankaDate;
+  res.locals.formatDateTime = formatSriLankaDateTime;
+  res.locals.formatTime = formatSriLankaTime;
+  res.locals.todayDate = getSriLankaTodayString;
 
   try {
     let userId = null;
@@ -125,6 +138,8 @@ app.get(['/health', '/api/health'], (req, res) => {
     dbDialect: sequelize && typeof sequelize.getDialect === 'function' ? sequelize.getDialect() : config.db.dialect,
     dbInitialized: isDbInitialized,
     dbError: dbInitError ? dbInitError.message : null,
+    timezone: 'Asia/Colombo (+05:30)',
+    sriLankaTime: formatSriLankaDateTime(new Date()),
     timestamp: new Date().toISOString(),
   });
 });

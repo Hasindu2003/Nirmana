@@ -436,6 +436,10 @@
         <strong id="ticketSpecs" class="text-dark">-</strong>
       </div>
       <div class="d-flex justify-content-between mb-1">
+        <span class="text-muted">Time (ශ්‍රී ලංකා වේලාව):</span>
+        <strong id="ticketTime" class="text-dark">-</strong>
+      </div>
+      <div class="d-flex justify-content-between mb-1">
         <span class="text-muted">Status:</span>
         <strong id="ticketCurrentStatus" class="text-serene-primary">RECEIVED &bull; Counter එකෙන් තවම Print කරමින් පවතී</strong>
       </div>
@@ -1107,6 +1111,14 @@
       const modeLabel = (data.colorMode === 'COLOR' ? 'Color' : 'B&W');
       const copiesLabel = (data.copies && data.copies > 1 ? `${data.copies} copies` : '1 copy');
       document.getElementById('ticketSpecs').textContent = `${data.paperSize || 'A4'} • ${modeLabel} • ${copiesLabel}`;
+    }
+    if (document.getElementById('ticketTime')) {
+      document.getElementById('ticketTime').textContent = new Date().toLocaleTimeString('en-LK', {
+        timeZone: 'Asia/Colombo',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
     }
 
     try {

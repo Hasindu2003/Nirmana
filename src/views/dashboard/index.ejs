@@ -12,7 +12,7 @@
       <!-- Far Right Corner: Date & Live Status -->
       <div class="text-muted small d-flex align-items-center gap-1 bg-white border rounded-pill px-3 py-1 shadow-xs ms-auto" style="font-size: 0.8rem;">
         <i class="bi bi-calendar3 me-1 text-muted"></i>
-        <span>Today, <%= new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' }) %></span>
+        <span>Today, <%= formatDateTime(new Date(), { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' }) %></span>
         <span class="mx-1 text-muted">&bull;</span>
         <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-2 py-0 d-inline-flex align-items-center" style="font-size: 0.72rem; font-weight: 600;">
           <span class="spinner-grow spinner-grow-sm text-success me-1" style="width: 6px; height: 6px;" role="status"></span> Live Operations
@@ -227,7 +227,7 @@
                       </td>
                       <td>
                         <div class="text-muted small tabular-nums">
-                          <%= order.orderDate || new Date(order.createdAt).toISOString().split('T')[0] %>
+                          <%= order.orderDate ? formatDate(order.orderDate) : formatDate(order.createdAt) %>
                         </div>
                       </td>
                       <td>
@@ -435,8 +435,8 @@
                       <% } %>
                     </td>
                     <td class="text-muted small">
-                      <%= new Date(t.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) %><br>
-                      <%= new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) %>
+                      <%= formatDate(t.date || t.createdAt) %><br>
+                      <%= formatTime(t.createdAt) %>
                     </td>
                   </tr>
                 <% }) %>

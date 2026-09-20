@@ -1,5 +1,6 @@
 const { Op } = require('sequelize');
 const { sequelize, Order, Customer } = require('../models');
+const { getSriLankaTodayString } = require('../utils/dateUtils');
 
 const { buildPagination } = require('../utils/pagination');
 
@@ -127,7 +128,7 @@ class OrderService {
       const order = await Order.create({
         orderNumber,
         customerId: customer.id,
-        orderDate: data.orderDate || new Date(),
+        orderDate: data.orderDate || getSriLankaTodayString(),
         dueDate: data.dueDate || null,
         jobTitle: data.jobTitle || 'Print Job Order',
         paperMaterial: data.paperMaterial || null,

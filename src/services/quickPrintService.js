@@ -3,19 +3,20 @@ const path = require('path');
 const fs = require('fs');
 const { QuickPrintJob, QuickPrintFile, Customer, Order, sequelize } = require('../models');
 const googleDriveService = require('./googleDriveService');
+const { getSriLankaDayBounds } = require('../utils/dateUtils');
 
 class QuickPrintService {
   /**
    * Generates a daily sequential token number (e.g. QP-001, QP-002)
    */
   async generateTokenNumber(transaction = null) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const { startOfDay, endOfDay } = getSriLankaDayBounds();
 
     const count = await QuickPrintJob.count({
       where: {
         createdAt: {
-          [Op.gte]: today,
+          [Op.gte]: startOfDay,
+          [Op.lte]: endOfDay,
         },
       },
       transaction,
@@ -535,21 +536,20 @@ class QuickPrintService {
    * Get queue statistics for dashboard badges and counter screen
    */
   async getQueueStats() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const { startOfDay, endOfDay } = getSriLankaDayBounds();
 
     const [pendingCount, completedTodayCount, allCompletedCount, totalTodayCount] = await Promise.all([
       QuickPrintJob.count({ where: { status: 'PENDING' } }),
       QuickPrintJob.count({
         where: {
           status: 'COMPLETED',
-          updatedAt: { [Op.gte]: today },
+          updatedAt: { [Op.gte]: startOfDay, [Op.lte]: endOfDay },
         },
       }),
       QuickPrintJob.count({ where: { status: 'COMPLETED' } }),
       QuickPrintJob.count({
         where: {
-          createdAt: { [Op.gte]: today },
+          createdAt: { [Op.gte]: startOfDay, [Op.lte]: endOfDay },
         },
       }),
     ]);

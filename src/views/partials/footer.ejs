@@ -23,7 +23,7 @@
             </div>
             <div class="col-6">
               <label class="form-label">Arrival Date</label>
-              <input type="date" name="date" class="form-control" value="<%= new Date().toISOString().split('T')[0] %>">
+              <input type="date" name="date" class="form-control" value="<%= todayDate() %>">
             </div>
           </div>
 
@@ -115,7 +115,7 @@
             </div>
             <div class="col-6">
               <label class="form-label">Usage Date</label>
-              <input type="date" name="date" class="form-control" value="<%= new Date().toISOString().split('T')[0] %>">
+              <input type="date" name="date" class="form-control" value="<%= todayDate() %>">
             </div>
           </div>
           <div class="mb-3">

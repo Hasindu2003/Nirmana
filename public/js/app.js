@@ -339,6 +339,40 @@ function initSereneApp() {
     });
   };
 
+  // C.1 Sri Lanka Date & Time formatters
+  window.formatSriLankaDate = (date) => {
+    if (!date) return '-';
+    return new Date(date).toLocaleDateString('en-LK', {
+      timeZone: 'Asia/Colombo',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  window.formatSriLankaTime = (date) => {
+    if (!date) return '-';
+    return new Date(date).toLocaleTimeString('en-LK', {
+      timeZone: 'Asia/Colombo',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+  };
+
+  window.formatSriLankaDateTime = (date) => {
+    if (!date) return '-';
+    return new Date(date).toLocaleString('en-LK', {
+      timeZone: 'Asia/Colombo',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+  };
+
   // D. Quick Order Status Update helper
   window.updateOrderStatus = async function(orderId, newStatus) {
     try {

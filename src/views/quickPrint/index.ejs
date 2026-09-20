@@ -241,7 +241,7 @@
                   <div class="d-flex align-items-center gap-2 ms-auto flex-shrink-0">
                     <div class="text-muted small d-none d-xl-block" style="font-size: 0.75rem;">
                       <i class="bi bi-clock me-1"></i>
-                      <%= new Date(job.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) %>
+                      <%= formatTime(job.createdAt) %>
                     </div>
 
                     <% if (job.status === 'PENDING') { %>

@@ -1,9 +1,10 @@
 const { Op } = require('sequelize');
 const { Order, Customer, StockItem, StockTransaction } = require('../models');
+const { getSriLankaTodayString } = require('../utils/dateUtils');
 
 class DashboardService {
   async getDashboardStats() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getSriLankaTodayString();
 
     // Execute all dashboard count and list queries in PARALLEL
     const [

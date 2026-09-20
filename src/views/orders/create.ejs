@@ -155,7 +155,7 @@
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label">Order Date</label>
-                  <input type="date" name="orderDate" class="form-control" value="<%= new Date().toISOString().split('T')[0] %>">
+                  <input type="date" name="orderDate" class="form-control" value="<%= todayDate() %>">
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Due Date for Collection</label>
@@ -279,10 +279,11 @@ function updateBalanceCalc() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Set default due date to 2 days from today
+  // Set default due date to 2 days from today in Sri Lanka
   const d = new Date();
   d.setDate(d.getDate() + 2);
-  document.getElementById('dueDateField').value = d.toISOString().split('T')[0];
+  const dueStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Colombo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+  document.getElementById('dueDateField').value = dueStr;
   updateBalanceCalc();
 
   <% if (customers.length === 0) { %>

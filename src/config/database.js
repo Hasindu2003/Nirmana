@@ -43,6 +43,7 @@ if (dbUrl) {
 
     sequelize = new Sequelize(cleanUrl, {
       dialect: 'mysql',
+      timezone: '+05:30',
       dialectOptions,
       logging: config.nodeEnv === 'development' ? false : false,
       pool: {
@@ -104,6 +105,7 @@ if (dbUrl) {
       host: config.db.host,
       port: config.db.port,
       dialect: 'mysql',
+      timezone: '+05:30',
       dialectOptions,
       logging: config.nodeEnv === 'development' ? false : false,
       pool: {
