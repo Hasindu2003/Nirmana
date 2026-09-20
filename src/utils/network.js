@@ -57,6 +57,11 @@ function getPrimaryLanIp() {
  * Builds the best mobile-accessible upload URL based on request & network
  */
 function getUploadUrl(req, port = 3000) {
+  // If dedicated customer portal is configured via environment variable, use it!
+  if (process.env.CUSTOMER_PORTAL_URL) {
+    return process.env.CUSTOMER_PORTAL_URL;
+  }
+
   const host = req.get('host') || '';
   const hostname = host.split(':')[0];
   const reqPort = host.split(':')[1] || port;
