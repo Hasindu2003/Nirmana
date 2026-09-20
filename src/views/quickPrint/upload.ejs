@@ -626,8 +626,181 @@
     }
   });
 
+  // Helper to optimize high-res phone camera photos (e.g. 10MB-20MB JPEGs from phones)
+  // Keeps maximum detail for A4 printing (up to 3200px dimension, high-quality 0.92 JPEG)
+  async function optimizeImageIfLarge(file) {
+    if (!file.type || !file.type.startsWith('image/') || file.type === 'image/svg+xml') {
+      return file; // Documents, PDFs, and SVGs are untouched
+    }
+    // Only compress if image is larger than 3MB
+    if (file.size <= 3 * 1024 * 1024) {
+      return file;
+    }
+
+    return new Promise((resolve) => {
+      const img = new Image();
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        img.onload = () => {
+          try {
+            let width = img.width;
+            let height = img.height;
+            const maxDim = 3200; // 3200px provides crisp 300+ DPI on A4 prints
+
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob((blob) => {
+              if (blob && blob.size < file.size) {
+                const optimizedFile = new File([blob], file.name, {
+                  type: 'image/jpeg',
+                  lastModified: Date.now(),
+                });
+                resolve(optimizedFile);
+              } else {
+                resolve(file);
+              }
+            }, 'image/jpeg', 0.92);
+          } catch (err) {
+            resolve(file);
+          }
+        };
+        img.onerror = () => resolve(file);
+        img.src = e.target.result;
+      };
+      reader.onerror = () => resolve(file);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Upload a single large file via Google Drive Resumable Session (direct PUT or chunk proxy)
+  async function uploadFileToDrive(file, tokenHint, onProgress) {
+    // 1. Initialize session with Google Drive via server
+    const initRes = await fetch('/api/quick-print/init-direct-upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filename: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        fileSize: file.size,
+        tokenHint,
+      }),
+    });
+
+    const initData = await initRes.json();
+    if (!initData.success || !initData.sessionUrl) {
+      throw new Error(initData.message || 'Cloud upload initialization failed.');
+    }
+
+    const sessionUrl = initData.sessionUrl;
+
+    // 2. Try direct PUT first (fastest, bypasses Vercel completely)
+    try {
+      const driveFile = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', sessionUrl, true);
+        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable && onProgress) {
+            onProgress(e.loaded, e.total);
+          }
+        };
+
+        xhr.onload = function() {
+          if (xhr.status === 200 || xhr.status === 201) {
+            try {
+              const resJson = JSON.parse(xhr.responseText);
+              resolve(resJson);
+            } catch (e) {
+              reject(new Error('Invalid response from Google Drive.'));
+            }
+          } else {
+            reject(new Error(`Drive upload status ${xhr.status}: ${xhr.responseText}`));
+          }
+        };
+
+        xhr.onerror = function() {
+          reject(new Error('Direct upload network/CORS error.'));
+        };
+
+        xhr.send(file);
+      });
+
+      return {
+        driveFileId: driveFile.id,
+        originalName: file.name,
+        fileSize: file.size,
+        mimeType: file.type,
+      };
+    } catch (directErr) {
+      console.warn('Direct PUT failed, falling back to 3MB chunk proxy:', directErr.message);
+
+      // 3. Fallback: Upload in 3MB chunks via /api/quick-print/upload-chunk
+      const chunkSize = 3 * 1024 * 1024; // 3MB chunks (well under Vercel's 4.5MB limit)
+      const totalSize = file.size;
+      let start = 0;
+      let completedDriveFile = null;
+
+      while (start < totalSize) {
+        const end = Math.min(start + chunkSize, totalSize);
+        const chunkBlob = file.slice(start, end);
+        const contentRange = `bytes ${start}-${end - 1}/${totalSize}`;
+
+        const chunkRes = await fetch('/api/quick-print/upload-chunk', {
+          method: 'PUT',
+          headers: {
+            'x-session-url': sessionUrl,
+            'content-range': contentRange,
+            'content-type': file.type || 'application/octet-stream',
+          },
+          body: chunkBlob,
+        });
+
+        const chunkData = await chunkRes.json();
+        if (!chunkData.success) {
+          throw new Error('Chunk upload failed: ' + (chunkData.message || 'Unknown error'));
+        }
+
+        if (chunkData.status === 200 && chunkData.file) {
+          completedDriveFile = chunkData.file;
+        }
+
+        start = end;
+        if (onProgress) {
+          onProgress(start, totalSize);
+        }
+      }
+
+      if (!completedDriveFile || !completedDriveFile.id) {
+        throw new Error('File upload completed but Google Drive did not return file ID.');
+      }
+
+      return {
+        driveFileId: completedDriveFile.id,
+        originalName: file.name,
+        fileSize: file.size,
+        mimeType: file.type,
+      };
+    }
+  }
+
   // Form submission
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     if (selectedFiles.length === 0) {
@@ -649,77 +822,153 @@
 
     const phone = phoneInput.value.replace(/\D/g, '').trim();
 
-    const formData = new FormData();
-    formData.append('customerName', name);
-    formData.append('customerPhone', phone);
-    formData.append('customerMessage', document.getElementById('customerMessage').value);
-    
-    const colorModeChecked = document.querySelector('input[name="colorMode"]:checked');
-    formData.append('colorMode', colorModeChecked ? colorModeChecked.value : 'BW');
-    formData.append('copies', document.getElementById('copies').value || '1');
-
-    let selectedPaperSize = 'A4';
-    const paperSizeChecked = document.querySelector('input[name="paperSize"]:checked');
-    if (paperSizeChecked) {
-      if (paperSizeChecked.value === 'Other') {
-        const customVal = document.getElementById('customPaperSizeInput').value.trim();
-        selectedPaperSize = customVal || 'Other';
-      } else {
-        selectedPaperSize = paperSizeChecked.value;
-      }
-    }
-    formData.append('paperSize', selectedPaperSize);
-
-    selectedFiles.forEach(file => {
-      formData.append('files', file);
-    });
-
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Send වෙනවා...';
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Process කරනවා...';
     uploadProgressContainer.classList.remove('d-none');
     uploadProgressBar.style.width = '0%';
     uploadPercent.textContent = '0%';
 
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/api/quick-print/upload', true);
-
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) {
-        const percentComplete = Math.round((event.loaded / event.total) * 100);
-        uploadProgressBar.style.width = percentComplete + '%';
-        uploadPercent.textContent = percentComplete + '%';
-        if (percentComplete >= 100) {
-          uploadStatusText.textContent = 'Counter Server එක Process කරනවා... කරුණාකර රැඳී සිටින්න.';
+    try {
+      // 1. Optimize oversized phone photos first
+      uploadStatusText.textContent = 'Files පරීක්ෂා කරනවා...';
+      const processedFiles = [];
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const f = selectedFiles[i];
+        if (f.type && f.type.startsWith('image/') && f.size > 3 * 1024 * 1024) {
+          uploadStatusText.textContent = `Photo ${i + 1} Print Quality එකට Optimize කරනවා...`;
+          const optimized = await optimizeImageIfLarge(f);
+          processedFiles.push(optimized);
+        } else {
+          processedFiles.push(f);
         }
       }
-    };
 
-    xhr.onload = function () {
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = '<i class="bi bi-send-fill me-2"></i> Counter එකට Send කරන්න 🚀';
-      
-      try {
-        const response = JSON.parse(xhr.responseText);
-        if (xhr.status === 201 && response.success) {
-          showSuccessScreen(response.data);
+      const colorModeChecked = document.querySelector('input[name="colorMode"]:checked');
+      const colorMode = colorModeChecked ? colorModeChecked.value : 'BW';
+      const copies = document.getElementById('copies').value || '1';
+
+      let selectedPaperSize = 'A4';
+      const paperSizeChecked = document.querySelector('input[name="paperSize"]:checked');
+      if (paperSizeChecked) {
+        if (paperSizeChecked.value === 'Other') {
+          const customVal = document.getElementById('customPaperSizeInput').value.trim();
+          selectedPaperSize = customVal || 'Other';
         } else {
-          alert(response.message || 'Upload එක අසාර්ථක විය. කරුණාකර නැවත උත්සාහ කරන්න.');
+          selectedPaperSize = paperSizeChecked.value;
+        }
+      }
+
+      // Check if total upload is large (> 3.5 MB, which exceeds Vercel 4.5MB payload limit)
+      const totalSize = processedFiles.reduce((acc, f) => acc + f.size, 0);
+      const hasLargeFile = processedFiles.some(f => f.size > 3.5 * 1024 * 1024);
+
+      if (totalSize > 3.5 * 1024 * 1024 || hasLargeFile) {
+        // USE DIRECT CLOUD RESUMABLE UPLOAD (BYPASSES VERCEL 4.5MB LIMIT COMPLETELY)
+        uploadStatusText.textContent = 'Cloud Drive එකට කෙලින්ම Upload වෙනවා...';
+        const driveFiles = [];
+
+        for (let i = 0; i < processedFiles.length; i++) {
+          const file = processedFiles[i];
+          const mbSize = (file.size / (1024 * 1024)).toFixed(1);
+          uploadStatusText.textContent = `File ${i + 1}/${processedFiles.length} Upload වෙනවා (${mbSize} MB)...`;
+          
+          const uploadedMeta = await uploadFileToDrive(file, name.substring(0, 10), (loaded, total) => {
+            const filePercent = Math.round((loaded / total) * 100);
+            uploadProgressBar.style.width = filePercent + '%';
+            uploadPercent.textContent = filePercent + '%';
+          });
+          driveFiles.push(uploadedMeta);
+        }
+
+        uploadStatusText.textContent = 'Order එක Counter එකට Save කරනවා...';
+        const completeRes = await fetch('/api/quick-print/complete-direct-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerName: name,
+            customerPhone: phone,
+            customerMessage: document.getElementById('customerMessage').value,
+            colorMode,
+            copies,
+            paperSize: selectedPaperSize,
+            files: driveFiles,
+          }),
+        });
+
+        const completeData = await completeRes.json();
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="bi bi-send-fill me-2"></i> Counter එකට Send කරන්න 🚀';
+
+        if (completeRes.ok && completeData.success) {
+          showSuccessScreen(completeData.data);
+        } else {
+          alert(completeData.message || 'Upload එක අසාර්ථක විය. කරුණාකර නැවත උත්සාහ කරන්න.');
           uploadProgressContainer.classList.add('d-none');
         }
-      } catch (err) {
-        alert('Server response එකේ ගැටලුවක් ඇත. කරුණාකර නැවත උත්සාහ කරන්න.');
-        uploadProgressContainer.classList.add('d-none');
+        return;
       }
-    };
 
-    xhr.onerror = function () {
+      // Standard upload for small files under 3.5 MB
+      uploadStatusText.textContent = 'Files Counter එකට Send වෙනවා...';
+      const formData = new FormData();
+      formData.append('customerName', name);
+      formData.append('customerPhone', phone);
+      formData.append('customerMessage', document.getElementById('customerMessage').value);
+      formData.append('colorMode', colorMode);
+      formData.append('copies', copies);
+      formData.append('paperSize', selectedPaperSize);
+
+      processedFiles.forEach(file => {
+        formData.append('files', file);
+      });
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/quick-print/upload', true);
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percentComplete = Math.round((event.loaded / event.total) * 100);
+          uploadProgressBar.style.width = percentComplete + '%';
+          uploadPercent.textContent = percentComplete + '%';
+          if (percentComplete >= 100) {
+            uploadStatusText.textContent = 'Counter Server එක Process කරනවා... කරුණාකර රැඳී සිටින්න.';
+          }
+        }
+      };
+
+      xhr.onload = function () {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="bi bi-send-fill me-2"></i> Counter එකට Send කරන්න 🚀';
+        
+        try {
+          const response = JSON.parse(xhr.responseText);
+          if (xhr.status === 201 && response.success) {
+            showSuccessScreen(response.data);
+          } else {
+            alert(response.message || 'Upload එක අසාර්ථක විය. කරුණාකර නැවත උත්සාහ කරන්න.');
+            uploadProgressContainer.classList.add('d-none');
+          }
+        } catch (err) {
+          alert('Server response එකේ ගැටලුවක් ඇත. කරුණාකර නැවත උත්සාහ කරන්න.');
+          uploadProgressContainer.classList.add('d-none');
+        }
+      };
+
+      xhr.onerror = function () {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="bi bi-send-fill me-2"></i> Counter එකට Send කරන්න 🚀';
+        uploadProgressContainer.classList.add('d-none');
+        alert('Network error එකක් ආවා. කරුණාකර ඔබගේ Connection එක පරීක්ෂා කර නැවත උත්සාහ කරන්න.');
+      };
+
+      xhr.send(formData);
+    } catch (submitErr) {
+      console.error('Submit error:', submitErr);
       submitBtn.disabled = false;
       submitBtn.innerHTML = '<i class="bi bi-send-fill me-2"></i> Counter එකට Send කරන්න 🚀';
       uploadProgressContainer.classList.add('d-none');
-      alert('Network error එකක් ආවා. කරුණාකර ඔබගේ Connection එක පරීක්ෂා කර නැවත උත්සාහ කරන්න.');
-    };
-
-    xhr.send(formData);
+      alert('Upload එකේ ගැටලුවක් විය: ' + submitErr.message);
+    }
   });
 
   function showSuccessScreen(data) {

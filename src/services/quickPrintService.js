@@ -160,6 +160,97 @@ class QuickPrintService {
   }
 
   /**
+   * Create a quick print job where files were uploaded directly to Google Drive
+   * (Used for large files 10MB+ to bypass Vercel's 4.5MB limit)
+   */
+  async createJobWithDriveFiles(data, driveFiles = []) {
+    return await sequelize.transaction(async (t) => {
+      const customerName = (data.customerName || data.name || '').trim();
+      const rawPhone = (data.customerPhone || data.phone || '').trim();
+      const customerPhone = this.normalizePhoneNumber(rawPhone);
+
+      if (!customerName) {
+        throw new Error('Please enter your name.');
+      }
+
+      if (!customerPhone) {
+        throw new Error('Please enter your phone number.');
+      }
+
+      if (customerPhone.length !== 10 || !/^\d{10}$/.test(customerPhone)) {
+        throw new Error('Phone number can have only 10 digits. No less or more.');
+      }
+
+      if (!driveFiles || driveFiles.length === 0) {
+        throw new Error('No uploaded files provided.');
+      }
+
+      // Check or create customer record in CRM
+      let customerId = null;
+      try {
+        let existingCustomer = null;
+        if (/^0\d{9}$/.test(customerPhone)) {
+          existingCustomer = await Customer.findOne({
+            where: { phone: customerPhone },
+            transaction: t,
+          });
+
+          if (!existingCustomer) {
+            const custCount = await Customer.count({ transaction: t });
+            const customerCode = `CUST-${(custCount + 1).toString().padStart(4, '0')}`;
+            existingCustomer = await Customer.create({
+              customerCode,
+              name: customerName,
+              phone: customerPhone,
+              notes: 'Created automatically via Counter QR Quick Print',
+            }, { transaction: t });
+          }
+          customerId = existingCustomer.id;
+        }
+      } catch (err) {
+        console.warn('Could not auto-link Customer CRM record:', err.message);
+      }
+
+      const tokenNumber = await this.generateTokenNumber(t);
+
+      const job = await QuickPrintJob.create({
+        tokenNumber,
+        customerName,
+        customerPhone: customerPhone || rawPhone,
+        customerMessage: (data.customerMessage || data.message || '').trim() || null,
+        colorMode: ['COLOR', 'BW', 'MIXED'].includes(data.colorMode) ? data.colorMode : 'NOT_SPECIFIED',
+        copies: parseInt(data.copies, 10) > 0 ? parseInt(data.copies, 10) : 1,
+        paperSize: (data.paperSize || 'A4').trim(),
+        status: 'PENDING',
+        customerId,
+      }, { transaction: t });
+
+      const fileRecords = [];
+      for (const df of driveFiles) {
+        const fileRecord = await QuickPrintFile.create({
+          jobId: job.id,
+          originalName: df.originalName || df.name || 'document',
+          filename: df.originalName || df.name || 'document',
+          filePath: '',
+          fileSize: df.fileSize || 0,
+          mimeType: df.mimeType || 'application/octet-stream',
+          fileUrl: df.webViewLink || `/api/quick-print/files/${df.driveFileId}/view`,
+          driveFileId: df.driveFileId,
+          driveViewLink: df.webViewLink,
+          driveDownloadLink: df.webContentLink,
+          storageProvider: 'GDRIVE',
+        }, { transaction: t });
+        fileRecords.push(fileRecord);
+      }
+
+      return {
+        job,
+        files: fileRecords,
+      };
+    });
+  }
+
+  /**
    * Get all jobs with optional filters
    */
   async getAllJobs({ status = 'ALL', search = '', limit = 100 } = {}) {

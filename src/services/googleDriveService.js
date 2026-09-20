@@ -266,6 +266,99 @@ class GoogleDriveService {
   }
 
   /**
+   * Create a resumable upload session on Google Drive.
+   * Allows uploading large files (10MB, 50MB+) directly or in chunks,
+   * bypassing Vercel's 4.5MB serverless payload limit completely!
+   * @param {string} filename - Display filename in Drive
+   * @param {string} mimeType - File MIME type
+   * @param {number} fileSize - File size in bytes
+   * @param {string} description - Optional description
+   * @returns {Promise<string>} sessionUrl - Google Drive resumable session URI
+   */
+  async createResumableSession(filename, mimeType, fileSize, description = '') {
+    if (!this.isConfigured()) {
+      throw new Error('Google Drive is not configured.');
+    }
+    const { folderId } = this.getCredentials();
+    this.getClient(); // Ensure authClient is initialized
+
+    const tokenResponse = await this.authClient.getAccessToken();
+    const accessToken = typeof tokenResponse === 'string' ? tokenResponse : tokenResponse.token;
+
+    const metadata = {
+      name: filename,
+      parents: [folderId],
+      description: description || 'Direct customer upload via Nirmana Printing',
+    };
+
+    const headers = {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json; charset=UTF-8',
+      'X-Upload-Content-Type': mimeType || 'application/octet-stream',
+    };
+
+    if (fileSize) {
+      headers['X-Upload-Content-Length'] = fileSize.toString();
+    }
+
+    const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(metadata),
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`Failed to create Google Drive resumable session: ${response.status} ${err}`);
+    }
+
+    const sessionUrl = response.headers.get('location');
+    if (!sessionUrl) {
+      throw new Error('Google Drive did not return a resumable session URI.');
+    }
+
+    return sessionUrl;
+  }
+
+  /**
+   * Finalize a file uploaded directly to Google Drive.
+   * Sets public read permission and retrieves drive view/download links.
+   * @param {string} fileId - Google Drive file ID
+   */
+  async finalizeDriveFile(fileId) {
+    const drive = this.getClient();
+
+    try {
+      await drive.permissions.create({
+        fileId,
+        requestBody: {
+          role: 'reader',
+          type: 'anyone',
+        },
+        supportsAllDrives: true,
+      });
+    } catch (permErr) {
+      console.warn('Could not set public read permission on Google Drive file:', permErr.message);
+    }
+
+    const res = await drive.files.get({
+      fileId,
+      fields: 'id, name, webViewLink, webContentLink, size, mimeType',
+      supportsAllDrives: true,
+    });
+
+    const fileData = res.data;
+    return {
+      id: fileData.id,
+      name: fileData.name,
+      webViewLink: fileData.webViewLink || `https://drive.google.com/file/d/${fileData.id}/view`,
+      webContentLink: fileData.webContentLink || `https://drive.google.com/uc?id=${fileData.id}&export=download`,
+      fileSize: fileData.size ? parseInt(fileData.size, 10) : null,
+      mimeType: fileData.mimeType,
+    };
+  }
+
+  /**
    * Stream a file directly from Google Drive (for in-app preview / download)
    * @param {string} fileId - Google Drive file ID
    */

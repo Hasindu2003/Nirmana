@@ -281,12 +281,150 @@ class QuickPrintController {
   }
 
   /**
-   * Check current Google Drive cloud storage connectivity status
+   * Initialize a direct resumable upload session with Google Drive.
+   * This allows files of 10MB, 20MB, 50MB+ to upload directly to Google Drive,
+   * bypassing Vercel's 4.5MB serverless payload limit.
    */
-  async getStorageStatus(req, res) {
+  async initDirectUpload(req, res) {
     try {
-      const status = await googleDriveService.verifyConnection();
-      return res.json({ success: true, ...status });
+      const { filename, mimeType, fileSize, tokenHint } = req.body;
+      if (!filename) {
+        return res.status(400).json({ success: false, message: 'Filename is required.' });
+      }
+
+      const displayName = tokenHint ? `[${tokenHint}] ${filename}` : filename;
+      const sessionUrl = await googleDriveService.createResumableSession(
+        displayName,
+        mimeType,
+        fileSize ? parseInt(fileSize, 10) : null,
+        'Direct customer upload via Nirmana Express Print'
+      );
+
+      return res.json({
+        success: true,
+        sessionUrl,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: 'Could not initialize cloud upload: ' + error.message,
+      });
+    }
+  }
+
+  /**
+   * Finalize a direct upload job once files have been written to Google Drive
+   */
+  async completeDirectUpload(req, res) {
+    try {
+      const { customerName, customerPhone, customerMessage, colorMode, copies, paperSize, files } = req.body;
+
+      if (!files || files.length === 0) {
+        return res.status(400).json({ success: false, message: 'No uploaded files provided.' });
+      }
+
+      // Finalize each Drive file (set public permissions and fetch links)
+      const finalizedFiles = [];
+      for (const f of files) {
+        if (f.driveFileId) {
+          try {
+            const driveMeta = await googleDriveService.finalizeDriveFile(f.driveFileId);
+            finalizedFiles.push({
+              driveFileId: f.driveFileId,
+              originalName: f.originalName || driveMeta.name,
+              fileSize: f.fileSize || driveMeta.fileSize,
+              mimeType: f.mimeType || driveMeta.mimeType,
+              webViewLink: driveMeta.webViewLink,
+              webContentLink: driveMeta.webContentLink,
+            });
+          } catch (finErr) {
+            console.warn('Finalize error for file:', finErr.message);
+            finalizedFiles.push({
+              driveFileId: f.driveFileId,
+              originalName: f.originalName || 'document',
+              fileSize: f.fileSize || 0,
+              mimeType: f.mimeType || 'application/octet-stream',
+              webViewLink: `https://drive.google.com/file/d/${f.driveFileId}/view`,
+              webContentLink: `https://drive.google.com/uc?id=${f.driveFileId}&export=download`,
+            });
+          }
+        }
+      }
+
+      const result = await quickPrintService.createJobWithDriveFiles({
+        customerName,
+        customerPhone,
+        customerMessage,
+        colorMode,
+        copies,
+        paperSize,
+      }, finalizedFiles);
+
+      return res.status(201).json({
+        success: true,
+        message: 'Print job submitted successfully.',
+        data: {
+          jobId: result.job.id,
+          tokenNumber: result.job.tokenNumber,
+          customerName: result.job.customerName,
+          filesCount: result.files.length,
+          colorMode: result.job.colorMode,
+          copies: result.job.copies,
+          paperSize: result.job.paperSize,
+          files: result.files,
+        },
+      });
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  /**
+   * Chunk upload proxy for networks with strict CORS
+   */
+  async proxyUploadChunk(req, res) {
+    try {
+      const sessionUrl = req.headers['x-session-url'];
+      const contentRange = req.headers['content-range'];
+      const contentType = req.headers['content-type'] || 'application/octet-stream';
+
+      if (!sessionUrl) {
+        return res.status(400).json({ success: false, message: 'Session URL is required.' });
+      }
+
+      const chunks = [];
+      req.on('data', chunk => chunks.push(chunk));
+      req.on('end', async () => {
+        const buffer = Buffer.concat(chunks);
+        try {
+          const gResponse = await fetch(sessionUrl, {
+            method: 'PUT',
+            headers: {
+              'Content-Range': contentRange,
+              'Content-Type': contentType,
+              'Content-Length': buffer.length.toString(),
+            },
+            body: buffer,
+          });
+
+          if (gResponse.status === 308) {
+            return res.status(200).json({ success: true, status: 308, range: gResponse.headers.get('range') });
+          }
+
+          if (gResponse.ok) {
+            const data = await gResponse.json();
+            return res.status(200).json({ success: true, status: 200, file: data });
+          }
+
+          const errText = await gResponse.text();
+          return res.status(gResponse.status).json({ success: false, message: errText });
+        } catch (fetchErr) {
+          return res.status(500).json({ success: false, message: fetchErr.message });
+        }
+      });
     } catch (error) {
       return res.status(500).json({ success: false, message: error.message });
     }

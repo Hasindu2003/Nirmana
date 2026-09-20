@@ -38,6 +38,9 @@ router.get('/customers/:id', customerController.getCustomer);
 
 // 6. Walk-in Customer Quick Print (QR Scan / Counter Queue)
 router.post('/quick-print/upload', uploadQuickPrint, quickPrintController.submitUpload);
+router.post('/quick-print/init-direct-upload', quickPrintController.initDirectUpload);
+router.post('/quick-print/complete-direct-upload', quickPrintController.completeDirectUpload);
+router.put('/quick-print/upload-chunk', quickPrintController.proxyUploadChunk);
 router.get('/quick-print/status/:id', quickPrintController.getJobStatus);
 router.get('/quick-print/jobs', quickPrintController.listJobs);
 router.put('/quick-print/jobs/:id/status', quickPrintController.updateStatus);
