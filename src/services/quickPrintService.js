@@ -2,6 +2,7 @@ const { Op } = require('sequelize');
 const path = require('path');
 const fs = require('fs');
 const { QuickPrintJob, QuickPrintFile, Customer, Order, sequelize } = require('../models');
+const googleDriveService = require('./googleDriveService');
 
 class QuickPrintService {
   /**
@@ -105,9 +106,35 @@ class QuickPrintService {
         customerId,
       }, { transaction: t });
 
-      // Save file records
+      // Save file records (upload to Google Drive if configured, else store local)
       const fileRecords = [];
+      const isDriveEnabled = googleDriveService.isConfigured();
+
       for (const file of uploadedFiles) {
+        let driveFileId = null;
+        let driveViewLink = null;
+        let driveDownloadLink = null;
+        let storageProvider = 'LOCAL';
+
+        if (isDriveEnabled) {
+          try {
+            const driveUpload = await googleDriveService.uploadFile(
+              file.path,
+              `[${job.tokenNumber}] ${file.originalname}`,
+              file.mimetype,
+              `Customer: ${customerName} (${customerPhone || 'N/A'}) - Token: ${job.tokenNumber}`
+            );
+            if (driveUpload && driveUpload.id) {
+              driveFileId = driveUpload.id;
+              driveViewLink = driveUpload.webViewLink;
+              driveDownloadLink = driveUpload.webContentLink;
+              storageProvider = 'GDRIVE';
+            }
+          } catch (driveErr) {
+            console.warn(`[Google Drive] Upload failed for ${file.originalname}, falling back to local:`, driveErr.message);
+          }
+        }
+
         const fileUrl = `/uploads/quick-print/${file.filename}`;
         const fileRecord = await QuickPrintFile.create({
           jobId: job.id,
@@ -117,6 +144,10 @@ class QuickPrintService {
           fileSize: file.size,
           mimeType: file.mimetype,
           fileUrl,
+          driveFileId,
+          driveViewLink,
+          driveDownloadLink,
+          storageProvider,
         }, { transaction: t });
         fileRecords.push(fileRecord);
       }
@@ -252,7 +283,7 @@ class QuickPrintService {
       throw new Error('Job not found.');
     }
 
-    // Delete disk files
+    // Delete disk files & Google Drive files
     if (job.files && job.files.length > 0) {
       for (const file of job.files) {
         try {
@@ -262,11 +293,67 @@ class QuickPrintService {
         } catch (e) {
           console.warn('Could not delete physical file:', file.filePath, e.message);
         }
+
+        if (file.driveFileId) {
+          try {
+            await googleDriveService.deleteFile(file.driveFileId);
+          } catch (driveDelErr) {
+            console.warn('Could not delete Google Drive file:', driveDelErr.message);
+          }
+        }
       }
     }
 
     await job.destroy();
     return true;
+  }
+
+  /**
+   * Get file stream for download or in-app preview (supports Google Drive and Local)
+   */
+  async getFileStream(fileRecordId) {
+    const file = await QuickPrintFile.findByPk(fileRecordId);
+    if (!file) {
+      throw new Error('File not found');
+    }
+
+    // Try Google Drive if available
+    if (file.storageProvider === 'GDRIVE' && file.driveFileId && googleDriveService.isConfigured()) {
+      try {
+        const stream = await googleDriveService.getFileStream(file.driveFileId);
+        return {
+          stream,
+          mimeType: file.mimeType,
+          originalName: file.originalName,
+          fileSize: file.fileSize,
+          driveViewLink: file.driveViewLink,
+        };
+      } catch (driveStreamErr) {
+        console.warn(`[Google Drive] Failed to stream ${file.driveFileId}, trying local fallback:`, driveStreamErr.message);
+      }
+    }
+
+    // Local file fallback
+    if (file.filePath && fs.existsSync(file.filePath)) {
+      return {
+        stream: fs.createReadStream(file.filePath),
+        mimeType: file.mimeType,
+        originalName: file.originalName,
+        fileSize: file.fileSize,
+        driveViewLink: file.driveViewLink,
+      };
+    }
+
+    // If driveViewLink exists, return it so controller can redirect
+    if (file.driveViewLink) {
+      return {
+        redirectUrl: file.driveViewLink,
+        mimeType: file.mimeType,
+        originalName: file.originalName,
+      };
+    }
+
+    throw new Error('File data is no longer available on local disk or cloud storage.');
   }
 
   /**

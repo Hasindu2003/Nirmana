@@ -41,6 +41,23 @@ const QuickPrintFile = sequelize.define('QuickPrintFile', {
     type: DataTypes.STRING(255),
     allowNull: false,
   },
+  driveFileId: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+  },
+  driveViewLink: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  driveDownloadLink: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  storageProvider: {
+    type: DataTypes.STRING(50),
+    allowNull: false,
+    defaultValue: 'LOCAL',
+  },
 }, {
   tableName: 'quick_print_files',
   timestamps: true,

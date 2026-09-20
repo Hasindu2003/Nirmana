@@ -88,6 +88,41 @@ async function ensureDbInitialized() {
         await sequelize.authenticate();
         await sequelize.sync();
 
+        // Ensure new Google Drive columns exist in quick_print_files
+        try {
+          const qi = sequelize.getQueryInterface();
+          const tableDesc = await qi.describeTable('quick_print_files').catch(() => null);
+          if (tableDesc) {
+            if (!tableDesc.driveFileId) {
+              await qi.addColumn('quick_print_files', 'driveFileId', {
+                type: sequelize.Sequelize.STRING(255),
+                allowNull: true,
+              });
+            }
+            if (!tableDesc.driveViewLink) {
+              await qi.addColumn('quick_print_files', 'driveViewLink', {
+                type: sequelize.Sequelize.TEXT,
+                allowNull: true,
+              });
+            }
+            if (!tableDesc.driveDownloadLink) {
+              await qi.addColumn('quick_print_files', 'driveDownloadLink', {
+                type: sequelize.Sequelize.TEXT,
+                allowNull: true,
+              });
+            }
+            if (!tableDesc.storageProvider) {
+              await qi.addColumn('quick_print_files', 'storageProvider', {
+                type: sequelize.Sequelize.STRING(50),
+                allowNull: false,
+                defaultValue: 'LOCAL',
+              });
+            }
+          }
+        } catch (migErr) {
+          // Non-fatal if table already updated
+        }
+
         // Seed default admin if User table is empty (e.g. fresh ephemeral /tmp SQLite on Vercel)
         const { User } = require('./src/models');
         const adminCount = await User.count().catch(() => 0);

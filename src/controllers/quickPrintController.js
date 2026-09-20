@@ -1,5 +1,6 @@
 const QRCode = require('qrcode');
 const quickPrintService = require('../services/quickPrintService');
+const googleDriveService = require('../services/googleDriveService');
 
 class QuickPrintController {
   /**
@@ -228,6 +229,66 @@ class QuickPrintController {
       return res.json({ success: true, data: stats });
     } catch (error) {
       next(error);
+    }
+  }
+
+  /**
+   * View / stream uploaded file inline (supports Google Drive and Local)
+   */
+  async viewFile(req, res, next) {
+    try {
+      const { fileId } = req.params;
+      const fileData = await quickPrintService.getFileStream(fileId);
+
+      if (fileData.redirectUrl) {
+        return res.redirect(fileData.redirectUrl);
+      }
+
+      res.setHeader('Content-Type', fileData.mimeType || 'application/octet-stream');
+      res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(fileData.originalName)}"`);
+      if (fileData.fileSize) {
+        res.setHeader('Content-Length', fileData.fileSize);
+      }
+
+      fileData.stream.pipe(res);
+    } catch (error) {
+      return res.status(404).send('File not found or no longer available.');
+    }
+  }
+
+  /**
+   * Download uploaded file as attachment
+   */
+  async downloadFile(req, res, next) {
+    try {
+      const { fileId } = req.params;
+      const fileData = await quickPrintService.getFileStream(fileId);
+
+      if (fileData.redirectUrl) {
+        return res.redirect(fileData.redirectUrl);
+      }
+
+      res.setHeader('Content-Type', fileData.mimeType || 'application/octet-stream');
+      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileData.originalName)}"`);
+      if (fileData.fileSize) {
+        res.setHeader('Content-Length', fileData.fileSize);
+      }
+
+      fileData.stream.pipe(res);
+    } catch (error) {
+      return res.status(404).send('File not found or no longer available.');
+    }
+  }
+
+  /**
+   * Check current Google Drive cloud storage connectivity status
+   */
+  async getStorageStatus(req, res) {
+    try {
+      const status = await googleDriveService.verifyConnection();
+      return res.json({ success: true, ...status });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: error.message });
     }
   }
 }

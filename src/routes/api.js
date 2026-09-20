@@ -45,6 +45,9 @@ router.delete('/quick-print/jobs/:id', quickPrintController.deleteJob);
 router.post('/quick-print/jobs/:id/convert', quickPrintController.convertToOrder);
 router.get('/quick-print/qr', quickPrintController.generateQrCode);
 router.get('/quick-print/stats', quickPrintController.getStats);
+router.get('/quick-print/files/:fileId/view', quickPrintController.viewFile);
+router.get('/quick-print/files/:fileId/download', quickPrintController.downloadFile);
+router.get('/quick-print/storage-status', quickPrintController.getStorageStatus);
 
 module.exports = router;
 

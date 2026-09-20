@@ -269,6 +269,14 @@
                             <i class="bi bi-receipt me-2 text-serene-primary"></i> Convert to Formal Order
                           </a>
                         </li>
+                        <% const driveFile = job.files && job.files.find(f => f.driveViewLink); %>
+                        <% if (driveFile && driveFile.driveViewLink) { %>
+                          <li>
+                            <a class="dropdown-item py-2 d-flex align-items-center text-primary" href="<%= driveFile.driveViewLink %>" target="_blank" rel="noopener noreferrer">
+                              <i class="bi bi-google me-2 text-primary"></i> Open in Google Drive
+                            </a>
+                          </li>
+                        <% } %>
                         <li><hr class="dropdown-divider my-1"></li>
                         <li>
                           <a class="dropdown-item py-2 text-danger d-flex align-items-center" href="javascript:void(0)" onclick="deleteJob(<%= job.id %>)">
@@ -401,6 +409,11 @@
           <a id="previewOpenTabBtn" href="#" target="_blank" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" title="Open full-size in new tab">
             <i class="bi bi-box-arrow-up-right"></i>
             <span>Open in New Tab</span>
+          </a>
+          <!-- Open in Google Drive -->
+          <a id="previewDriveBtn" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm d-none align-items-center gap-1" title="Open in Google Drive">
+            <i class="bi bi-google"></i>
+            <span>Google Drive</span>
           </a>
         </div>
 
@@ -658,9 +671,25 @@
     const kbSize = (file.fileSize / 1024).toFixed(0);
     infoSize.textContent = mbSize > 0.05 ? `${mbSize} MB` : `${kbSize} KB`;
 
-    downloadBtn.href = file.fileUrl;
+    const viewUrl = file.id ? `/api/quick-print/files/${file.id}/view` : file.fileUrl;
+    const downloadUrl = file.id ? `/api/quick-print/files/${file.id}/download` : file.fileUrl;
+
+    downloadBtn.href = downloadUrl;
     downloadBtn.download = file.originalName;
-    openTabBtn.href = file.fileUrl;
+    openTabBtn.href = viewUrl;
+
+    // Google Drive button
+    const driveBtn = document.getElementById('previewDriveBtn');
+    if (driveBtn) {
+      if (file.driveViewLink) {
+        driveBtn.href = file.driveViewLink;
+        driveBtn.classList.remove('d-none');
+        driveBtn.classList.add('d-flex');
+      } else {
+        driveBtn.classList.add('d-none');
+        driveBtn.classList.remove('d-flex');
+      }
+    }
 
     // Reset views
     imgEl.classList.add('d-none');
@@ -678,18 +707,18 @@
         spinner.classList.add('d-none');
         fallbackEl.classList.remove('d-none');
       };
-      imgEl.src = file.fileUrl;
+      imgEl.src = viewUrl;
     } else if (mime.includes('pdf')) {
       pdfEl.onload = () => {
         spinner.classList.add('d-none');
       };
-      pdfEl.src = file.fileUrl;
+      pdfEl.src = viewUrl;
       pdfEl.classList.remove('d-none');
       spinner.classList.add('d-none');
     } else {
       spinner.classList.add('d-none');
       document.getElementById('previewFallbackFilename').textContent = file.originalName;
-      document.getElementById('previewFallbackDownloadBtn').href = file.fileUrl;
+      document.getElementById('previewFallbackDownloadBtn').href = downloadUrl;
       document.getElementById('previewFallbackDownloadBtn').download = file.originalName;
       fallbackEl.classList.remove('d-none');
     }
