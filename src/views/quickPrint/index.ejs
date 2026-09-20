@@ -139,18 +139,18 @@
 
     <!-- 2 Primary Filter Tabs: Pending vs Completed -->
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
-      <ul class="nav nav-pills custom-pills gap-2" id="queueStatusTabs">
+      <ul class="nav nav-pills custom-pills gap-2" id="quickPrintTabs">
         <li class="nav-item">
-          <a class="nav-link <%= currentStatus === 'PENDING' ? 'active' : '' %>" href="/quick-print?status=PENDING" data-status-filter="PENDING" id="tabFilterPending">
+          <button type="button" class="nav-link <%= currentStatus === 'PENDING' ? 'active' : '' %>" id="tabPendingBtn" onclick="switchQuickPrintTab('PENDING')">
             <i class="bi bi-hourglass-split me-1"></i> Pending Orders 
             <span class="badge rounded-pill bg-danger ms-1" id="tabPendingBadge"><%= stats.pending %></span>
-          </a>
+          </button>
         </li>
         <li class="nav-item">
-          <a class="nav-link <%= currentStatus === 'COMPLETED' ? 'active' : '' %>" href="/quick-print?status=COMPLETED" data-status-filter="COMPLETED" id="tabFilterCompleted">
+          <button type="button" class="nav-link <%= currentStatus === 'COMPLETED' ? 'active' : '' %>" id="tabCompletedBtn" onclick="switchQuickPrintTab('COMPLETED')">
             <i class="bi bi-check2-all me-1"></i> Completed Orders 
             <span class="badge rounded-pill bg-secondary ms-1" id="tabCompletedBadge"><%= stats.completedToday %></span>
-          </a>
+          </button>
         </li>
       </ul>
 
@@ -170,8 +170,10 @@
       <% if (jobs && jobs.length > 0) { %>
         <div class="d-flex flex-column gap-2" id="ordersListWrapper">
           <% jobs.forEach(job => { %>
+            <% const isInitiallyActive = (currentStatus === 'PENDING' && job.status !== 'COMPLETED' && job.status !== 'CANCELLED') || (currentStatus === 'COMPLETED' && job.status === 'COMPLETED'); %>
             <div class="job-card-wrapper w-100 transition-all position-relative" 
                  id="job-card-<%= job.id %>" 
+                 data-id="<%= job.id %>"
                  data-status="<%= job.status %>"
                  data-token="<%= (job.tokenNumber || '').toLowerCase() %>"
                  data-name="<%= (job.customerName || '').toLowerCase() %>"
@@ -179,7 +181,7 @@
                  data-message="<%= (job.customerMessage || '').toLowerCase() %>"
                  data-colorspec="<%= (job.colorMode || '').toLowerCase() %>"
                  data-papersize="<%= (job.paperSize || '').toLowerCase() %>"
-                 style="overflow: visible !important;">
+                 style="<%= isInitiallyActive ? '' : 'display: none !important;' %> overflow: visible !important;">
               <div class="serene-card overflow-visible w-100 border <%= job.status === 'PENDING' ? 'border-start border-start-4 border-start-danger' : 'border-start border-start-4 border-start-success' %> shadow-xs py-2 px-3 position-relative" style="overflow: visible !important; transition: all 0.2s ease;">
                 
                 <!-- Main Compact Horizontal Row: Token, Customer, Inline Files, Specs, Actions -->
@@ -322,18 +324,35 @@
             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearSearchFilter()">Clear Search</button>
           </div>
         </div>
-      <% } else { %>
-        <!-- Empty State -->
-        <div class="serene-card text-center py-5">
+        <!-- Dynamic Empty State for Current Filter -->
+        <div id="queueEmptyState" class="serene-card text-center py-5" style="display: none;">
           <div class="mb-3">
             <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light text-muted" style="width: 70px; height: 70px;">
               <i class="bi bi-printer-fill fs-2 text-serene-primary"></i>
             </div>
           </div>
-          <h4 class="fs-5 fw-bold mb-1">
+          <h4 class="fs-5 fw-bold mb-1" id="emptyStateTitle">
             <%= currentStatus === 'PENDING' ? 'No Pending Print Orders!' : 'No Completed Orders Found.' %>
           </h4>
-          <p class="text-muted small mb-3">
+          <p class="text-muted small mb-3" id="emptyStateSubtitle">
+            <%= currentStatus === 'PENDING' ? 'Walk-in customer uploads will appear here automatically.' : 'Completed print orders will be listed here.' %>
+          </p>
+          <button type="button" class="btn btn-serene-primary" data-bs-toggle="modal" data-bs-target="#qrCodeModal">
+            <i class="bi bi-qr-code-scan me-1"></i> Show Counter QR Code
+          </button>
+        </div>
+      <% } else { %>
+        <!-- Initial Empty State when 0 jobs exist -->
+        <div id="queueEmptyState" class="serene-card text-center py-5">
+          <div class="mb-3">
+            <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light text-muted" style="width: 70px; height: 70px;">
+              <i class="bi bi-printer-fill fs-2 text-serene-primary"></i>
+            </div>
+          </div>
+          <h4 class="fs-5 fw-bold mb-1" id="emptyStateTitle">
+            <%= currentStatus === 'PENDING' ? 'No Pending Print Orders!' : 'No Completed Orders Found.' %>
+          </h4>
+          <p class="text-muted small mb-3" id="emptyStateSubtitle">
             <%= currentStatus === 'PENDING' ? 'Walk-in customer uploads will appear here automatically.' : 'Completed print orders will be listed here.' %>
           </p>
           <button type="button" class="btn btn-serene-primary" data-bs-toggle="modal" data-bs-target="#qrCodeModal">
@@ -966,18 +985,50 @@
     } catch (e) {}
   }
 
-  // Live polling for queue updates every 5s
-  // Real-time instant in-memory tab switching (0ms) & search filter
+  // -------------------------------------------------------------
+  // Instant In-Memory Tab Switching & Real-Time Search (0ms)
+  // -------------------------------------------------------------
+  let currentViewStatus = '<%= currentStatus %>';
   const searchInput = document.getElementById('queueSearchInput');
   const clearBtn = document.getElementById('clearSearchBtn');
   const noResultsBox = document.getElementById('searchNoResults');
   const searchKeywordDisplay = document.getElementById('searchKeywordDisplay');
-  let activeTabStatus = '<%= currentStatus %>' || 'PENDING';
+  const emptyBox = document.getElementById('queueEmptyState');
+  const emptyTitle = document.getElementById('emptyStateTitle');
+  const emptySubtitle = document.getElementById('emptyStateSubtitle');
 
-  function applyCombinedFilter() {
+  function switchQuickPrintTab(newStatus, updateUrl = true) {
+    currentViewStatus = newStatus;
+
+    // 1. Toggle Tab Button classes instantly (0ms)
+    const tabPendingBtn = document.getElementById('tabPendingBtn');
+    const tabCompletedBtn = document.getElementById('tabCompletedBtn');
+    if (tabPendingBtn) tabPendingBtn.classList.toggle('active', newStatus === 'PENDING');
+    if (tabCompletedBtn) tabCompletedBtn.classList.toggle('active', newStatus === 'COMPLETED');
+
+    // 2. Update URL silently in browser history (0ms, no reload)
+    if (updateUrl) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('status', newStatus);
+      window.history.pushState({ status: newStatus }, '', url.toString());
+    }
+
+    // 3. Filter the in-memory cards instantly (0ms)
+    applyRealtimeSearch();
+  }
+
+  // Handle browser Back / Forward buttons without reloading
+  window.addEventListener('popstate', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const statusFromUrl = urlParams.get('status') || 'PENDING';
+    switchQuickPrintTab(statusFromUrl, false);
+  });
+
+  function applyRealtimeSearch() {
     const rawVal = searchInput ? searchInput.value : '';
     const term = rawVal.trim().toLowerCase();
     const cards = document.querySelectorAll('.job-card-wrapper');
+    let totalInTab = 0;
     let visibleCount = 0;
 
     if (clearBtn) {
@@ -985,13 +1036,17 @@
     }
 
     cards.forEach(card => {
-      const cardStatus = card.getAttribute('data-status') || 'PENDING';
-      const statusMatches = (activeTabStatus === 'ALL') || (cardStatus === activeTabStatus);
+      const jobStatus = card.getAttribute('data-status') || 'PENDING';
+      const isStatusMatch = currentViewStatus === 'PENDING'
+        ? (jobStatus === 'PENDING' || jobStatus === 'PRINTING' || jobStatus === 'READY')
+        : (jobStatus === 'COMPLETED');
 
-      if (!statusMatches) {
-        card.style.display = 'none';
+      if (!isStatusMatch) {
+        card.style.setProperty('display', 'none', 'important');
         return;
       }
+
+      totalInTab++;
 
       if (!term) {
         card.style.display = '';
@@ -1021,18 +1076,30 @@
         card.style.display = '';
         visibleCount++;
       } else {
-        card.style.display = 'none';
+        card.style.setProperty('display', 'none', 'important');
       }
     });
 
     if (noResultsBox) {
-      if (visibleCount === 0 && cards.length > 0) {
+      if (term && visibleCount === 0 && totalInTab > 0) {
         noResultsBox.style.display = 'block';
-        if (searchKeywordDisplay) {
-          searchKeywordDisplay.textContent = term ? `"${rawVal.trim()}"` : `in ${activeTabStatus.toLowerCase()} orders`;
-        }
+        if (searchKeywordDisplay) searchKeywordDisplay.textContent = rawVal.trim();
       } else {
         noResultsBox.style.display = 'none';
+      }
+    }
+
+    if (emptyBox) {
+      if (totalInTab === 0) {
+        emptyBox.style.display = 'block';
+        if (emptyTitle) {
+          emptyTitle.textContent = currentViewStatus === 'PENDING' ? 'No Pending Print Orders!' : 'No Completed Orders Found.';
+        }
+        if (emptySubtitle) {
+          emptySubtitle.textContent = currentViewStatus === 'PENDING' ? 'Walk-in customer uploads will appear here automatically.' : 'Completed print orders will be listed here.';
+        }
+      } else {
+        emptyBox.style.display = 'none';
       }
     }
   }
@@ -1040,48 +1107,26 @@
   function clearSearchFilter() {
     if (searchInput) {
       searchInput.value = '';
-      applyCombinedFilter();
+      applyRealtimeSearch();
       searchInput.focus();
     }
   }
 
   if (searchInput) {
-    searchInput.addEventListener('input', applyCombinedFilter);
+    searchInput.addEventListener('input', applyRealtimeSearch);
   }
 
   if (clearBtn) {
     clearBtn.addEventListener('click', clearSearchFilter);
   }
 
-  // Bind click handlers to tabs for 0ms in-memory instant switching
-  document.querySelectorAll('#queueStatusTabs .nav-link').forEach(tab => {
-    tab.addEventListener('click', (e) => {
-      e.preventDefault();
-      const targetStatus = tab.getAttribute('data-status-filter');
-      if (!targetStatus) return;
-
-      activeTabStatus = targetStatus;
-      currentViewStatus = targetStatus;
-
-      document.querySelectorAll('#queueStatusTabs .nav-link').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-
-      applyCombinedFilter();
-
-      // Silently update browser address bar without reload
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.set('status', targetStatus);
-      history.replaceState(null, '', newUrl.toString());
-    });
-  });
-
-  // Apply combined filter on initial load
-  applyCombinedFilter();
+  // Trigger search / initial tab layout on page load
+  applyRealtimeSearch();
 
   // Live polling for queue updates every 5s
   async function pollQueue() {
     try {
-      const res = await fetch(`/api/quick-print/jobs?status=${encodeURIComponent(activeTabStatus)}`);
+      const res = await fetch(`/api/quick-print/jobs?status=${encodeURIComponent(currentViewStatus)}`);
       const result = await res.json();
 
       if (result.success) {
@@ -1091,7 +1136,7 @@
         }
 
         // Check for newly arrived pending jobs
-        if (activeTabStatus === 'PENDING') {
+        if (currentViewStatus === 'PENDING') {
           let hasNew = false;
           result.data.forEach(job => {
             if (!knownJobIds.has(job.id)) {
@@ -1102,13 +1147,10 @@
 
           if (hasNew) {
             playChime();
+            // Don't disrupt the user if they are currently typing in the search box
             const activeSearch = searchInput ? searchInput.value.trim() : '';
             if (!activeSearch) {
-              if (window.Turbo) {
-                window.Turbo.visit(window.location.href);
-              } else {
-                window.location.reload();
-              }
+              window.location.reload();
             }
           }
         }
@@ -1118,17 +1160,7 @@
     }
   }
 
-  if (window._quickPrintPollInterval) {
-    clearInterval(window._quickPrintPollInterval);
-  }
-  window._quickPrintPollInterval = setInterval(pollQueue, 5000);
-
-  document.addEventListener('turbo:before-render', function () {
-    if (window._quickPrintPollInterval) {
-      clearInterval(window._quickPrintPollInterval);
-      window._quickPrintPollInterval = null;
-    }
-  }, { once: true });
+  setInterval(pollQueue, 5000);
 
   // Ensure dropdown menu in queue cards floats cleanly above all other cards
   document.addEventListener('show.bs.dropdown', function (e) {

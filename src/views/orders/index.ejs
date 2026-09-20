@@ -19,19 +19,27 @@
     <!-- Status Filters & Search -->
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
       <div class="d-flex flex-wrap gap-1" id="orderStatusTabs">
-        <a href="/orders" class="btn btn-sm <%= currentStatus === 'ALL' ? 'btn-serene-primary' : 'btn-serene-secondary' %>" data-status-filter="ALL">
-          All (<%= orders.length %>)
-        </a>
-        <a href="/orders?status=RECEIVED" class="btn btn-sm <%= currentStatus === 'RECEIVED' ? 'btn-serene-primary' : 'btn-serene-secondary' %>" data-status-filter="RECEIVED">Received</a>
-        <a href="/orders?status=PRINTING" class="btn btn-sm <%= currentStatus === 'PRINTING' ? 'btn-serene-primary' : 'btn-serene-secondary' %>" data-status-filter="PRINTING">Printing</a>
-        <a href="/orders?status=READY" class="btn btn-sm <%= currentStatus === 'READY' ? 'btn-serene-primary' : 'btn-serene-secondary' %>" data-status-filter="READY">Ready for Pickup</a>
-        <a href="/orders?status=COMPLETED" class="btn btn-sm <%= currentStatus === 'COMPLETED' ? 'btn-serene-primary' : 'btn-serene-secondary' %>" data-status-filter="COMPLETED">Completed</a>
+        <button type="button" class="btn btn-sm order-tab-btn <%= currentStatus === 'ALL' ? 'btn-serene-primary' : 'btn-serene-secondary' %>" data-status="ALL" onclick="switchOrderStatusTab('ALL')">
+          All (<span id="allOrdersCount"><%= orders.length %></span>)
+        </button>
+        <button type="button" class="btn btn-sm order-tab-btn <%= currentStatus === 'RECEIVED' ? 'btn-serene-primary' : 'btn-serene-secondary' %>" data-status="RECEIVED" onclick="switchOrderStatusTab('RECEIVED')">
+          Received
+        </button>
+        <button type="button" class="btn btn-sm order-tab-btn <%= currentStatus === 'PRINTING' ? 'btn-serene-primary' : 'btn-serene-secondary' %>" data-status="PRINTING" onclick="switchOrderStatusTab('PRINTING')">
+          Printing
+        </button>
+        <button type="button" class="btn btn-sm order-tab-btn <%= currentStatus === 'READY' ? 'btn-serene-primary' : 'btn-serene-secondary' %>" data-status="READY" onclick="switchOrderStatusTab('READY')">
+          Ready for Pickup
+        </button>
+        <button type="button" class="btn btn-sm order-tab-btn <%= currentStatus === 'COMPLETED' ? 'btn-serene-primary' : 'btn-serene-secondary' %>" data-status="COMPLETED" onclick="switchOrderStatusTab('COMPLETED')">
+          Completed
+        </button>
       </div>
 
-      <div class="d-flex align-items-center gap-2 flex-grow-1 flex-sm-grow-0 position-relative" style="min-width: 250px; max-width: 100%;">
+      <div class="d-flex align-items-center gap-2 flex-grow-1 flex-sm-grow-0" style="min-width: 260px; max-width: 100%;">
         <div class="input-group input-group-sm position-relative w-100">
           <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
-          <input type="text" id="orderSearchInput" value="<%= search %>" class="form-control border-start-0 ps-0 pe-4" placeholder="Search order #, job, client..." autocomplete="off">
+          <input type="text" id="orderSearchInput" value="<%= search %>" class="form-control form-control-sm border-start-0 ps-0 pe-4" placeholder="Search order #, job, client..." autocomplete="off">
           <button class="btn btn-sm text-muted bg-white border border-start-0 position-absolute end-0 top-0 bottom-0 d-flex align-items-center justify-content-center px-2" type="button" id="clearOrderSearchBtn" style="display: none; z-index: 5;" title="Clear search">
             <i class="bi bi-x-circle-fill text-secondary"></i>
           </button>
@@ -42,7 +50,7 @@
     <!-- Orders Table Card -->
     <div class="serene-card">
       <div class="table-responsive">
-        <table class="serene-table" id="ordersTable">
+        <table class="serene-table">
           <thead>
             <tr>
               <th>Order #</th>
@@ -56,12 +64,11 @@
           <tbody>
             <% if (orders && orders.length > 0) { %>
               <% orders.forEach(o => { %>
-                <tr class="order-row"
+                <% const isInitiallyActive = currentStatus === 'ALL' || o.status === currentStatus; %>
+                <tr class="order-table-row" 
                     data-status="<%= o.status %>"
-                    data-order="<%= (o.orderNumber || '').toLowerCase() %>"
-                    data-customer="<%= (o.customer ? o.customer.name : '').toLowerCase() %>"
-                    data-phone="<%= (o.customer && o.customer.phone ? o.customer.phone : '').toLowerCase() %>"
-                    data-job="<%= (o.jobTitle || '').toLowerCase() %>">
+                    data-search="<%= [o.orderNumber, o.customer ? o.customer.name : '', o.customer ? o.customer.phone : '', o.jobTitle, o.paperMaterial || ''].join(' ').toLowerCase() %>"
+                    style="<%= isInitiallyActive ? '' : 'display: none !important;' %>">
                   <td>
                     <a href="/orders/<%= o.id %>" class="fw-semibold text-decoration-none text-dark font-monospace">
                       <%= o.orderNumber %>
@@ -101,127 +108,100 @@
                   </td>
                 </tr>
               <% }) %>
-            <% } else { %>
-              <tr>
-                <td colspan="6" class="text-center py-5 text-muted">
-                  No orders match this filter. Click "+ New Order" to record an order.
-                </td>
-              </tr>
             <% } %>
-            <tr id="orderNoResultsRow" style="display: none;">
+            <tr id="noOrdersRow" style="display: none;">
               <td colspan="6" class="text-center py-5 text-muted">
-                <i class="bi bi-search fs-3 d-block mb-2 text-muted opacity-50"></i>
-                No orders match your filter criteria.
+                No orders match this filter. Click "+ New Order" to record an order.
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-      <%- include('../partials/pagination', { pagination, baseUrl: '/orders', queryParams: { status: currentStatus !== 'ALL' ? currentStatus : undefined, search: search || undefined, customerId: typeof customerId !== 'undefined' && customerId ? customerId : undefined } }) %>
+      <% if (pagination && pagination.totalPages > 1) { %>
+        <%- include('../partials/pagination', { pagination, baseUrl: '/orders', queryParams: { status: currentStatus !== 'ALL' ? currentStatus : undefined, search: search || undefined, customerId: typeof customerId !== 'undefined' && customerId ? customerId : undefined } }) %>
+      <% } %>
     </div>
   </div>
 </main>
 
 <script>
-function initOrdersPage() {
-  const searchInput = document.getElementById('orderSearchInput');
-  const clearBtn = document.getElementById('clearOrderSearchBtn');
-  const rows = document.querySelectorAll('.order-row');
-  const emptyRow = document.getElementById('orderNoResultsRow');
-  let activeStatus = '<%= currentStatus %>' || 'ALL';
+  let currentOrderStatus = '<%= currentStatus %>';
+  const orderSearchInput = document.getElementById('orderSearchInput');
+  const clearOrderSearchBtn = document.getElementById('clearOrderSearchBtn');
+  const tabButtons = document.querySelectorAll('.order-tab-btn');
+  const orderRows = document.querySelectorAll('.order-table-row');
+  const noOrdersRow = document.getElementById('noOrdersRow');
 
-  function filterOrders() {
-    const rawVal = searchInput ? searchInput.value : '';
-    const term = rawVal.trim().toLowerCase();
+  function filterOrdersTable() {
+    const term = orderSearchInput ? orderSearchInput.value.trim().toLowerCase() : '';
     let visibleCount = 0;
 
-    if (clearBtn) {
-      clearBtn.style.display = term ? 'inline-flex' : 'none';
+    if (clearOrderSearchBtn) {
+      clearOrderSearchBtn.style.display = term ? 'inline-flex' : 'none';
     }
 
-    rows.forEach(row => {
-      const rowStatus = row.getAttribute('data-status') || '';
-      const statusMatches = (activeStatus === 'ALL') || (rowStatus === activeStatus);
+    orderRows.forEach(row => {
+      const status = row.getAttribute('data-status') || '';
+      const searchData = row.getAttribute('data-search') || '';
 
-      if (!statusMatches) {
-        row.style.display = 'none';
-        return;
-      }
+      const matchesStatus = currentOrderStatus === 'ALL' || status === currentOrderStatus;
+      const matchesSearch = !term || searchData.includes(term);
 
-      if (!term) {
-        row.style.display = '';
-        visibleCount++;
-        return;
-      }
-
-      const order = row.getAttribute('data-order') || '';
-      const customer = row.getAttribute('data-customer') || '';
-      const phone = row.getAttribute('data-phone') || '';
-      const job = row.getAttribute('data-job') || '';
-
-      const isMatch = order.includes(term) || customer.includes(term) || phone.includes(term) || job.includes(term);
-
-      if (isMatch) {
+      if (matchesStatus && matchesSearch) {
         row.style.display = '';
         visibleCount++;
       } else {
-        row.style.display = 'none';
+        row.style.setProperty('display', 'none', 'important');
       }
     });
 
-    if (emptyRow) {
-      emptyRow.style.display = (visibleCount === 0 && rows.length > 0) ? '' : 'none';
+    if (noOrdersRow) {
+      noOrdersRow.style.display = visibleCount === 0 ? '' : 'none';
     }
   }
 
-  if (searchInput && !searchInput.dataset.bound) {
-    searchInput.dataset.bound = 'true';
-    searchInput.addEventListener('input', filterOrders);
+  function switchOrderStatusTab(status, updateUrl = true) {
+    currentOrderStatus = status;
+
+    tabButtons.forEach(btn => {
+      const isTarget = btn.getAttribute('data-status') === status;
+      btn.classList.toggle('btn-serene-primary', isTarget);
+      btn.classList.toggle('btn-serene-secondary', !isTarget);
+    });
+
+    if (updateUrl) {
+      const url = new URL(window.location.href);
+      if (status === 'ALL') {
+        url.searchParams.delete('status');
+      } else {
+        url.searchParams.set('status', status);
+      }
+      window.history.pushState({ status }, '', url.toString());
+    }
+
+    filterOrdersTable();
   }
 
-  if (clearBtn && !clearBtn.dataset.bound) {
-    clearBtn.dataset.bound = 'true';
-    clearBtn.addEventListener('click', () => {
-      searchInput.value = '';
-      filterOrders();
-      searchInput.focus();
+  if (orderSearchInput) {
+    orderSearchInput.addEventListener('input', filterOrdersTable);
+  }
+
+  if (clearOrderSearchBtn) {
+    clearOrderSearchBtn.addEventListener('click', () => {
+      orderSearchInput.value = '';
+      filterOrdersTable();
+      orderSearchInput.focus();
     });
   }
 
-  document.querySelectorAll('#orderStatusTabs a').forEach(tab => {
-    if (!tab.dataset.bound) {
-      tab.dataset.bound = 'true';
-      tab.addEventListener('click', (e) => {
-        e.preventDefault();
-        const target = tab.getAttribute('data-status-filter') || 'ALL';
-        activeStatus = target;
-
-        document.querySelectorAll('#orderStatusTabs a').forEach(t => {
-          t.classList.remove('btn-serene-primary');
-          t.classList.add('btn-serene-secondary');
-        });
-        tab.classList.remove('btn-serene-secondary');
-        tab.classList.add('btn-serene-primary');
-
-        filterOrders();
-
-        // Silently update address bar without reload
-        const newUrl = new URL(window.location.href);
-        if (target === 'ALL') {
-          newUrl.searchParams.delete('status');
-        } else {
-          newUrl.searchParams.set('status', target);
-        }
-        history.replaceState(null, '', newUrl.toString());
-      });
-    }
+  window.addEventListener('popstate', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const status = urlParams.get('status') || 'ALL';
+    switchOrderStatusTab(status, false);
   });
 
-  filterOrders();
-}
-
-document.addEventListener('DOMContentLoaded', initOrdersPage);
-document.addEventListener('turbo:load', initOrdersPage);
+  // Initial filter run
+  filterOrdersTable();
 </script>
 
 <%- include('../partials/footer') %>

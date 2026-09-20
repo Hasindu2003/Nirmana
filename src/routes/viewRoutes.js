@@ -49,12 +49,13 @@ router.get('/dashboard', async (req, res, next) => {
 router.get('/orders', async (req, res, next) => {
   try {
     const { status, search, customerId, page, limit } = req.query;
+    // Load recent orders across statuses so tabs can filter in-memory instantly
     const { orders, pagination } = await orderService.getAllOrders({
-      status,
+      status: 'ALL',
       search,
       customerId,
       page: parseInt(page, 10) || 1,
-      limit: parseInt(limit, 10) || 50,
+      limit: parseInt(limit, 10) || 100,
       paginate: true,
     });
     res.render('orders/index', {
@@ -214,6 +215,7 @@ router.get('/quick-print', async (req, res, next) => {
   try {
     const status = req.query.status || 'PENDING';
     const search = req.query.search || '';
+    // Fetch all active jobs so both Pending and Completed tabs are instant in-memory
     const [jobs, stats] = await Promise.all([
       quickPrintService.getAllJobs({ status: 'ALL', search }),
       quickPrintService.getQueueStats(),
