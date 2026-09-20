@@ -1,6 +1,53 @@
 <%- include('../partials/header') %>
 <%- include('../partials/sidebar') %>
 
+<style>
+  /* Quick Print Page - Serene Slate-Teal Theme */
+  .custom-pills .nav-link {
+    color: var(--serene-text-muted);
+    background-color: #ffffff;
+    border: 1px solid var(--serene-border);
+    border-radius: var(--serene-radius-md);
+    font-size: 0.86rem;
+    font-weight: 600;
+    padding: 0.45rem 1rem;
+    transition: all 0.15s ease;
+  }
+  .custom-pills .nav-link:hover {
+    background-color: var(--serene-surface-muted);
+    color: var(--serene-text-main);
+  }
+  .custom-pills .nav-link.active {
+    background-color: var(--serene-primary) !important;
+    border-color: var(--serene-primary) !important;
+    color: #ffffff !important;
+    box-shadow: 0 1px 3px rgba(45, 106, 104, 0.2);
+  }
+  .custom-pills .nav-link.active .badge {
+    background-color: rgba(255, 255, 255, 0.25) !important;
+    color: #ffffff !important;
+  }
+
+  .kpi-card-active-pending {
+    border-color: var(--serene-primary) !important;
+    box-shadow: 0 0 0 1px var(--serene-primary) !important;
+  }
+
+  #previewFilesNavTabs .nav-link {
+    color: var(--serene-text-muted);
+    background-color: #ffffff;
+    border: 1px solid var(--serene-border);
+    border-radius: var(--serene-radius-sm);
+    font-size: 0.82rem;
+    font-weight: 500;
+  }
+  #previewFilesNavTabs .nav-link.active {
+    background-color: var(--serene-primary) !important;
+    border-color: var(--serene-primary) !important;
+    color: #ffffff !important;
+  }
+</style>
+
 <main class="main-wrapper">
   <div class="content-body">
     <!-- Header with Actions -->
@@ -42,7 +89,7 @@
     <div class="row g-2 g-md-3 mb-4">
       <div class="col-6">
         <a href="/quick-print?status=PENDING" class="text-decoration-none">
-          <div class="kpi-card border <%= currentStatus === 'PENDING' ? 'border-primary shadow-sm' : '' %>" style="cursor: pointer;">
+          <div class="kpi-card border <%= currentStatus === 'PENDING' ? 'kpi-card-active-pending shadow-sm' : '' %>" style="cursor: pointer;">
             <div class="d-flex justify-content-between align-items-start">
               <div class="kpi-title text-uppercase fw-bold">Pending Queue</div>
               <span class="badge bg-danger-subtle text-danger"><i class="bi bi-clock"></i> In Queue</span>
@@ -113,7 +160,7 @@
                       </div>
                       <div class="d-flex align-items-center gap-1 mt-0">
                         <a href="tel:<%= job.customerPhone %>" class="text-muted text-decoration-none" style="font-size: 0.74rem;" title="Call Customer">
-                          <i class="bi bi-telephone-fill text-primary me-1"></i><%= job.customerPhone %>
+                          <i class="bi bi-telephone-fill me-1 text-serene-primary"></i><%= job.customerPhone %>
                         </a>
                         <a href="https://wa.me/<%= job.customerPhone.replace(/[^0-9]/g, '').replace(/^0/, '94') %>" 
                            target="_blank" class="badge bg-success-subtle text-success text-decoration-none border border-success-subtle px-1 py-0 ms-1" style="font-size: 0.65rem;" title="Message on WhatsApp">
@@ -126,7 +173,7 @@
                   <!-- 2. Center: View Document & Print Button -->
                   <div class="d-flex align-items-center">
                     <% if (job.files && job.files.length > 0) { %>
-                      <button type="button" class="btn btn-outline-primary btn-sm py-1 px-3 fw-semibold d-inline-flex align-items-center gap-2 shadow-xs" 
+                      <button type="button" class="btn btn-serene-outline btn-sm py-1 px-3 fw-semibold d-inline-flex align-items-center gap-2 shadow-xs" 
                               onclick="openDocumentPreviewModal(<%= job.id %>)" 
                               style="height: 32px; border-radius: 6px;"
                               title="View Document Preview & Print">
@@ -190,7 +237,7 @@
                       <ul class="dropdown-menu dropdown-menu-end shadow-sm" style="min-width: 200px; z-index: 1060;">
                         <li>
                           <a class="dropdown-item py-2 d-flex align-items-center" href="javascript:void(0)" onclick="convertToFormalOrder(<%= job.id %>)">
-                            <i class="bi bi-receipt me-2 text-primary"></i> Convert to Formal Order
+                            <i class="bi bi-receipt me-2 text-serene-primary"></i> Convert to Formal Order
                           </a>
                         </li>
                         <li><hr class="dropdown-divider my-1"></li>
@@ -288,19 +335,19 @@
             <i class="bi bi-file-earmark-arrow-down display-3 text-secondary mb-3"></i>
             <h5 class="fw-bold" id="previewFallbackFilename">Document</h5>
             <p class="text-muted small">This file type is not directly previewable in the browser window.</p>
-            <a id="previewFallbackDownloadBtn" href="" download="" class="btn btn-outline-primary">
+            <a id="previewFallbackDownloadBtn" href="" download="" class="btn btn-serene-primary">
               <i class="bi bi-download me-1"></i> Download File
             </a>
           </div>
 
           <!-- Loading Spinner -->
-          <div id="previewLoadingSpinner" class="spinner-border text-primary position-absolute" role="status"></div>
+          <div id="previewLoadingSpinner" class="spinner-border text-serene-primary position-absolute" role="status"></div>
         </div>
 
         <!-- File Info Bar & Customer Note -->
         <div class="mt-2 d-flex flex-wrap align-items-center justify-content-between gap-2 p-2 rounded bg-white border">
           <div class="d-flex align-items-center gap-2 small text-truncate">
-            <i class="bi bi-file-earmark-text text-primary fs-5"></i>
+            <i class="bi bi-file-earmark-text text-serene-primary fs-5"></i>
             <span class="fw-bold text-dark text-truncate" id="previewFileInfoName" style="max-width: 320px;">file.png</span>
             <span class="text-muted" id="previewFileInfoSize">0 KB</span>
           </div>
@@ -332,7 +379,7 @@
           <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal">Close</button>
           
           <!-- START PRINT BUTTON -->
-          <button type="button" class="btn btn-primary fw-bold px-4 py-2 d-flex align-items-center gap-2 shadow-sm" 
+          <button type="button" class="btn btn-serene-primary fw-bold px-4 py-2 d-flex align-items-center gap-2 shadow-sm" 
                   id="previewModalStartPrintBtn" onclick="startPrintActiveDocument()">
             <i class="bi bi-printer-fill fs-5"></i>
             <span class="fs-6">Start Print</span>
@@ -352,7 +399,7 @@
     <div class="modal-content">
       <div class="modal-header border-bottom">
         <h5 class="modal-title fw-bold" id="qrCodeModalLabel">
-          <i class="bi bi-qr-code me-2 text-primary"></i> Counter QR Code & Self-Service Stand
+          <i class="bi bi-qr-code me-2 text-serene-primary"></i> Counter QR Code & Self-Service Stand
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
@@ -363,7 +410,7 @@
           <div class="col-md-5 text-center">
             <div class="p-3 bg-white border rounded-3 shadow-sm d-inline-block">
               <div id="qrCanvasContainer" style="min-width: 240px; min-height: 240px;" class="d-flex align-items-center justify-content-center">
-                <div class="spinner-border text-primary" role="status"></div>
+                <div class="spinner-border text-serene-primary" role="status"></div>
               </div>
             </div>
             <div class="mt-2 text-muted small">
@@ -387,7 +434,7 @@
             <div class="mb-3">
               <label class="form-label small fw-bold text-secondary mb-1">Upload Portal URL:</label>
               <div class="input-group shadow-xs">
-                <span class="input-group-text bg-light text-primary border-end-0">
+                <span class="input-group-text bg-light text-serene-primary border-end-0">
                   <i class="bi bi-link-45deg fs-5"></i>
                 </span>
                 <input type="text" class="form-control fw-semibold font-monospace border-start-0 border-end-0 bg-white" 
@@ -938,7 +985,7 @@
   async function loadQrCode(targetUrl) {
     const cleanUrl = (targetUrl || '').trim();
     try {
-      qrContainer.innerHTML = '<div class="spinner-border text-primary" role="status"></div>';
+      qrContainer.innerHTML = '<div class="spinner-border text-serene-primary" role="status"></div>';
       const res = await fetch(`/api/quick-print/qr?url=${encodeURIComponent(cleanUrl)}`);
       const data = await res.json();
       if (data.success && data.qrDataUrl) {

@@ -18,6 +18,12 @@
   --serene-primary-light: #e6f0ef;
   --serene-primary-focus: rgba(45, 106, 104, 0.15);
 
+  /* Bootstrap standard color mappings aligned to Serene palette */
+  --bs-primary: #2d6a68;
+  --bs-primary-rgb: 45, 106, 104;
+  --bs-link-color: #2d6a68;
+  --bs-link-hover-color: #245654;
+
   /* Secondary & Neutral Text */
   --serene-text-main: #1e293b;
   --serene-text-muted: #64748b;
@@ -505,6 +511,71 @@ h1, h2, h3, h4, h5, h6 {
 .btn-serene-ghost:hover {
   background-color: var(--serene-surface-muted);
   color: var(--serene-text-main);
+}
+
+.btn-serene-outline {
+  color: var(--serene-primary);
+  border: 1px solid var(--serene-primary);
+  background-color: #ffffff;
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--serene-radius-md);
+  font-size: 0.88rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  transition: all 0.15s ease;
+}
+
+.btn-serene-outline:hover,
+.btn-serene-outline:focus,
+.btn-serene-outline:active {
+  background-color: var(--serene-primary-light);
+  color: var(--serene-primary);
+  border-color: var(--serene-primary);
+}
+
+/* Nav Pills (Serene Studio Edition) */
+.custom-pills .nav-link {
+  color: var(--serene-text-muted);
+  background-color: #ffffff;
+  border: 1px solid var(--serene-border);
+  border-radius: var(--serene-radius-md);
+  font-size: 0.86rem;
+  font-weight: 600;
+  padding: 0.45rem 1rem;
+  transition: all 0.15s ease;
+}
+
+.custom-pills .nav-link:hover {
+  background-color: var(--serene-surface-muted);
+  color: var(--serene-text-main);
+}
+
+.custom-pills .nav-link.active {
+  background-color: var(--serene-primary) !important;
+  border-color: var(--serene-primary) !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(45, 106, 104, 0.2);
+}
+
+/* Color & Border Utilities */
+.text-serene-primary {
+  color: var(--serene-primary) !important;
+}
+
+.border-serene-primary {
+  border-color: var(--serene-primary) !important;
+}
+
+.bg-serene-primary {
+  background-color: var(--serene-primary) !important;
+  color: #ffffff !important;
+}
+
+.bg-serene-light {
+  background-color: var(--serene-primary-light) !important;
+  color: var(--serene-primary) !important;
 }
 
 /* Form Controls */

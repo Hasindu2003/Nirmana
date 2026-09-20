@@ -428,7 +428,7 @@
       </div>
       <div class="d-flex justify-content-between mb-1">
         <span class="text-muted">Status:</span>
-        <strong id="ticketCurrentStatus" class="text-primary">RECEIVED &bull; Counter එකෙන් තවම Print කරමින් පවතී</strong>
+        <strong id="ticketCurrentStatus" class="text-serene-primary">RECEIVED &bull; Counter එකෙන් තවම Print කරමින් පවතී</strong>
       </div>
     </div>
 
@@ -556,7 +556,7 @@
         const objectUrl = URL.createObjectURL(file);
         thumbHtml = `<img src="${objectUrl}" class="file-preview-thumb" alt="Thumbnail">`;
       } else {
-        const icon = file.type.includes('pdf') ? 'bi-filetype-pdf text-danger' : 'bi-file-earmark-text text-primary';
+        const icon = file.type.includes('pdf') ? 'bi-filetype-pdf text-danger' : 'bi-file-earmark-text text-serene-primary';
         thumbHtml = `<div class="file-preview-thumb"><i class="bi ${icon}"></i></div>`;
       }
 
@@ -749,7 +749,7 @@
       sReceived.classList.add('active');
       sReceived.classList.remove('completed');
       sCompleted.classList.remove('active', 'completed');
-      statusText.innerHTML = '<span class="text-primary"><i class="bi bi-clock"></i> RECEIVED &bull; Counter එකෙන් තවම Print කරමින් පවතී</span>';
+      statusText.innerHTML = '<span class="text-serene-primary"><i class="bi bi-clock"></i> RECEIVED &bull; Counter එකෙන් තවම Print කරමින් පවතී</span>';
     } else if (status === 'COMPLETED') {
       sReceived.classList.remove('active');
       sReceived.classList.add('completed');
