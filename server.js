@@ -116,6 +116,11 @@ async function ensureDbInitialized() {
 }
 
 app.use(async (req, res, next) => {
+  // Allow customer upload form to render independently of database status
+  if (req.path === '/upload' || req.path === '/quick-print/upload') {
+    return next();
+  }
+
   const ready = await ensureDbInitialized();
   if (!ready && dbInitError) {
     if (req.originalUrl && req.originalUrl.startsWith('/api/')) {

@@ -37,15 +37,31 @@ if (dbUrl) {
     console.warn('Warning: Could not create database directory:', err.message);
   }
 
-  sequelize = new Sequelize({
-    dialect: 'sqlite',
-    storage: storagePath,
-    logging: config.nodeEnv === 'development' ? false : false, // set to console.log if debugging SQL queries
-    define: {
-      timestamps: true,
-      underscored: false,
-    },
-  });
+  try {
+    sequelize = new Sequelize({
+      dialect: 'sqlite',
+      storage: storagePath,
+      logging: config.nodeEnv === 'development' ? false : false, // set to console.log if debugging SQL queries
+      define: {
+        timestamps: true,
+        underscored: false,
+      },
+    });
+  } catch (sqliteErr) {
+    console.warn('Notice: SQLite driver failed to load (expected on Vercel serverless):', sqliteErr.message);
+    // Fallback to MySQL instance so all models can define cleanly without crashing the process
+    sequelize = new Sequelize(config.db.database, config.db.username, config.db.password, {
+      host: config.db.host,
+      port: config.db.port,
+      dialect: 'mysql',
+      logging: false,
+      define: {
+        timestamps: true,
+        underscored: false,
+      },
+    });
+    sequelize.__initError = sqliteErr;
+  }
 } else {
   sequelize = new Sequelize(config.db.database, config.db.username, config.db.password, {
     host: config.db.host,
