@@ -22,8 +22,13 @@ class QuickPrintService {
       transaction,
     });
 
-    const tokenNum = (count + 1).toString().padStart(3, '0');
-    return `QP-${tokenNum}`;
+    let num = count + 1;
+    let candidate = `QP-${num.toString().padStart(3, '0')}`;
+    while (await QuickPrintJob.findOne({ where: { tokenNumber: candidate }, transaction })) {
+      num++;
+      candidate = `QP-${num.toString().padStart(3, '0')}`;
+    }
+    return candidate;
   }
 
   /**
