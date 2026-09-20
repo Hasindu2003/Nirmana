@@ -1123,6 +1123,13 @@
   }
   window._quickPrintPollInterval = setInterval(pollQueue, 5000);
 
+  document.addEventListener('turbo:before-render', function () {
+    if (window._quickPrintPollInterval) {
+      clearInterval(window._quickPrintPollInterval);
+      window._quickPrintPollInterval = null;
+    }
+  }, { once: true });
+
   // Ensure dropdown menu in queue cards floats cleanly above all other cards
   document.addEventListener('show.bs.dropdown', function (e) {
     const card = e.target.closest('.serene-card');
