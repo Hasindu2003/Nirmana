@@ -10,24 +10,20 @@ class QuickPrintService {
    * Generates a daily sequential token number (e.g. QP-001, QP-002)
    */
   async generateTokenNumber(transaction = null) {
-    const { startOfDay, endOfDay } = getSriLankaDayBounds();
+    const totalCount = await QuickPrintJob.count().catch(() => 0);
+    const lastJob = await QuickPrintJob.findOne({
+      order: [['id', 'DESC']],
+      attributes: ['id', 'tokenNumber'],
+    }).catch(() => null);
 
-    const count = await QuickPrintJob.count({
-      where: {
-        createdAt: {
-          [Op.gte]: startOfDay,
-          [Op.lte]: endOfDay,
-        },
-      },
-      transaction,
-    });
+    let nextNum = Math.max(totalCount + 1, (lastJob ? lastJob.id + 1 : 1));
+    let candidate = `QP-${nextNum.toString().padStart(3, '0')}`;
 
-    let num = count + 1;
-    let candidate = `QP-${num.toString().padStart(3, '0')}`;
-    while (await QuickPrintJob.findOne({ where: { tokenNumber: candidate }, transaction })) {
-      num++;
-      candidate = `QP-${num.toString().padStart(3, '0')}`;
+    while (await QuickPrintJob.findOne({ where: { tokenNumber: candidate } })) {
+      nextNum++;
+      candidate = `QP-${nextNum.toString().padStart(3, '0')}`;
     }
+
     return candidate;
   }
 
