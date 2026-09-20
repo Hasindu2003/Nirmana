@@ -237,6 +237,82 @@ router.get('/quick-print', async (req, res, next) => {
   }
 });
 
+// Google Drive OAuth2 Authorization Flow (for personal 15GB Gmail accounts)
+const googleDriveService = require('../services/googleDriveService');
+const fs = require('fs');
+const path = require('path');
+
+router.get('/auth/google', (req, res) => {
+  try {
+    const url = googleDriveService.generateAuthUrl();
+    res.redirect(url);
+  } catch (err) {
+    res.status(500).send('Error generating Google authorization link: ' + err.message);
+  }
+});
+
+router.get('/oauth2callback', async (req, res) => {
+  const code = req.query.code;
+  if (!code) {
+    return res.status(400).send('Authorization code missing from Google callback.');
+  }
+  try {
+    const tokens = await googleDriveService.exchangeCodeForTokens(code);
+
+    // Save refresh token to .env if present
+    if (tokens.refresh_token) {
+      process.env.GOOGLE_REFRESH_TOKEN = tokens.refresh_token;
+      const envPath = path.join(__dirname, '../../.env');
+      if (fs.existsSync(envPath)) {
+        let envContent = fs.readFileSync(envPath, 'utf8');
+        if (envContent.includes('GOOGLE_REFRESH_TOKEN=')) {
+          envContent = envContent.replace(/GOOGLE_REFRESH_TOKEN=.*/, `GOOGLE_REFRESH_TOKEN="${tokens.refresh_token}"`);
+        } else {
+          envContent += `\nGOOGLE_REFRESH_TOKEN="${tokens.refresh_token}"\n`;
+        }
+        fs.writeFileSync(envPath, envContent, 'utf8');
+      }
+    }
+
+    // Reset cached client in service so it re-authenticates with new token
+    googleDriveService.driveClient = null;
+
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Google Drive Connected · Nirmana Printing</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+      </head>
+      <body class="bg-light d-flex align-items-center justify-content-center min-vh-100 p-3">
+        <div class="card border-0 shadow-lg p-4 text-center" style="max-width: 520px; border-radius: 16px;">
+          <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-success-subtle text-success mx-auto mb-3" style="width: 72px; height: 72px;">
+            <i class="bi bi-check-circle-fill fs-1"></i>
+          </div>
+          <h4 class="fw-bold mb-2">Google Drive Connected!</h4>
+          <p class="text-secondary small mb-3">
+            Your personal Google Drive storage (15 GB) is now connected to Nirmana Printing. All incoming customer print files will be saved straight to your Google Drive folder.
+          </p>
+          ${tokens.refresh_token ? `
+            <div class="alert alert-info text-start small mb-3">
+              <strong>Vercel Production Note:</strong><br>
+              Copy this token into your Vercel Project Settings > Environment Variables:
+              <input type="text" class="form-control form-control-sm font-monospace mt-2" readonly value="${tokens.refresh_token}" onclick="this.select()">
+            </div>
+          ` : ''}
+          <div class="d-grid gap-2">
+            <a href="/quick-print" class="btn btn-primary fw-semibold py-2">Back to Counter Queue</a>
+          </div>
+        </div>
+      </body>
+      </html>
+    `);
+  } catch (err) {
+    res.status(500).send('Failed to exchange code for tokens: ' + err.message);
+  }
+});
+
 module.exports = router;
 
 

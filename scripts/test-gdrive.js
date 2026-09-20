@@ -8,18 +8,29 @@ async function runTest() {
   console.log('🔍 Testing Google Drive Cloud Storage Integration');
   console.log('====================================================\n');
 
-  console.log('1. Checking Environment Variables:');
-  const { clientEmail, privateKey, folderId } = googleDriveService.getCredentials();
-  console.log('   - GOOGLE_SERVICE_ACCOUNT_EMAIL:', clientEmail ? `✓ Set (${clientEmail})` : '❌ Missing');
-  console.log('   - GOOGLE_PRIVATE_KEY:          ', privateKey ? '✓ Set (valid key detected)' : '❌ Missing');
-  console.log('   - GOOGLE_DRIVE_FOLDER_ID:      ', folderId ? `✓ Set (${folderId})` : '❌ Missing');
+  console.log('1. Checking Authentication Mode:');
+  const creds = googleDriveService.getCredentials();
+  if (creds.clientId && creds.clientSecret && creds.refreshToken) {
+    console.log('   - Mode:                     ✓ OAuth2 (Personal Account with 15GB Quota)');
+    console.log('   - GOOGLE_CLIENT_ID:         ✓ Detected');
+    console.log('   - GOOGLE_REFRESH_TOKEN:     ✓ Configured');
+    console.log('   - GOOGLE_DRIVE_FOLDER_ID:  ', creds.folderId ? `✓ Set (${creds.folderId})` : '❌ Missing');
+  } else {
+    console.log('   - Mode:                     OAuth2 Personal Gmail Setup');
+    console.log('   - GOOGLE_CLIENT_ID:        ', creds.clientId ? '✓ Detected' : '❌ Not set');
+    console.log('   - GOOGLE_REFRESH_TOKEN:    ', creds.refreshToken ? '✓ Set' : '❌ Needs 1-time login');
+    console.log('   - GOOGLE_DRIVE_FOLDER_ID:  ', creds.folderId ? `✓ Set (${creds.folderId})` : '❌ Missing');
+  }
 
   if (!googleDriveService.isConfigured()) {
-    console.log('\n❌ Google Drive is NOT configured yet.');
-    console.log('\nPlease add the following environment variables to your .env file:');
-    console.log('GOOGLE_SERVICE_ACCOUNT_EMAIL="your-service-account@project.iam.gserviceaccount.com"');
-    console.log('GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n"');
-    console.log('GOOGLE_DRIVE_FOLDER_ID="your_google_drive_folder_id"');
+    console.log('\n❌ Google Drive needs 1-time authorization for your personal Gmail.');
+    console.log('\n👉 To authorize:');
+    console.log('1. In Google Cloud Console > Credentials, edit your OAuth 2.0 Client.');
+    console.log('2. Under "Authorized redirect URIs", add:');
+    console.log('   http://localhost:3000/oauth2callback');
+    console.log('3. Open your browser and visit:');
+    console.log('   http://localhost:3000/auth/google');
+    console.log('\nLog in with your Gmail and click Allow. It will automatically save your token!');
     process.exit(1);
   }
 

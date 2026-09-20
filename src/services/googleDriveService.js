@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 const { google } = require('googleapis');
 
 class GoogleDriveService {
@@ -8,17 +9,52 @@ class GoogleDriveService {
   }
 
   /**
-   * Parse credentials from environment variables.
-   * Supports either:
-   * 1. GOOGLE_SERVICE_ACCOUNT_EMAIL + GOOGLE_PRIVATE_KEY
-   * 2. GOOGLE_SERVICE_ACCOUNT_KEY (entire JSON key file as string)
+   * Parse credentials from environment variables and local secret files.
+   * Supports:
+   * 1. OAuth2 (Personal Gmail Account with 15GB quota):
+   *    - GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET + GOOGLE_REFRESH_TOKEN
+   *    - Auto-reads client_secret_*.json if present
+   * 2. Service Account (Google Workspace / Shared Drives):
+   *    - GOOGLE_SERVICE_ACCOUNT_EMAIL + GOOGLE_PRIVATE_KEY
    */
   getCredentials() {
     let clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
     let privateKey = process.env.GOOGLE_PRIVATE_KEY;
     const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
-    // Check if whole JSON string is passed
+    let clientId = process.env.GOOGLE_CLIENT_ID;
+    let clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/oauth2callback';
+
+    const rootDir = path.join(__dirname, '../../');
+
+    // Auto-detect local client_secret_*.json if in root
+    try {
+      const files = fs.readdirSync(rootDir);
+      const oauthSecretFile = files.find(f => f.startsWith('client_secret_') && f.endsWith('.json'));
+      if (oauthSecretFile) {
+        const secretContent = JSON.parse(fs.readFileSync(path.join(rootDir, oauthSecretFile), 'utf8'));
+        const appData = secretContent.web || secretContent.installed;
+        if (appData) {
+          clientId = clientId || appData.client_id;
+          clientSecret = clientSecret || appData.client_secret;
+        }
+      }
+    } catch (e) {}
+
+    // Auto-detect local service account JSON if in root
+    try {
+      const files = fs.readdirSync(rootDir);
+      const autoKey = files.find(f => f.startsWith('nirmana-printing-') && f.endsWith('.json'));
+      if (autoKey) {
+        const fileContent = JSON.parse(fs.readFileSync(path.join(rootDir, autoKey), 'utf8'));
+        clientEmail = clientEmail || fileContent.client_email;
+        privateKey = privateKey || fileContent.private_key;
+      }
+    } catch (e) {}
+
+    // Check if whole JSON string is passed in GOOGLE_SERVICE_ACCOUNT_KEY
     if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
       try {
         const parsed = typeof process.env.GOOGLE_SERVICE_ACCOUNT_KEY === 'string'
@@ -37,9 +73,15 @@ class GoogleDriveService {
     }
 
     return {
+      folderId,
+      // OAuth2 fields
+      clientId,
+      clientSecret,
+      refreshToken,
+      redirectUri,
+      // Service account fields
       clientEmail,
       privateKey,
-      folderId,
     };
   }
 
@@ -47,8 +89,60 @@ class GoogleDriveService {
    * Check if Google Drive storage is fully configured
    */
   isConfigured() {
-    const { clientEmail, privateKey, folderId } = this.getCredentials();
-    return Boolean(clientEmail && privateKey && folderId);
+    const creds = this.getCredentials();
+    if (!creds.folderId) return false;
+
+    // Mode 1: OAuth2 with personal Gmail (has quota)
+    if (creds.clientId && creds.clientSecret && creds.refreshToken) {
+      return true;
+    }
+
+    // Mode 2: Service Account (Workspace / Shared Drive)
+    if (creds.clientEmail && creds.privateKey) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Generate Google OAuth authorization URL for the user to log in
+   */
+  generateAuthUrl() {
+    const creds = this.getCredentials();
+    if (!creds.clientId || !creds.clientSecret) {
+      throw new Error('Google OAuth Client ID & Secret are required to generate auth URL.');
+    }
+
+    const oauth2Client = new google.auth.OAuth2(
+      creds.clientId,
+      creds.clientSecret,
+      creds.redirectUri
+    );
+
+    return oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      prompt: 'consent',
+      scope: [
+        'https://www.googleapis.com/auth/drive.file',
+        'https://www.googleapis.com/auth/drive',
+      ],
+    });
+  }
+
+  /**
+   * Exchange authorization code from Google for tokens
+   */
+  async exchangeCodeForTokens(code) {
+    const creds = this.getCredentials();
+    const oauth2Client = new google.auth.OAuth2(
+      creds.clientId,
+      creds.clientSecret,
+      creds.redirectUri
+    );
+
+    const { tokens } = await oauth2Client.getToken(code);
+    return tokens;
   }
 
   /**
@@ -57,23 +151,38 @@ class GoogleDriveService {
   getClient() {
     if (this.driveClient) return this.driveClient;
 
-    const { clientEmail, privateKey } = this.getCredentials();
-    if (!clientEmail || !privateKey) {
-      throw new Error('Google Drive credentials (email/privateKey) are missing.');
+    const creds = this.getCredentials();
+
+    // 1. Prefer OAuth2 (allows uploads under user's 15GB personal quota)
+    if (creds.clientId && creds.clientSecret && creds.refreshToken) {
+      const oauth2Client = new google.auth.OAuth2(
+        creds.clientId,
+        creds.clientSecret,
+        creds.redirectUri
+      );
+      oauth2Client.setCredentials({ refresh_token: creds.refreshToken });
+      this.authClient = oauth2Client;
+      this.driveClient = google.drive({ version: 'v3', auth: oauth2Client });
+      return this.driveClient;
     }
 
-    this.authClient = new google.auth.JWT({
-      email: clientEmail,
-      key: privateKey,
-      scopes: ['https://www.googleapis.com/auth/drive'],
-    });
+    // 2. Service Account Fallback (Google Workspace / Shared Drives)
+    if (creds.clientEmail && creds.privateKey) {
+      this.authClient = new google.auth.JWT({
+        email: creds.clientEmail,
+        key: creds.privateKey,
+        scopes: ['https://www.googleapis.com/auth/drive'],
+      });
 
-    this.driveClient = google.drive({
-      version: 'v3',
-      auth: this.authClient,
-    });
+      this.driveClient = google.drive({
+        version: 'v3',
+        auth: this.authClient,
+      });
 
-    return this.driveClient;
+      return this.driveClient;
+    }
+
+    throw new Error('Google Drive credentials (OAuth refresh token or Service Account key) are missing.');
   }
 
   /**
@@ -107,6 +216,7 @@ class GoogleDriveService {
       requestBody: fileMetadata,
       media,
       fields: 'id, name, webViewLink, webContentLink, size, mimeType',
+      supportsAllDrives: true,
     });
 
     const fileData = res.data;
@@ -119,6 +229,7 @@ class GoogleDriveService {
           role: 'reader',
           type: 'anyone',
         },
+        supportsAllDrives: true,
       });
     } catch (permErr) {
       console.warn('Could not set public read permission on Google Drive file:', permErr.message);
@@ -139,7 +250,7 @@ class GoogleDriveService {
   async getFileStream(fileId) {
     const drive = this.getClient();
     const res = await drive.files.get(
-      { fileId, alt: 'media' },
+      { fileId, alt: 'media', supportsAllDrives: true },
       { responseType: 'stream' }
     );
     return res.data;
@@ -153,7 +264,7 @@ class GoogleDriveService {
     if (!this.isConfigured() || !fileId) return false;
     try {
       const drive = this.getClient();
-      await drive.files.delete({ fileId });
+      await drive.files.delete({ fileId, supportsAllDrives: true });
       return true;
     } catch (err) {
       console.warn(`Could not delete file ${fileId} from Google Drive:`, err.message);
@@ -169,16 +280,17 @@ class GoogleDriveService {
       return {
         success: false,
         configured: false,
-        message: 'Google Drive environment variables are not set.',
+        message: 'Google Drive environment variables are not set or incomplete.',
       };
     }
 
     try {
-      const { folderId, clientEmail } = this.getCredentials();
+      const { folderId } = this.getCredentials();
       const drive = this.getClient();
       const res = await drive.files.get({
         fileId: folderId,
         fields: 'id, name, capabilities, shared',
+        supportsAllDrives: true,
       });
 
       return {
@@ -186,7 +298,6 @@ class GoogleDriveService {
         configured: true,
         folderName: res.data.name,
         folderId: res.data.id,
-        serviceAccountEmail: clientEmail,
         canAddChildren: res.data.capabilities ? res.data.capabilities.canAddChildren : true,
       };
     } catch (err) {
@@ -195,7 +306,7 @@ class GoogleDriveService {
         configured: true,
         message: err.message,
         hint: err.message.includes('File not found')
-          ? 'Folder ID not found. Ensure the folder is shared with the Service Account email with Editor permission.'
+          ? 'Folder ID not found. Ensure the folder is shared with the service account or accessible by your OAuth account.'
           : undefined,
       };
     }

@@ -8,6 +8,12 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
+*.json.key
+*serviceaccount*.json
+*printing-*.json
+client_secret*.json
+*token*.json
+gdrive*.json
 
 # Database & Storage
 data/*.sqlite
