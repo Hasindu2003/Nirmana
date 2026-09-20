@@ -18,8 +18,18 @@ const dbUrl = process.env.DATABASE_URL || process.env.MYSQL_URL;
 
 if (dbUrl) {
   try {
+    const isCloudDb = !dbUrl.includes('localhost') && !dbUrl.includes('127.0.0.1');
+    const dialectOptions = {};
+    if (isCloudDb || process.env.DB_SSL === 'true') {
+      dialectOptions.ssl = {
+        minVersion: 'TLSv1.2',
+        rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED === 'false' ? false : true,
+      };
+    }
+
     sequelize = new Sequelize(dbUrl, {
       dialect: 'mysql',
+      dialectOptions,
       logging: config.nodeEnv === 'development' ? false : false,
       pool: {
         max: 10,
@@ -67,10 +77,20 @@ if (dbUrl) {
   }
 } else {
   try {
+    const isCloud = config.db.host !== 'localhost' && config.db.host !== '127.0.0.1';
+    const dialectOptions = {};
+    if (isCloud || process.env.DB_SSL === 'true') {
+      dialectOptions.ssl = {
+        minVersion: 'TLSv1.2',
+        rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED === 'false' ? false : true,
+      };
+    }
+
     sequelize = new Sequelize(config.db.database, config.db.username, config.db.password, {
       host: config.db.host,
       port: config.db.port,
       dialect: 'mysql',
+      dialectOptions,
       logging: config.nodeEnv === 'development' ? false : false,
       pool: {
         max: 10,
