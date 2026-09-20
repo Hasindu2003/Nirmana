@@ -541,7 +541,7 @@
                 <i class="bi bi-printer me-2"></i> Print Tabletop Counter Stand (Flyer)
               </button>
 
-              <a href="/upload" target="_blank" class="btn btn-serene-ghost text-muted small">
+              <a href="<%= defaultUploadUrl %>" target="_blank" class="btn btn-serene-ghost text-muted small" id="previewCustomerUploadLink">
                 <i class="bi bi-box-arrow-up-right me-1"></i> Preview Customer Upload Page
               </a>
             </div>
@@ -1232,16 +1232,19 @@
   const resetToOriginBtn = document.getElementById('resetToOriginBtn');
 
   // Smart Initial URL:
-  // Automatically gives the nice, clean active web address (e.g. https://nirmana-iota.vercel.app/upload)
+  // Uses dedicated customer portal (https://nirmana-upload.vercel.app)
   function getCleanUploadUrl() {
-    if (window.location.origin && window.location.origin.startsWith('http')) {
-      return `${window.location.origin}/upload`;
+    const serverUrl = `<%= defaultUploadUrl %>`;
+    if (serverUrl && serverUrl.trim() && serverUrl.trim().startsWith('http')) {
+      return serverUrl.trim();
     }
-    return `<%= defaultUploadUrl %>` || `${window.location.origin}/upload`;
+    return 'https://nirmana-upload.vercel.app';
   }
 
   const initialUrl = getCleanUploadUrl();
   qrUrlInput.value = initialUrl;
+  const previewUploadLink = document.getElementById('previewCustomerUploadLink');
+  if (previewUploadLink) previewUploadLink.href = initialUrl;
 
   async function loadQrCode(targetUrl) {
     const cleanUrl = (targetUrl || '').trim();
@@ -1268,11 +1271,13 @@
     loadQrCode(qrUrlInput.value.trim());
   });
 
-  // Reset to Current Site URL
+  // Reset to Dedicated Customer Portal URL
   if (resetToOriginBtn) {
     resetToOriginBtn.addEventListener('click', () => {
-      qrUrlInput.value = `${window.location.origin}/upload`;
-      loadQrCode(qrUrlInput.value.trim());
+      const resetUrl = getCleanUploadUrl();
+      qrUrlInput.value = resetUrl;
+      loadQrCode(resetUrl);
+      if (previewUploadLink) previewUploadLink.href = resetUrl;
     });
   }
 

@@ -57,9 +57,14 @@ function getPrimaryLanIp() {
  * Builds the best mobile-accessible upload URL based on request & network
  */
 function getUploadUrl(req, port = 3000) {
-  // If dedicated customer portal is configured via environment variable, use it!
+  // 1. If dedicated customer portal is configured via environment variable, use it!
   if (process.env.CUSTOMER_PORTAL_URL) {
     return process.env.CUSTOMER_PORTAL_URL;
+  }
+
+  // 2. Default to the new dedicated customer portal for production / Vercel
+  if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+    return 'https://nirmana-upload.vercel.app';
   }
 
   const host = req.get('host') || '';
@@ -74,8 +79,8 @@ function getUploadUrl(req, port = 3000) {
     }
   }
 
-  // If accessed via a real domain or specific IP, use that
-  return `${req.protocol}://${host}/upload`;
+  // Fallback: dedicated customer portal
+  return 'https://nirmana-upload.vercel.app';
 }
 
 module.exports = {
