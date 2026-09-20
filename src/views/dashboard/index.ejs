@@ -4,15 +4,23 @@
 <main class="main-wrapper">
   <div class="content-body">
     <!-- Header -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between mb-4">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
       <div>
-        <h2 class="fs-4 fw-bold mb-1">Print Shop Dashboard</h2>
-        <div class="text-muted small">
-          Today, <%= new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' }) %> &bull; Live Operations
-        </div>
+        <h2 class="fs-4 fw-bold mb-0">Print Shop Dashboard</h2>
       </div>
 
-      <div class="d-flex flex-wrap align-items-center gap-2 mt-3 mt-sm-0">
+      <div class="d-flex flex-column align-items-sm-end gap-2">
+        <!-- Date & Live Status Aligned to Right Corner -->
+        <div class="text-muted small d-flex align-items-center gap-1" style="font-size: 0.8rem;">
+          <i class="bi bi-calendar3 me-1 text-muted"></i>
+          <span>Today, <%= new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' }) %></span>
+          <span class="mx-1 text-muted">&bull;</span>
+          <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-2 py-0 d-inline-flex align-items-center" style="font-size: 0.72rem; font-weight: 600;">
+            <span class="spinner-grow spinner-grow-sm text-success me-1" style="width: 6px; height: 6px;" role="status"></span> Live Operations
+          </span>
+        </div>
+
+        <div class="d-flex flex-wrap align-items-center gap-2">
         <!-- Stock Attention Alert Icon Button -->
         <button class="btn btn-sm <%= stats.kpis.lowStockCount > 0 ? 'btn-stock-alert-active' : 'btn-serene-secondary' %> d-inline-flex align-items-center gap-2 shadow-xs" 
                 data-bs-toggle="modal" 
