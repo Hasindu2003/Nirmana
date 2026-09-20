@@ -44,9 +44,12 @@ class QuickPrintController {
       });
     } catch (error) {
       console.error('Error in submitUpload:', error);
+      const msg = (error.errors && error.errors.length > 0)
+        ? error.errors.map(e => e.message).join(', ')
+        : (error.message || 'Failed to upload files. Please try again.');
       return res.status(400).json({
         success: false,
-        message: error.message || 'Failed to upload files. Please try again.',
+        message: msg,
       });
     }
   }
@@ -384,9 +387,13 @@ class QuickPrintController {
         },
       });
     } catch (error) {
+      console.error('Error in completeDirectUpload:', error);
+      const msg = (error.errors && error.errors.length > 0)
+        ? error.errors.map(e => e.message).join(', ')
+        : (error.message || 'Failed to complete direct upload. Please try again.');
       return res.status(400).json({
         success: false,
-        message: error.message,
+        message: msg,
       });
     }
   }

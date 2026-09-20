@@ -210,6 +210,21 @@ async function ensureDbInitialized() {
               });
             }
           }
+
+          // Ensure quick_print_jobs table supports MIXED colorMode and longer paperSize
+          const jobsDesc = await qi.describeTable('quick_print_jobs').catch(() => null);
+          if (jobsDesc) {
+            try {
+              if (jobsDesc.colorMode && jobsDesc.colorMode.type && jobsDesc.colorMode.type.includes('ENUM')) {
+                await sequelize.query("ALTER TABLE `quick_print_jobs` MODIFY COLUMN `colorMode` VARCHAR(20) NOT NULL DEFAULT 'NOT_SPECIFIED'").catch(() => {});
+              }
+              if (jobsDesc.paperSize) {
+                await sequelize.query("ALTER TABLE `quick_print_jobs` MODIFY COLUMN `paperSize` VARCHAR(100) NOT NULL DEFAULT 'A4'").catch(() => {});
+              }
+            } catch (jobColErr) {
+              // Ignore if already adjusted
+            }
+          }
         } catch (migErr) {
           // Non-fatal if table already updated
         }

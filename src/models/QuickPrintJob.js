@@ -32,7 +32,7 @@ const QuickPrintJob = sequelize.define('QuickPrintJob', {
     allowNull: true,
   },
   colorMode: {
-    type: DataTypes.ENUM('COLOR', 'BW', 'MIXED', 'NOT_SPECIFIED'),
+    type: DataTypes.STRING(20),
     allowNull: false,
     defaultValue: 'NOT_SPECIFIED',
   },
