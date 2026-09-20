@@ -48,13 +48,11 @@ class OrderService {
       return await Order.findAll(queryOptions);
     }
 
-    const totalCount = await Order.count({ where, distinct: true });
+    queryOptions.limit = parseInt(limit, 10) || 10;
+    queryOptions.offset = ((parseInt(page, 10) || 1) - 1) * queryOptions.limit;
+
+    const { count: totalCount, rows: orders } = await Order.findAndCountAll(queryOptions);
     const pagination = buildPagination(totalCount, page, limit);
-
-    queryOptions.limit = pagination.limit;
-    queryOptions.offset = pagination.offset;
-
-    const orders = await Order.findAll(queryOptions);
 
     return {
       orders,

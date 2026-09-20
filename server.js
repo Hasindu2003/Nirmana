@@ -6,6 +6,28 @@ const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const morgan = require('morgan');
 const jwt = require('jsonwebtoken');
+const compression = require('compression');
+
+// User in-memory micro-cache (60s TTL) to eliminate redundant database queries
+const userCache = new Map();
+const USER_CACHE_TTL = 60 * 1000;
+
+async function getCachedUser(userId) {
+  const cached = userCache.get(userId);
+  if (cached && (Date.now() - cached.timestamp < USER_CACHE_TTL)) {
+    return cached.user;
+  }
+  try {
+    const { User } = require('./src/models');
+    const user = await User.findByPk(userId);
+    if (user) {
+      userCache.set(userId, { user, timestamp: Date.now() });
+    }
+    return user;
+  } catch (e) {
+    return null;
+  }
+}
 
 const config = require('./src/config/config');
 const sequelize = require('./src/config/database');
@@ -19,6 +41,7 @@ const app = express();
 app.set('trust proxy', 1);
 
 // 1. Basic Middleware
+app.use(compression());
 app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
@@ -38,11 +61,14 @@ app.use(session({
   },
 }));
 
-// 3. Static Files
+// 3. Static Files with Aggressive Browser Caching
 if (process.env.VERCEL) {
-  app.use('/uploads', express.static(path.join('/tmp', 'uploads')));
+  app.use('/uploads', express.static(path.join('/tmp', 'uploads'), { maxAge: '1d' }));
 }
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: config.nodeEnv === 'production' ? '7d' : '1h',
+  etag: true,
+}));
 
 // 4. View Engine (EJS)
 app.set('view engine', 'ejs');
@@ -76,8 +102,7 @@ app.use(async (req, res, next) => {
     }
 
     if (userId) {
-      const { User } = require('./src/models');
-      const user = await User.findByPk(userId);
+      const user = await getCachedUser(userId);
       if (user && user.isActive) {
         req.user = user;
         res.locals.currentUser = user;

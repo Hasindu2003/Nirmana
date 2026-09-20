@@ -167,33 +167,57 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/js/app.js"></script>
 <script>
-// Populate Stock Dropdowns for modals
-let globalStockItems = [];
+// Populate Stock Dropdowns for modals (Lazy-loaded on modal show)
+let globalStockItems = null;
 
 async function loadStockDropdowns() {
+  const inSelect = document.getElementById('stockInSelect');
+  const outSelect = document.getElementById('stockOutSelect');
+  if (!inSelect && !outSelect) return;
+
+  if (globalStockItems && globalStockItems.length > 0) {
+    populateStockDropdowns(globalStockItems);
+    return;
+  }
+
   try {
     const res = await fetch('/api/stock');
     const data = await res.json();
     if (data.success) {
       globalStockItems = data.data;
-      const inSelect = document.getElementById('stockInSelect');
-      const outSelect = document.getElementById('stockOutSelect');
-      if (inSelect && outSelect) {
-        if (globalStockItems.length === 0) {
-          inSelect.innerHTML = '<option value="">-- No materials in stock yet. Add item first --</option>';
-          outSelect.innerHTML = '<option value="">-- No materials in stock yet. Add item first --</option>';
-        } else {
-          inSelect.innerHTML = '<option value="">-- Choose Stock Item --</option>' +
-            globalStockItems.map(i => `<option value="${i.id}" data-unitcost="${i.unitCost || 0}" data-sellingprice="${i.sellingPrice || ''}" data-unit="${i.unit}">${i.name} (${i.currentStock} ${i.unit} in stock)</option>`).join('');
-          outSelect.innerHTML = '<option value="">-- Choose Stock Item --</option>' +
-            globalStockItems.map(i => `<option value="${i.id}" data-current="${i.currentStock}" data-unit="${i.unit}">${i.name} (${i.currentStock} ${i.unit} available)</option>`).join('');
-        }
-      }
+      populateStockDropdowns(globalStockItems);
     }
   } catch (err) {
     console.error('Error loading stock options:', err);
   }
 }
+
+function populateStockDropdowns(items) {
+  const inSelect = document.getElementById('stockInSelect');
+  const outSelect = document.getElementById('stockOutSelect');
+  if (!inSelect && !outSelect) return;
+
+  if (items.length === 0) {
+    if (inSelect) inSelect.innerHTML = '<option value="">-- No materials in stock yet. Add item first --</option>';
+    if (outSelect) outSelect.innerHTML = '<option value="">-- No materials in stock yet. Add item first --</option>';
+  } else {
+    if (inSelect) {
+      inSelect.innerHTML = '<option value="">-- Choose Stock Item --</option>' +
+        items.map(i => `<option value="${i.id}" data-unitcost="${i.unitCost || 0}" data-sellingprice="${i.sellingPrice || ''}" data-unit="${i.unit}">${i.name} (${i.currentStock} ${i.unit} in stock)</option>`).join('');
+    }
+    if (outSelect) {
+      outSelect.innerHTML = '<option value="">-- Choose Stock Item --</option>' +
+        items.map(i => `<option value="${i.id}" data-current="${i.currentStock}" data-unit="${i.unit}">${i.name} (${i.currentStock} ${i.unit} available)</option>`).join('');
+    }
+  }
+}
+
+// Lazy load when user opens Stock In or Stock Out modal
+document.addEventListener('show.bs.modal', function (e) {
+  if (e.target && (e.target.id === 'stockInModal' || e.target.id === 'stockOutModal')) {
+    loadStockDropdowns();
+  }
+});
 
 function onStockInItemChange(selectEl) {
   const opt = selectEl.options[selectEl.selectedIndex];
@@ -324,9 +348,7 @@ async function handleStockOutSubmit(e) {
 }
 
 function initFooterScripts() {
-  loadStockDropdowns();
-
-  // Update Quick Print pending badge in sidebar
+  // Update Quick Print pending badge in sidebar after initial page render
   async function updateSidebarQuickPrintBadge() {
     try {
       const res = await fetch('/api/quick-print/stats');
@@ -347,12 +369,44 @@ function initFooterScripts() {
     }
   }
 
-  updateSidebarQuickPrintBadge();
+  // Run initial badge check 1s after render so main page loads instantly
+  setTimeout(updateSidebarQuickPrintBadge, 1000);
   if (window._quickPrintBadgeInterval) {
     clearInterval(window._quickPrintBadgeInterval);
   }
-  window._quickPrintBadgeInterval = setInterval(updateSidebarQuickPrintBadge, 15000);
+  window._quickPrintBadgeInterval = setInterval(updateSidebarQuickPrintBadge, 20000);
 }
+
+// Instant hover prefetching for internal links to eliminate transition latency
+(function setupInstantHoverPrefetch() {
+  if (window._instantPrefetchInit) return;
+  window._instantPrefetchInit = true;
+
+  function prefetchUrl(url) {
+    if (!url || url.includes('/logout') || url.includes('/auth') || url.includes('#')) return;
+    try {
+      const parsed = new URL(url, window.location.origin);
+      if (parsed.origin !== window.location.origin) return;
+      if (document.querySelector(`link[rel="prefetch"][href="${parsed.pathname}"]`)) return;
+
+      const link = document.createElement('link');
+      link.rel = 'prefetch';
+      link.href = parsed.pathname;
+      link.as = 'document';
+      document.head.appendChild(link);
+    } catch (e) {}
+  }
+
+  document.addEventListener('pointerenter', function(e) {
+    const a = e.target.closest('a[href^="/"]');
+    if (a && a.href) prefetchUrl(a.href);
+  }, { passive: true, capture: true });
+
+  document.addEventListener('touchstart', function(e) {
+    const a = e.target.closest('a[href^="/"]');
+    if (a && a.href) prefetchUrl(a.href);
+  }, { passive: true, capture: true });
+})();
 
 document.addEventListener('DOMContentLoaded', initFooterScripts);
 document.addEventListener('turbo:load', initFooterScripts);

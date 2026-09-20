@@ -235,8 +235,10 @@ router.get('/orders', async (req, res, next) => {
 // 3. New Order Form (with inline customer selection / creation)
 router.get('/orders/new', async (req, res, next) => {
   try {
-    const customers = await customerService.getAllCustomers({ paginate: false });
-    const stockItems = await stockService.getAllStockItems({ paginate: false });
+    const [customers, stockItems] = await Promise.all([
+      customerService.getAllCustomers({ paginate: false }),
+      stockService.getAllStockItems({ paginate: false }),
+    ]);
     res.render('orders/create', {
       title: 'New Print Order · Nirmana Printing',
       activePage: 'new-order',
@@ -266,22 +268,27 @@ router.get('/orders/:id', async (req, res, next) => {
 router.get('/stock', async (req, res, next) => {
   try {
     const { search, category, page, txPage } = req.query;
-    const { items, pagination: itemsPagination } = await stockService.getAllStockItems({
-      search,
-      category,
-      page: parseInt(page, 10) || 1,
-      limit: 10,
-      paginate: true,
-    });
-
-    const { transactions, pagination: transactionsPagination } = await stockService.getRecentTransactions({
-      page: parseInt(txPage, 10) || 1,
-      limit: 10,
-      paginate: true,
-    });
+    const [
+      { items, pagination: itemsPagination },
+      { transactions, pagination: transactionsPagination },
+      allItems
+    ] = await Promise.all([
+      stockService.getAllStockItems({
+        search,
+        category,
+        page: parseInt(page, 10) || 1,
+        limit: 10,
+        paginate: true,
+      }),
+      stockService.getRecentTransactions({
+        page: parseInt(txPage, 10) || 1,
+        limit: 10,
+        paginate: true,
+      }),
+      stockService.getAllStockItems({ paginate: false }),
+    ]);
 
     // Extract unique categories for filter
-    const allItems = await stockService.getAllStockItems({ paginate: false });
     const categories = [...new Set(allItems.map(i => i.category))];
 
     res.render('stock/index', {

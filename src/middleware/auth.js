@@ -5,6 +5,12 @@ const { User } = require('../models');
 // Authenticate session for web views or JWT for API
 const authenticate = async (req, res, next) => {
   try {
+    // 0. Fast-path: If user is already loaded and active, proceed in 0ms without hitting database
+    if (req.user && req.user.isActive) {
+      res.locals.currentUser = req.user;
+      return next();
+    }
+
     let token = null;
 
     // 1. Check HTTP-only auth cookie (stateless & Vercel serverless-proof)

@@ -5,7 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><%= typeof title !== 'undefined' ? title : 'Nirmana Printing Management System' %></title>
 
-  <!-- Google Fonts: Plus Jakarta Sans & Manrope -->
+  <!-- Preconnect & DNS-Prefetch for Fast CDN Asset Loading -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -20,8 +22,8 @@
   <!-- Favicons: Crisp Modern SVG with PNG Fallback -->
   <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
   <link rel="alternate icon" type="image/png" href="/images/favicon.png">
-  <!-- Hotwire Turbo Drive (Seamless SPA Navigation) -->
-  <script src="/js/turbo.min.js"></script>
+  <!-- Hotwire Turbo Drive (Seamless Fast SPA Navigation) -->
+  <script defer src="/js/turbo.min.js"></script>
 </head>
 <body>
 <div class="app-container">

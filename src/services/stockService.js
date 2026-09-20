@@ -29,13 +29,15 @@ class StockService {
       return await StockItem.findAll(queryOptions);
     }
 
-    const totalCount = await StockItem.count({ where });
-    const pagination = buildPagination(totalCount, page, limit);
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, parseInt(limit, 10) || 10);
+    const offset = (pageNum - 1) * limitNum;
 
-    queryOptions.limit = pagination.limit;
-    queryOptions.offset = pagination.offset;
+    queryOptions.limit = limitNum;
+    queryOptions.offset = offset;
 
-    const items = await StockItem.findAll(queryOptions);
+    const { count, rows: items } = await StockItem.findAndCountAll(queryOptions);
+    const pagination = buildPagination(count, pageNum, limitNum);
 
     return {
       items,
@@ -267,13 +269,15 @@ class StockService {
       return await StockTransaction.findAll(queryOptions);
     }
 
-    const totalCount = await StockTransaction.count();
-    const pagination = buildPagination(totalCount, page, limit);
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, parseInt(limit, 10) || 10);
+    const offset = (pageNum - 1) * limitNum;
 
-    queryOptions.limit = pagination.limit;
-    queryOptions.offset = pagination.offset;
+    queryOptions.limit = limitNum;
+    queryOptions.offset = offset;
 
-    const transactions = await StockTransaction.findAll(queryOptions);
+    const { count, rows: transactions } = await StockTransaction.findAndCountAll(queryOptions);
+    const pagination = buildPagination(count, pageNum, limitNum);
 
     return {
       transactions,

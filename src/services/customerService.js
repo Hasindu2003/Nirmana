@@ -25,7 +25,7 @@ class CustomerService {
         {
           model: Order,
           as: 'orders',
-          attributes: ['id', 'orderNumber', 'jobTitle', 'totalAmount', 'status', 'createdAt'],
+          attributes: ['id'],
         },
       ],
       distinct: true,
@@ -35,13 +35,15 @@ class CustomerService {
       return await Customer.findAll(queryOptions);
     }
 
-    const totalCount = await Customer.count({ where, distinct: true });
-    const pagination = buildPagination(totalCount, page, limit);
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, parseInt(limit, 10) || 10);
+    const offset = (pageNum - 1) * limitNum;
 
-    queryOptions.limit = pagination.limit;
-    queryOptions.offset = pagination.offset;
+    queryOptions.limit = limitNum;
+    queryOptions.offset = offset;
 
-    const customers = await Customer.findAll(queryOptions);
+    const { count, rows: customers } = await Customer.findAndCountAll(queryOptions);
+    const pagination = buildPagination(count, pageNum, limitNum);
 
     return {
       customers,
