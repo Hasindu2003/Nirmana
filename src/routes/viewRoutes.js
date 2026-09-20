@@ -6,13 +6,15 @@ const orderService = require('../services/orderService');
 const stockService = require('../services/stockService');
 const customerService = require('../services/customerService');
 const { authenticate } = require('../middleware/auth');
+const { requireRole } = require('../middleware/rbac');
+const { User } = require('../models');
 
-// Root redirect
+// Root redirect: Send logged in users to dashboard, unauthenticated visitors to login
 router.get('/', (req, res) => {
   if (req.session && req.session.userId) {
     return res.redirect('/dashboard');
   }
-  return res.redirect('/dashboard'); // Allow easy direct access to dashboard
+  return res.redirect('/login');
 });
 
 // Login
@@ -32,7 +34,7 @@ router.post('/login', authController.login);
 router.get('/logout', authController.logout);
 
 // 1. Dashboard
-router.get('/dashboard', async (req, res, next) => {
+router.get('/dashboard', authenticate, async (req, res, next) => {
   try {
     const stats = await dashboardService.getDashboardStats();
     res.render('dashboard/index', {
@@ -46,7 +48,7 @@ router.get('/dashboard', async (req, res, next) => {
 });
 
 // 2. Orders List
-router.get('/orders', async (req, res, next) => {
+router.get('/orders', authenticate, async (req, res, next) => {
   try {
     const { status, search, customerId, page, limit } = req.query;
     // Load recent orders across statuses so tabs can filter in-memory instantly
@@ -73,7 +75,7 @@ router.get('/orders', async (req, res, next) => {
 });
 
 // 3. New Order Form (with inline customer selection / creation)
-router.get('/orders/new', async (req, res, next) => {
+router.get('/orders/new', authenticate, async (req, res, next) => {
   try {
     const customers = await customerService.getAllCustomers({ paginate: false });
     const stockItems = await stockService.getAllStockItems({ paginate: false });
@@ -89,7 +91,7 @@ router.get('/orders/new', async (req, res, next) => {
 });
 
 // 4. Order Detail & Actions
-router.get('/orders/:id', async (req, res, next) => {
+router.get('/orders/:id', authenticate, async (req, res, next) => {
   try {
     const order = await orderService.getOrderById(req.params.id);
     res.render('orders/detail', {
@@ -103,7 +105,7 @@ router.get('/orders/:id', async (req, res, next) => {
 });
 
 // 5. Stock Management (Live Inventory, Stock In/Out, History)
-router.get('/stock', async (req, res, next) => {
+router.get('/stock', authenticate, async (req, res, next) => {
   try {
     const { search, category, page, txPage } = req.query;
     const { items, pagination: itemsPagination } = await stockService.getAllStockItems({
@@ -143,7 +145,7 @@ router.get('/stock', async (req, res, next) => {
 });
 
 // 5b. Stock Item Details Page
-router.get('/stock/:id', async (req, res, next) => {
+router.get('/stock/:id', authenticate, async (req, res, next) => {
   try {
     const item = await stockService.getStockItemById(req.params.id);
     const profit = item.getProfitInfo();
@@ -163,7 +165,7 @@ router.get('/stock/:id', async (req, res, next) => {
 const quickPrintService = require('../services/quickPrintService');
 
 // 6. Customers Directory
-router.get('/customers', async (req, res, next) => {
+router.get('/customers', authenticate, async (req, res, next) => {
   try {
     const { search, page, limit } = req.query;
     const { customers, pagination } = await customerService.getAllCustomers({
@@ -185,7 +187,7 @@ router.get('/customers', async (req, res, next) => {
 });
 
 // 6b. Customer Profile & Order History Details Page
-router.get('/customers/:id', async (req, res, next) => {
+router.get('/customers/:id', authenticate, async (req, res, next) => {
   try {
     const customer = await customerService.getCustomerById(req.params.id);
     res.render('customers/detail', {
@@ -211,7 +213,7 @@ router.get(['/upload', '/quick-print/upload'], (req, res) => {
 const { getUploadUrl, getAvailableLanIps } = require('../utils/network');
 
 // 8. Shopkeeper Quick Print Counter Queue & Print Management
-router.get('/quick-print', async (req, res, next) => {
+router.get('/quick-print', authenticate, async (req, res, next) => {
   try {
     const status = req.query.status || 'PENDING';
     const search = req.query.search || '';
@@ -239,6 +241,23 @@ router.get('/quick-print', async (req, res, next) => {
   }
 });
 
+// 9. Staff Users & Role Administration (Admin only)
+router.get('/users', authenticate, requireRole('ADMIN'), async (req, res, next) => {
+  try {
+    const users = await User.findAll({
+      order: [['fullName', 'ASC']],
+    });
+    res.render('users/index', {
+      title: 'User & Role Administration · Nirmana Printing',
+      activePage: 'users',
+      users,
+      currentUser: req.user,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Google Drive OAuth2 Authorization Flow (for personal 15GB Gmail accounts)
 const googleDriveService = require('../services/googleDriveService');
 const fs = require('fs');
@@ -255,7 +274,7 @@ function getOAuthRedirectUri(req) {
   return `${protocol}://${host}/oauth2callback`;
 }
 
-router.get('/auth/google', (req, res) => {
+router.get('/auth/google', authenticate, requireRole('ADMIN'), (req, res) => {
   try {
     const redirectUri = getOAuthRedirectUri(req);
     const url = googleDriveService.generateAuthUrl(redirectUri);
@@ -287,7 +306,7 @@ router.get('/auth/google', (req, res) => {
   }
 });
 
-router.get('/oauth2callback', async (req, res) => {
+router.get('/oauth2callback', authenticate, requireRole('ADMIN'), async (req, res) => {
   const code = req.query.code;
   if (!code) {
     return res.status(400).send('Authorization code missing from Google callback.');

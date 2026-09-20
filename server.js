@@ -49,14 +49,28 @@ const viewsPath = fs.existsSync(path.join(__dirname, 'src', 'views'))
   : path.join(process.cwd(), 'src', 'views');
 app.set('views', viewsPath);
 
-// 5. Global View Variables (Safe Defaults)
-app.use((req, res, next) => {
+// 5. Global View Variables (Safe Defaults) & User Session Auto-Loader
+app.use(async (req, res, next) => {
   res.locals.appName = config.appName;
   res.locals.currencySymbol = config.currencySymbol;
   res.locals.currentUser = null;
   res.locals.currentPath = req.path;
   res.locals.activePage = '';
   res.locals.title = 'Nirmana Printing Management System';
+
+  if (req.session && req.session.userId) {
+    try {
+      const { User } = require('./src/models');
+      const user = await User.findByPk(req.session.userId);
+      if (user && user.isActive) {
+        req.user = user;
+        res.locals.currentUser = user;
+      }
+    } catch (e) {
+      // Non-fatal if DB not ready
+    }
+  }
+
   next();
 });
 

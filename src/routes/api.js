@@ -2,55 +2,75 @@ const express = require('express');
 const router = express.Router();
 
 const authController = require('../controllers/authController');
+const userController = require('../controllers/userController');
 const orderController = require('../controllers/orderController');
 const stockController = require('../controllers/stockController');
 const customerController = require('../controllers/customerController');
 const dashboardController = require('../controllers/dashboardController');
 const quickPrintController = require('../controllers/quickPrintController');
 const { uploadQuickPrint } = require('../middleware/upload');
+const { authenticate } = require('../middleware/auth');
+const { requireRole } = require('../middleware/rbac');
 
-// 1. Auth
+// =========================================================================
+// 1. PUBLIC ROUTES (Accessible by customers and pre-login staff)
+// =========================================================================
 router.post('/auth/login', authController.login);
-router.post('/auth/logout', authController.logout);
-router.get('/auth/me', authController.getMe);
 
-// 2. Dashboard
-router.get('/dashboard/stats', dashboardController.getStats);
-
-// 3. Stock Management (Simple Stock In / Stock Out)
-router.get('/stock', stockController.listItems);
-router.post('/stock', stockController.createItem);
-router.post('/stock/in', stockController.recordStockIn);       // New stock arrived
-router.post('/stock/out', stockController.recordStockOut);     // Stock taken out to use
-router.get('/stock/transactions', stockController.listTransactions); // Movement history
-
-// 4. Orders (with automatic customer creation)
-router.get('/orders', orderController.listOrders);
-router.post('/orders', orderController.createOrder);          // Auto-creates customer if new
-router.get('/orders/:id', orderController.getOrder);
-router.put('/orders/:id/status', orderController.updateStatus);
-router.post('/orders/:id/payment', orderController.recordPayment);
-
-// 5. Customers
-router.get('/customers', customerController.listCustomers);
-router.post('/customers', customerController.createCustomer);
-router.get('/customers/:id', customerController.getCustomer);
-
-// 6. Walk-in Customer Quick Print (QR Scan / Counter Queue)
+// Customer walk-in upload & token tracking
 router.post('/quick-print/upload', uploadQuickPrint, quickPrintController.submitUpload);
 router.post('/quick-print/init-direct-upload', quickPrintController.initDirectUpload);
 router.post('/quick-print/complete-direct-upload', quickPrintController.completeDirectUpload);
 router.put('/quick-print/upload-chunk', quickPrintController.proxyUploadChunk);
 router.get('/quick-print/status/:id', quickPrintController.getJobStatus);
-router.get('/quick-print/jobs', quickPrintController.listJobs);
-router.put('/quick-print/jobs/:id/status', quickPrintController.updateStatus);
-router.delete('/quick-print/jobs/:id', quickPrintController.deleteJob);
-router.post('/quick-print/jobs/:id/convert', quickPrintController.convertToOrder);
 router.get('/quick-print/qr', quickPrintController.generateQrCode);
-router.get('/quick-print/stats', quickPrintController.getStats);
-router.get('/quick-print/files/:fileId/view', quickPrintController.viewFile);
-router.get('/quick-print/files/:fileId/download', quickPrintController.downloadFile);
 router.get('/quick-print/storage-status', quickPrintController.getStorageStatus);
+
+// =========================================================================
+// 2. PROTECTED STAFF ROUTES (Require active session or Bearer token)
+// =========================================================================
+router.post('/auth/logout', authenticate, authController.logout);
+router.get('/auth/me', authenticate, authController.getMe);
+
+// Dashboard
+router.get('/dashboard/stats', authenticate, dashboardController.getStats);
+
+// Stock Management
+router.get('/stock', authenticate, stockController.listItems);
+router.post('/stock', authenticate, stockController.createItem);
+router.post('/stock/in', authenticate, stockController.recordStockIn);
+router.post('/stock/out', authenticate, stockController.recordStockOut);
+router.get('/stock/transactions', authenticate, stockController.listTransactions);
+
+// Printing Orders
+router.get('/orders', authenticate, orderController.listOrders);
+router.post('/orders', authenticate, orderController.createOrder);
+router.get('/orders/:id', authenticate, orderController.getOrder);
+router.put('/orders/:id/status', authenticate, orderController.updateStatus);
+router.post('/orders/:id/payment', authenticate, orderController.recordPayment);
+
+// Customers
+router.get('/customers', authenticate, customerController.listCustomers);
+router.post('/customers', authenticate, customerController.createCustomer);
+router.get('/customers/:id', authenticate, customerController.getCustomer);
+
+// Quick Print Counter Queue (Shopkeeper Operations)
+router.get('/quick-print/jobs', authenticate, quickPrintController.listJobs);
+router.put('/quick-print/jobs/:id/status', authenticate, quickPrintController.updateStatus);
+router.delete('/quick-print/jobs/:id', authenticate, quickPrintController.deleteJob);
+router.post('/quick-print/jobs/:id/convert', authenticate, quickPrintController.convertToOrder);
+router.get('/quick-print/stats', authenticate, quickPrintController.getStats);
+router.get('/quick-print/files/:fileId/view', authenticate, quickPrintController.viewFile);
+router.get('/quick-print/files/:fileId/download', authenticate, quickPrintController.downloadFile);
+
+// =========================================================================
+// 3. ADMIN-ONLY USER & ROLE ADMINISTRATION (Shop Employees)
+// =========================================================================
+router.get('/users', authenticate, requireRole('ADMIN'), userController.listUsers);
+router.post('/users', authenticate, requireRole('ADMIN'), userController.createUser);
+router.put('/users/:id', authenticate, requireRole('ADMIN'), userController.updateUser);
+router.put('/users/:id/toggle-status', authenticate, requireRole('ADMIN'), userController.toggleStatus);
+router.put('/users/:id/reset-password', authenticate, requireRole('ADMIN'), userController.resetPassword);
 
 module.exports = router;
 

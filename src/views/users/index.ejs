@@ -32,41 +32,47 @@
             </tr>
           </thead>
           <tbody>
-            <% users.forEach(u => { %>
-              <tr>
-                <td>
-                  <div class="fw-semibold text-dark"><%= u.fullName %></div>
-                  <div class="text-muted small"><%= u.phone || 'No phone' %></div>
-                </td>
-                <td class="font-monospace small"><%= u.username %></td>
-                <td class="text-muted small"><%= u.email %></td>
-                <td>
-                  <span class="badge bg-light text-dark border"><%= u.role %></span>
-                </td>
-                <td>
-                  <% if (u.isActive) { %>
-                    <span class="status-badge status-ready"><span class="status-dot"></span> Active</span>
-                  <% } else { %>
-                    <span class="status-badge status-cancelled"><span class="status-dot"></span> Inactive</span>
-                  <% } %>
-                </td>
-                <td class="text-muted small">
-                  <%= u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString() : 'Never' %>
-                </td>
-                <td>
-                  <div class="d-flex align-items-center gap-1">
-                    <% if (currentUser.id !== u.id) { %>
-                      <button class="btn btn-serene-ghost py-1 px-2 small" onclick="toggleUserStatus(<%= u.id %>)">
-                        <%= u.isActive ? 'Deactivate' : 'Activate' %>
-                      </button>
+            <% if (users && users.length > 0) { %>
+              <% users.forEach(u => { %>
+                <tr>
+                  <td>
+                    <div class="fw-semibold text-dark"><%= u.fullName %></div>
+                    <div class="text-muted small"><%= u.phone || 'No phone' %></div>
+                  </td>
+                  <td class="font-monospace small"><%= u.username %></td>
+                  <td class="text-muted small"><%= u.email %></td>
+                  <td>
+                    <span class="badge bg-light text-dark border"><%= u.role %></span>
+                  </td>
+                  <td>
+                    <% if (u.isActive) { %>
+                      <span class="status-badge status-ready"><span class="status-dot"></span> Active</span>
+                    <% } else { %>
+                      <span class="status-badge status-cancelled"><span class="status-dot"></span> Inactive</span>
                     <% } %>
-                    <button class="btn btn-serene-ghost py-1 px-2 small" onclick="resetUserPassword(<%= u.id %>, '<%= u.username %>')">
-                      Reset Password
-                    </button>
-                  </div>
-                </td>
+                  </td>
+                  <td class="text-muted small">
+                    <%= u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString() : 'Never' %>
+                  </td>
+                  <td>
+                    <div class="d-flex align-items-center gap-1">
+                      <% if (typeof currentUser !== 'undefined' && currentUser && currentUser.id !== u.id) { %>
+                        <button class="btn btn-serene-ghost py-1 px-2 small" onclick="toggleUserStatus(<%= u.id %>)">
+                          <%= u.isActive ? 'Deactivate' : 'Activate' %>
+                        </button>
+                      <% } %>
+                      <button class="btn btn-serene-ghost py-1 px-2 small" onclick="resetUserPassword(<%= u.id %>, '<%= u.username %>')">
+                        Reset Password
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              <% }) %>
+            <% } else { %>
+              <tr>
+                <td colspan="7" class="text-center py-4 text-muted">No staff users found.</td>
               </tr>
-            <% }) %>
+            <% } %>
           </tbody>
         </table>
       </div>
