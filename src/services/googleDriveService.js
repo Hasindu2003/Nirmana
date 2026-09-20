@@ -54,6 +54,22 @@ class GoogleDriveService {
       }
     } catch (e) {}
 
+    // Check if whole OAuth client secret JSON is passed in env
+    if (process.env.GOOGLE_CLIENT_SECRET_JSON) {
+      try {
+        const parsed = typeof process.env.GOOGLE_CLIENT_SECRET_JSON === 'string'
+          ? JSON.parse(process.env.GOOGLE_CLIENT_SECRET_JSON)
+          : process.env.GOOGLE_CLIENT_SECRET_JSON;
+        const appData = parsed.web || parsed.installed || parsed;
+        if (appData) {
+          clientId = clientId || appData.client_id;
+          clientSecret = clientSecret || appData.client_secret;
+        }
+      } catch (err) {
+        console.warn('Warning: Could not parse GOOGLE_CLIENT_SECRET_JSON:', err.message);
+      }
+    }
+
     // Check if whole JSON string is passed in GOOGLE_SERVICE_ACCOUNT_KEY
     if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
       try {
@@ -107,17 +123,20 @@ class GoogleDriveService {
 
   /**
    * Generate Google OAuth authorization URL for the user to log in
+   * @param {string} [customRedirectUri] - Optional custom redirect URI (e.g. from request host)
    */
-  generateAuthUrl() {
+  generateAuthUrl(customRedirectUri) {
     const creds = this.getCredentials();
     if (!creds.clientId || !creds.clientSecret) {
       throw new Error('Google OAuth Client ID & Secret are required to generate auth URL.');
     }
 
+    const redirectUri = customRedirectUri || creds.redirectUri;
+
     const oauth2Client = new google.auth.OAuth2(
       creds.clientId,
       creds.clientSecret,
-      creds.redirectUri
+      redirectUri
     );
 
     return oauth2Client.generateAuthUrl({
@@ -132,13 +151,16 @@ class GoogleDriveService {
 
   /**
    * Exchange authorization code from Google for tokens
+   * @param {string} code - Google OAuth authorization code
+   * @param {string} [customRedirectUri] - Optional matching redirect URI used in auth request
    */
-  async exchangeCodeForTokens(code) {
+  async exchangeCodeForTokens(code, customRedirectUri) {
     const creds = this.getCredentials();
+    const redirectUri = customRedirectUri || creds.redirectUri;
     const oauth2Client = new google.auth.OAuth2(
       creds.clientId,
       creds.clientSecret,
-      creds.redirectUri
+      redirectUri
     );
 
     const { tokens } = await oauth2Client.getToken(code);

@@ -242,12 +242,46 @@ const googleDriveService = require('../services/googleDriveService');
 const fs = require('fs');
 const path = require('path');
 
+// Helper to get matching redirectUri based on current incoming request host
+function getOAuthRedirectUri(req) {
+  if (process.env.GOOGLE_REDIRECT_URI) {
+    return process.env.GOOGLE_REDIRECT_URI;
+  }
+  const host = req.get('host') || 'localhost:3000';
+  const isLocal = host.includes('localhost') || host.includes('127.0.0.1');
+  const protocol = isLocal ? 'http' : (req.headers['x-forwarded-proto'] || req.protocol || 'https');
+  return `${protocol}://${host}/oauth2callback`;
+}
+
 router.get('/auth/google', (req, res) => {
   try {
-    const url = googleDriveService.generateAuthUrl();
+    const redirectUri = getOAuthRedirectUri(req);
+    const url = googleDriveService.generateAuthUrl(redirectUri);
     res.redirect(url);
   } catch (err) {
-    res.status(500).send('Error generating Google authorization link: ' + err.message);
+    res.status(500).send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Google Setup Required · Nirmana Printing</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+      </head>
+      <body class="bg-light d-flex align-items-center justify-content-center min-vh-100 p-3">
+        <div class="card border-0 shadow-sm p-4 text-start" style="max-width: 600px; border-radius: 14px;">
+          <h4 class="text-danger fw-bold mb-3"><i class="bi bi-exclamation-triangle-fill me-2"></i>Google OAuth Setup Incomplete</h4>
+          <p class="text-secondary">${err.message}</p>
+          <div class="alert alert-warning small mb-3">
+            Please make sure <code>GOOGLE_CLIENT_ID</code> and <code>GOOGLE_CLIENT_SECRET</code> (or <code>GOOGLE_CLIENT_SECRET_JSON</code>) are configured in your Vercel Project Settings &gt; Environment Variables.
+          </div>
+          <div class="d-flex gap-2">
+            <a href="/quick-print" class="btn btn-outline-secondary">Back to Quick Print</a>
+            <a href="/auth/google" class="btn btn-primary">Try Again</a>
+          </div>
+        </div>
+      </body>
+      </html>
+    `);
   }
 });
 
@@ -257,20 +291,25 @@ router.get('/oauth2callback', async (req, res) => {
     return res.status(400).send('Authorization code missing from Google callback.');
   }
   try {
-    const tokens = await googleDriveService.exchangeCodeForTokens(code);
+    const redirectUri = getOAuthRedirectUri(req);
+    const tokens = await googleDriveService.exchangeCodeForTokens(code, redirectUri);
 
-    // Save refresh token to .env if present
+    // Save refresh token to .env if present (and not read-only)
     if (tokens.refresh_token) {
       process.env.GOOGLE_REFRESH_TOKEN = tokens.refresh_token;
       const envPath = path.join(__dirname, '../../.env');
-      if (fs.existsSync(envPath)) {
-        let envContent = fs.readFileSync(envPath, 'utf8');
-        if (envContent.includes('GOOGLE_REFRESH_TOKEN=')) {
-          envContent = envContent.replace(/GOOGLE_REFRESH_TOKEN=.*/, `GOOGLE_REFRESH_TOKEN="${tokens.refresh_token}"`);
-        } else {
-          envContent += `\nGOOGLE_REFRESH_TOKEN="${tokens.refresh_token}"\n`;
+      try {
+        if (fs.existsSync(envPath)) {
+          let envContent = fs.readFileSync(envPath, 'utf8');
+          if (envContent.includes('GOOGLE_REFRESH_TOKEN=')) {
+            envContent = envContent.replace(/GOOGLE_REFRESH_TOKEN=.*/, `GOOGLE_REFRESH_TOKEN="${tokens.refresh_token}"`);
+          } else {
+            envContent += `\nGOOGLE_REFRESH_TOKEN="${tokens.refresh_token}"\n`;
+          }
+          fs.writeFileSync(envPath, envContent, 'utf8');
         }
-        fs.writeFileSync(envPath, envContent, 'utf8');
+      } catch (e) {
+        console.warn('Could not write .env file (expected on Vercel serverless):', e.message);
       }
     }
 
@@ -286,7 +325,7 @@ router.get('/oauth2callback', async (req, res) => {
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
       </head>
       <body class="bg-light d-flex align-items-center justify-content-center min-vh-100 p-3">
-        <div class="card border-0 shadow-lg p-4 text-center" style="max-width: 520px; border-radius: 16px;">
+        <div class="card border-0 shadow-lg p-4 text-center" style="max-width: 580px; border-radius: 16px;">
           <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-success-subtle text-success mx-auto mb-3" style="width: 72px; height: 72px;">
             <i class="bi bi-check-circle-fill fs-1"></i>
           </div>
@@ -295,12 +334,19 @@ router.get('/oauth2callback', async (req, res) => {
             Your personal Google Drive storage (15 GB) is now connected to Nirmana Printing. All incoming customer print files will be saved straight to your Google Drive folder.
           </p>
           ${tokens.refresh_token ? `
-            <div class="alert alert-info text-start small mb-3">
-              <strong>Vercel Production Note:</strong><br>
-              Copy this token into your Vercel Project Settings > Environment Variables:
-              <input type="text" class="form-control form-control-sm font-monospace mt-2" readonly value="${tokens.refresh_token}" onclick="this.select()">
+            <div class="alert alert-warning text-start small mb-3 border-0 shadow-sm" style="background-color: #fff8e6;">
+              <div class="fw-bold text-dark mb-1"><i class="bi bi-key-fill text-warning me-1"></i> Final Step for Vercel:</div>
+              <div class="text-muted mb-2">Copy this <strong>Refresh Token</strong> and add it into your <strong>Vercel Project Settings &gt; Environment Variables</strong> as <code>GOOGLE_REFRESH_TOKEN</code>:</div>
+              <div class="input-group">
+                <input type="text" id="tokenInput" class="form-control form-control-sm font-monospace bg-white" readonly value="${tokens.refresh_token}" onclick="this.select()">
+                <button class="btn btn-primary btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('tokenInput').value); alert('Token copied to clipboard!');">Copy</button>
+              </div>
             </div>
-          ` : ''}
+          ` : `
+            <div class="alert alert-info text-start small mb-3">
+              Google Drive authorized with existing credentials.
+            </div>
+          `}
           <div class="d-grid gap-2">
             <a href="/quick-print" class="btn btn-primary fw-semibold py-2">Back to Counter Queue</a>
           </div>
