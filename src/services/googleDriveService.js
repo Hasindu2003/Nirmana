@@ -304,7 +304,19 @@ class GoogleDriveService {
       data: metadata,
     });
 
-    const sessionUrl = response.headers.location || (response.headers && response.headers['location']);
+    let sessionUrl = null;
+    if (response && response.headers) {
+      if (typeof response.headers.get === 'function') {
+        sessionUrl = response.headers.get('location');
+      }
+      if (!sessionUrl && response.headers.location) {
+        sessionUrl = response.headers.location;
+      }
+      if (!sessionUrl && response.headers['Location']) {
+        sessionUrl = response.headers['Location'];
+      }
+    }
+
     if (!sessionUrl) {
       throw new Error('Google Drive did not return a resumable session URI.');
     }

@@ -395,36 +395,42 @@ class QuickPrintController {
         return res.status(400).json({ success: false, message: 'Session URL is required.' });
       }
 
-      const chunks = [];
-      req.on('data', chunk => chunks.push(chunk));
-      req.on('end', async () => {
-        const buffer = Buffer.concat(chunks);
-        try {
-          const gResponse = await fetch(sessionUrl, {
-            method: 'PUT',
-            headers: {
-              'Content-Range': contentRange,
-              'Content-Type': contentType,
-              'Content-Length': buffer.length.toString(),
-            },
-            body: buffer,
-          });
-
-          if (gResponse.status === 308) {
-            return res.status(200).json({ success: true, status: 308, range: gResponse.headers.get('range') });
-          }
-
-          if (gResponse.ok) {
-            const data = await gResponse.json();
-            return res.status(200).json({ success: true, status: 200, file: data });
-          }
-
-          const errText = await gResponse.text();
-          return res.status(gResponse.status).json({ success: false, message: errText });
-        } catch (fetchErr) {
-          return res.status(500).json({ success: false, message: fetchErr.message });
+      let buffer;
+      if (Buffer.isBuffer(req.body)) {
+        buffer = req.body;
+      } else {
+        const chunks = [];
+        for await (const chunk of req) {
+          chunks.push(chunk);
         }
+        buffer = Buffer.concat(chunks);
+      }
+
+      const gResponse = await fetch(sessionUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Range': contentRange,
+          'Content-Type': contentType,
+          'Content-Length': buffer.length.toString(),
+        },
+        body: buffer,
       });
+
+      if (gResponse.status === 308) {
+        return res.status(200).json({
+          success: true,
+          status: 308,
+          range: gResponse.headers.get('range'),
+        });
+      }
+
+      if (gResponse.ok) {
+        const data = await gResponse.json();
+        return res.status(200).json({ success: true, status: 200, file: data });
+      }
+
+      const errText = await gResponse.text();
+      return res.status(gResponse.status).json({ success: false, message: errText });
     } catch (error) {
       return res.status(500).json({ success: false, message: error.message });
     }
