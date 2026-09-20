@@ -318,7 +318,16 @@ class GoogleDriveService {
     }
 
     if (!sessionUrl) {
-      throw new Error('Google Drive did not return a resumable session URI.');
+      const headerKeys = response && response.headers ? Object.keys(response.headers) : [];
+      let headerSummary = '';
+      if (response && response.headers) {
+        if (typeof response.headers.get === 'function') {
+          headerSummary = `hasGet=true, location=${response.headers.get('location')}`;
+        } else {
+          headerSummary = `hasGet=false, keys=[${headerKeys.join(',')}], loc=${response.headers.location || response.headers['Location']}`;
+        }
+      }
+      throw new Error(`Google Drive did not return a resumable session URI (status ${response ? response.status : 'null'}, ${headerSummary})`);
     }
 
     return sessionUrl;
