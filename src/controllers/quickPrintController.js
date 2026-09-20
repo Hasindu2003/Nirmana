@@ -44,12 +44,13 @@ class QuickPrintController {
       });
     } catch (error) {
       console.error('Error in submitUpload:', error);
-      const msg = (error.errors && error.errors.length > 0)
-        ? error.errors.map(e => e.message).join(', ')
+      const details = (error.errors && error.errors.length > 0)
+        ? error.errors.map(e => `${e.path || e.type}: ${e.message} (value: ${JSON.stringify(e.value)})`).join('; ')
         : (error.message || 'Failed to upload files. Please try again.');
       return res.status(400).json({
         success: false,
-        message: msg,
+        message: details,
+        errorName: error.name,
       });
     }
   }
