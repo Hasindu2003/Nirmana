@@ -282,9 +282,6 @@ class GoogleDriveService {
     const { folderId } = this.getCredentials();
     this.getClient(); // Ensure authClient is initialized
 
-    const tokenResponse = await this.authClient.getAccessToken();
-    const accessToken = typeof tokenResponse === 'string' ? tokenResponse : tokenResponse.token;
-
     const metadata = {
       name: filename,
       parents: [folderId],
@@ -292,7 +289,6 @@ class GoogleDriveService {
     };
 
     const headers = {
-      'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json; charset=UTF-8',
       'X-Upload-Content-Type': mimeType || 'application/octet-stream',
     };
@@ -301,18 +297,14 @@ class GoogleDriveService {
       headers['X-Upload-Content-Length'] = fileSize.toString();
     }
 
-    const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true', {
+    const response = await this.authClient.request({
       method: 'POST',
+      url: 'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true',
       headers,
-      body: JSON.stringify(metadata),
+      data: metadata,
     });
 
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`Failed to create Google Drive resumable session: ${response.status} ${err}`);
-    }
-
-    const sessionUrl = response.headers.get('location');
+    const sessionUrl = response.headers.location || (response.headers && response.headers['location']);
     if (!sessionUrl) {
       throw new Error('Google Drive did not return a resumable session URI.');
     }
