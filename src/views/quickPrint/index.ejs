@@ -3,6 +3,13 @@
 
 <style>
   /* Quick Print Page - Serene Slate-Teal Theme */
+  .custom-pills {
+    display: flex;
+    gap: 0.5rem; /* Separates the two filter tabs so they don't touch */
+  }
+  .custom-pills .nav-item {
+    margin: 0;
+  }
   .custom-pills .nav-link {
     color: var(--serene-text-muted);
     background-color: #ffffff;
@@ -144,7 +151,7 @@
 
     <!-- 2 Primary Filter Tabs: Pending vs Completed -->
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
-      <ul class="nav nav-pills custom-pills">
+      <ul class="nav nav-pills custom-pills gap-2">
         <li class="nav-item">
           <a class="nav-link <%= currentStatus === 'PENDING' ? 'active' : '' %>" href="/quick-print?status=PENDING">
             <i class="bi bi-hourglass-split me-1"></i> Pending Orders 
@@ -160,9 +167,12 @@
       </ul>
 
       <div class="d-flex gap-2">
-        <div class="input-group input-group-sm" style="width: 280px;">
-          <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
-          <input type="text" class="form-control" id="queueSearchInput" placeholder="Search token, name, phone..." value="<%= search %>">
+        <div class="input-group input-group-sm position-relative" style="width: 290px;">
+          <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+          <input type="text" class="form-control border-start-0 ps-0 pe-4" id="queueSearchInput" placeholder="Search token, name, phone, notes..." value="<%= search %>" autocomplete="off">
+          <button class="btn btn-sm text-muted bg-white border border-start-0 position-absolute end-0 top-0 bottom-0 d-flex align-items-center justify-content-center px-2" type="button" id="clearSearchBtn" style="display: none; z-index: 5;" title="Clear search">
+            <i class="bi bi-x-circle-fill text-secondary"></i>
+          </button>
         </div>
       </div>
     </div>
@@ -172,7 +182,15 @@
       <% if (jobs && jobs.length > 0) { %>
         <div class="d-flex flex-column gap-2" id="ordersListWrapper">
           <% jobs.forEach(job => { %>
-            <div class="w-100 transition-all position-relative" id="job-card-<%= job.id %>" style="overflow: visible !important;">
+            <div class="job-card-wrapper w-100 transition-all position-relative" 
+                 id="job-card-<%= job.id %>" 
+                 data-token="<%= (job.tokenNumber || '').toLowerCase() %>"
+                 data-name="<%= (job.customerName || '').toLowerCase() %>"
+                 data-phone="<%= (job.customerPhone || '').toLowerCase() %>"
+                 data-message="<%= (job.customerMessage || '').toLowerCase() %>"
+                 data-colorspec="<%= (job.colorMode || '').toLowerCase() %>"
+                 data-papersize="<%= (job.paperSize || '').toLowerCase() %>"
+                 style="overflow: visible !important;">
               <div class="serene-card overflow-visible w-100 border <%= job.status === 'PENDING' ? 'border-start border-start-4 border-start-danger' : 'border-start border-start-4 border-start-success' %> shadow-xs py-2 px-3 position-relative" style="overflow: visible !important; transition: all 0.2s ease;">
                 
                 <!-- Main Compact Horizontal Row: Token, Customer, Inline Files, Specs, Actions -->
@@ -304,6 +322,16 @@
               </div>
             </div>
           <% }); %>
+        </div>
+
+        <!-- Dynamic No Search Results Feedback -->
+        <div id="searchNoResults" class="card border-0 shadow-xs py-5 text-center my-3" style="display: none; border-radius: 12px; background: #fafafa;">
+          <div class="text-muted mb-2"><i class="bi bi-search fs-2"></i></div>
+          <h6 class="fw-bold text-dark mb-1">No matching orders found</h6>
+          <p class="text-muted small mb-3">No orders in this queue match "<span id="searchKeywordDisplay" class="fw-semibold text-dark"></span>"</p>
+          <div>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearSearchFilter()">Clear Search</button>
+          </div>
         </div>
       <% } else { %>
         <!-- Empty State -->
@@ -950,10 +978,90 @@
   }
 
   // Live polling for queue updates every 5s
+  // Real-time instant search filter (0ms client-side filtering)
+  const searchInput = document.getElementById('queueSearchInput');
+  const clearBtn = document.getElementById('clearSearchBtn');
+  const noResultsBox = document.getElementById('searchNoResults');
+  const searchKeywordDisplay = document.getElementById('searchKeywordDisplay');
+
+  function applyRealtimeSearch() {
+    const rawVal = searchInput ? searchInput.value : '';
+    const term = rawVal.trim().toLowerCase();
+    const cards = document.querySelectorAll('.job-card-wrapper');
+    let visibleCount = 0;
+
+    if (clearBtn) {
+      clearBtn.style.display = term ? 'inline-flex' : 'none';
+    }
+
+    cards.forEach(card => {
+      if (!term) {
+        card.style.display = '';
+        visibleCount++;
+        return;
+      }
+
+      const token = card.getAttribute('data-token') || '';
+      const name = card.getAttribute('data-name') || '';
+      const phone = card.getAttribute('data-phone') || '';
+      const message = card.getAttribute('data-message') || '';
+      const colorSpec = card.getAttribute('data-colorspec') || '';
+      const paperSize = card.getAttribute('data-papersize') || '';
+
+      const cleanToken = token.replace(/[^a-z0-9]/gi, '');
+      const cleanTerm = term.replace(/[^a-z0-9]/gi, '');
+
+      const isMatch = token.includes(term) ||
+                      (cleanTerm && cleanToken.includes(cleanTerm)) ||
+                      name.includes(term) ||
+                      phone.includes(term) ||
+                      message.includes(term) ||
+                      colorSpec.includes(term) ||
+                      paperSize.includes(term);
+
+      if (isMatch) {
+        card.style.display = '';
+        visibleCount++;
+      } else {
+        card.style.display = 'none';
+      }
+    });
+
+    if (noResultsBox) {
+      if (term && visibleCount === 0 && cards.length > 0) {
+        noResultsBox.style.display = 'block';
+        if (searchKeywordDisplay) searchKeywordDisplay.textContent = rawVal.trim();
+      } else {
+        noResultsBox.style.display = 'none';
+      }
+    }
+  }
+
+  function clearSearchFilter() {
+    if (searchInput) {
+      searchInput.value = '';
+      applyRealtimeSearch();
+      searchInput.focus();
+    }
+  }
+
+  if (searchInput) {
+    searchInput.addEventListener('input', applyRealtimeSearch);
+  }
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', clearSearchFilter);
+  }
+
+  // Trigger search on page load if search parameter was in URL
+  if (searchInput && searchInput.value.trim()) {
+    applyRealtimeSearch();
+  }
+
+  // Live polling for queue updates every 5s
   async function pollQueue() {
     try {
-      const searchParam = document.getElementById('queueSearchInput').value.trim();
-      const res = await fetch(`/api/quick-print/jobs?status=${encodeURIComponent(currentViewStatus)}&search=${encodeURIComponent(searchParam)}`);
+      const res = await fetch(`/api/quick-print/jobs?status=${encodeURIComponent(currentViewStatus)}`);
       const result = await res.json();
 
       if (result.success) {
@@ -974,7 +1082,11 @@
 
           if (hasNew) {
             playChime();
-            window.location.reload();
+            // Don't disrupt the user if they are currently typing in the search box
+            const activeSearch = searchInput ? searchInput.value.trim() : '';
+            if (!activeSearch) {
+              window.location.reload();
+            }
           }
         }
       }
@@ -984,22 +1096,6 @@
   }
 
   setInterval(pollQueue, 5000);
-
-  // Search input filter
-  let searchTimeout = null;
-  document.getElementById('queueSearchInput').addEventListener('input', (e) => {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-      const val = e.target.value.trim();
-      const url = new URL(window.location.href);
-      if (val) {
-        url.searchParams.set('search', val);
-      } else {
-        url.searchParams.delete('search');
-      }
-      window.location.href = url.toString();
-    }, 450);
-  });
 
   // Ensure dropdown menu in queue cards floats cleanly above all other cards
   document.addEventListener('show.bs.dropdown', function (e) {
