@@ -403,9 +403,6 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 0.72rem;
   color: var(--serene-text-subtle);
   margin-top: 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   display: flex;
   align-items: center;
   gap: 0.35rem;

@@ -3,24 +3,27 @@
 
 <main class="main-wrapper">
   <div class="content-body">
-    <!-- Header -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <!-- Header Row 1: Title on Left, Date & Live Status in Far Right Corner -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
       <div>
-        <h2 class="fs-4 fw-bold mb-0">Print Shop Dashboard</h2>
+        <h2 class="fs-4 fw-bold mb-0 text-dark">Print Shop Dashboard</h2>
       </div>
 
-      <div class="d-flex flex-column align-items-sm-end gap-2">
-        <!-- Date & Live Status Aligned to Right Corner -->
-        <div class="text-muted small d-flex align-items-center gap-1" style="font-size: 0.8rem;">
-          <i class="bi bi-calendar3 me-1 text-muted"></i>
-          <span>Today, <%= new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' }) %></span>
-          <span class="mx-1 text-muted">&bull;</span>
-          <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-2 py-0 d-inline-flex align-items-center" style="font-size: 0.72rem; font-weight: 600;">
-            <span class="spinner-grow spinner-grow-sm text-success me-1" style="width: 6px; height: 6px;" role="status"></span> Live Operations
-          </span>
-        </div>
+      <!-- Far Right Corner: Date & Live Status -->
+      <div class="text-muted small d-flex align-items-center gap-1 bg-white border rounded-pill px-3 py-1 shadow-xs ms-auto" style="font-size: 0.8rem;">
+        <i class="bi bi-calendar3 me-1 text-muted"></i>
+        <span>Today, <%= new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' }) %></span>
+        <span class="mx-1 text-muted">&bull;</span>
+        <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-2 py-0 d-inline-flex align-items-center" style="font-size: 0.72rem; font-weight: 600;">
+          <span class="spinner-grow spinner-grow-sm text-success me-1" style="width: 6px; height: 6px;" role="status"></span> Live Operations
+        </span>
+      </div>
+    </div>
 
-        <div class="d-flex flex-wrap align-items-center gap-2">
+    <!-- Header Row 2: Full-Width Action & Alert Toolbar -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4 pb-1">
+      <!-- Left: Stock Alert & Movement Monitoring Icons -->
+      <div class="d-flex flex-wrap align-items-center gap-2">
         <!-- Stock Attention Alert Icon Button -->
         <button class="btn btn-sm <%= stats.kpis.lowStockCount > 0 ? 'btn-stock-alert-active' : 'btn-serene-secondary' %> d-inline-flex align-items-center gap-2 shadow-xs" 
                 data-bs-toggle="modal" 
@@ -46,9 +49,10 @@
             </span>
           <% } %>
         </button>
+      </div>
 
-        <span class="text-muted opacity-25 d-none d-lg-inline">|</span>
-
+      <!-- Right: Primary Actions & Shortcuts -->
+      <div class="d-flex flex-wrap align-items-center gap-2">
         <!-- Express Quick Print -->
         <a href="/quick-print" class="btn btn-sm btn-serene-secondary">
           <i class="bi bi-qr-code-scan text-serene-primary me-1"></i> Quick Print
@@ -69,10 +73,10 @@
       </div>
     </div>
 
-    <!-- 4 Redesigned Compact Modern KPI Cards -->
+    <!-- Row 3: 4 Redesigned Compact Modern KPI Cards -->
     <div class="row g-2 g-md-3 mb-4">
       <!-- 1. Active Queue -->
-      <div class="col-6 col-md-6 col-xl-3">
+      <div class="col-6 col-lg-3">
         <a href="/orders?status=PRINTING" class="text-decoration-none">
           <div class="kpi-card-compact">
             <div class="kpi-compact-content">
@@ -94,7 +98,7 @@
       </div>
 
       <!-- 2. Orders Today -->
-      <div class="col-6 col-md-6 col-xl-3">
+      <div class="col-6 col-lg-3">
         <a href="/orders" class="text-decoration-none">
           <div class="kpi-card-compact">
             <div class="kpi-compact-content">
@@ -116,7 +120,7 @@
       </div>
 
       <!-- 3. Completed -->
-      <div class="col-6 col-md-6 col-xl-3">
+      <div class="col-6 col-lg-3">
         <a href="/orders?status=COMPLETED" class="text-decoration-none">
           <div class="kpi-card-compact">
             <div class="kpi-compact-content">
@@ -138,7 +142,7 @@
       </div>
 
       <!-- 4. Low Stock (Clickable to open Stock Attention Modal) -->
-      <div class="col-6 col-md-6 col-xl-3">
+      <div class="col-6 col-lg-3">
         <div class="kpi-card-compact <%= stats.kpis.lowStockCount > 0 ? 'border-danger-subtle' : '' %>" 
              data-bs-toggle="modal" 
              data-bs-target="#stockAttentionModal" 
@@ -168,7 +172,7 @@
       </div>
     </div>
 
-    <!-- Main Content: Full-Width Spacious Recent Orders Table -->
+    <!-- Row 4: Full-Width Spacious Recent Orders Table -->
     <div class="row g-4">
       <div class="col-12">
         <div class="serene-card">
