@@ -229,6 +229,23 @@ async function ensureDbInitialized() {
           // Non-fatal if table already updated
         }
 
+        // Clean up previously auto-created Quick Print customers that have no formal orders
+        try {
+          const { Customer, QuickPrintJob, Order } = require('./src/models');
+          const autoCreatedCustomers = await Customer.findAll({
+            where: { notes: 'Created automatically via Counter QR Quick Print' },
+          });
+          for (const c of autoCreatedCustomers) {
+            const orderCount = await Order.count({ where: { customerId: c.id } });
+            if (orderCount === 0) {
+              await QuickPrintJob.update({ customerId: null }, { where: { customerId: c.id } });
+              await c.destroy();
+            }
+          }
+        } catch (cleanErr) {
+          // Non-fatal
+        }
+
         // Seed default admin if User table is empty (e.g. fresh ephemeral /tmp SQLite on Vercel)
         const { User } = require('./src/models');
         const adminCount = await User.count().catch(() => 0);

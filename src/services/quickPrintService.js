@@ -95,38 +95,20 @@ class QuickPrintService {
       throw new Error('Please select at least one file to upload.');
     }
 
-    // Check or create customer record in CRM (decoupled from job transaction so it cannot abort job creation)
+    // Do NOT auto-create customers for Quick Print walk-ins.
+    // Only link customerId if they are already an existing registered CRM customer.
     let customerId = null;
     try {
       if (/^0\d{9}$/.test(customerPhone)) {
-        let existingCustomer = await Customer.findOne({
-          where: { phone: customerPhone },
+        const existingCustomer = await Customer.findOne({
+          where: { phone: customerPhone, isActive: true },
         }).catch(() => null);
-
-        if (!existingCustomer) {
-          const custCount = await Customer.count().catch(() => 0);
-          let candidateCode = `CUST-${(custCount + 1).toString().padStart(4, '0')}`;
-          let offset = custCount + 1;
-          while (await Customer.findOne({ where: { customerCode: candidateCode } }).catch(() => null)) {
-            offset++;
-            candidateCode = `CUST-${offset.toString().padStart(4, '0')}`;
-          }
-          existingCustomer = await Customer.create({
-            customerCode: candidateCode,
-            name: customerName,
-            phone: customerPhone,
-            notes: 'Created automatically via Counter QR Quick Print',
-          }).catch((err) => {
-            console.warn('Customer auto-create warning:', err.message);
-            return null;
-          });
-        }
         if (existingCustomer) {
           customerId = existingCustomer.id;
         }
       }
     } catch (err) {
-      console.warn('Could not auto-link Customer CRM record:', err.message);
+      console.warn('Could not check existing Customer CRM record:', err.message);
     }
 
     return await sequelize.transaction(async (t) => {
@@ -300,38 +282,20 @@ class QuickPrintService {
       throw new Error('No uploaded files provided.');
     }
 
-    // Check or create customer record in CRM (decoupled from job transaction so it cannot abort job creation)
+    // Do NOT auto-create customers for Quick Print walk-ins.
+    // Only link customerId if they are already an existing registered CRM customer.
     let customerId = null;
     try {
       if (/^0\d{9}$/.test(customerPhone)) {
-        let existingCustomer = await Customer.findOne({
-          where: { phone: customerPhone },
+        const existingCustomer = await Customer.findOne({
+          where: { phone: customerPhone, isActive: true },
         }).catch(() => null);
-
-        if (!existingCustomer) {
-          const custCount = await Customer.count().catch(() => 0);
-          let candidateCode = `CUST-${(custCount + 1).toString().padStart(4, '0')}`;
-          let offset = custCount + 1;
-          while (await Customer.findOne({ where: { customerCode: candidateCode } }).catch(() => null)) {
-            offset++;
-            candidateCode = `CUST-${offset.toString().padStart(4, '0')}`;
-          }
-          existingCustomer = await Customer.create({
-            customerCode: candidateCode,
-            name: customerName,
-            phone: customerPhone,
-            notes: 'Created automatically via Counter QR Quick Print',
-          }).catch((err) => {
-            console.warn('Customer auto-create warning:', err.message);
-            return null;
-          });
-        }
         if (existingCustomer) {
           customerId = existingCustomer.id;
         }
       }
     } catch (err) {
-      console.warn('Could not auto-link Customer CRM record:', err.message);
+      console.warn('Could not check existing Customer CRM record:', err.message);
     }
 
     return await sequelize.transaction(async (t) => {
