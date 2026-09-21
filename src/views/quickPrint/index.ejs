@@ -68,7 +68,21 @@
     }
   }
 
-  /* File Manager Style Order Selection */
+  /* File Manager Style Order Selection (Hidden by default, shown when Selection Mode is active) */
+  .order-checkbox-container {
+    display: none !important;
+  }
+  body.selection-mode-active .order-checkbox-container {
+    display: flex !important;
+  }
+  #queueSelectionToolbar {
+    display: none !important;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+  }
+  body.selection-mode-active #queueSelectionToolbar {
+    display: flex !important;
+  }
   .job-card-wrapper.selected-order-card .serene-card {
     background-color: #f0fdfa !important;
     border-color: #0d9488 !important;
@@ -83,10 +97,6 @@
   }
   .order-select-checkbox:hover {
     transform: scale(1.18);
-  }
-  #queueSelectionToolbar {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
   }
   #queueSelectionToolbar.has-selection {
     background: #f0fdfa;
@@ -208,8 +218,8 @@
       </div>
     </div>
 
-    <!-- File Manager Style Selection Action Bar -->
-    <div class="d-flex align-items-center justify-content-between p-2 mb-2 rounded-3 border bg-white shadow-xs" id="queueSelectionToolbar" style="transition: all 0.2s ease;">
+    <!-- File Manager Style Selection Action Bar (Shown in Selection Mode) -->
+    <div class="align-items-center justify-content-between p-2 mb-2 rounded-3 border bg-white shadow-xs" id="queueSelectionToolbar" style="transition: all 0.2s ease;">
       <div class="d-flex align-items-center gap-2">
         <div class="form-check m-0 d-flex align-items-center">
           <input class="form-check-input order-master-checkbox" type="checkbox" id="selectAllCheckbox" style="cursor: pointer; width: 18px; height: 18px;" onchange="toggleSelectAllOrders(this.checked)" title="Select all visible orders">
@@ -225,8 +235,8 @@
           <i class="bi bi-trash-fill"></i>
           <span>Delete Selected (<span id="batchDeleteBadgeCount">0</span>)</span>
         </button>
-        <button type="button" class="btn btn-sm btn-link text-secondary text-decoration-none py-0 px-2 d-none" id="clearSelectionBtn" onclick="clearAllSelections()" style="font-size: 0.78rem;">
-          <i class="bi bi-x-circle me-1"></i> Deselect
+        <button type="button" class="btn btn-sm btn-serene-secondary py-1 px-3 d-inline-flex align-items-center gap-1 shadow-xs" id="exitSelectionModeBtn" onclick="exitSelectionMode()" style="font-size: 0.78rem;" title="Exit Selection Mode">
+          <i class="bi bi-check2 me-1"></i> Done
         </button>
       </div>
     </div>
@@ -254,8 +264,8 @@
                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 gap-lg-3">
                   
                   <!-- 1. Left: Selection Checkbox, Token & Customer Info -->
-                  <div class="d-flex align-items-center gap-2" style="min-width: 215px;">
-                    <div class="form-check m-0 p-0 d-flex align-items-center me-1">
+                  <div class="d-flex align-items-center gap-2" style="min-width: 190px;">
+                    <div class="form-check m-0 p-0 d-flex align-items-center me-1 order-checkbox-container">
                       <input class="form-check-input order-select-checkbox m-0" 
                              type="checkbox" 
                              data-job-id="<%= job.id %>" 
@@ -347,6 +357,12 @@
                         <i class="bi bi-three-dots-vertical fs-6"></i>
                       </button>
                       <ul class="dropdown-menu dropdown-menu-end shadow-sm" style="min-width: 200px; z-index: 1060;">
+                        <li>
+                          <a class="dropdown-item py-2 d-flex align-items-center" href="javascript:void(0)" onclick="enterSelectionMode(<%= job.id %>)">
+                            <i class="bi bi-check2-square me-2 text-primary"></i> Select
+                          </a>
+                        </li>
+                        <li><hr class="dropdown-divider my-1"></li>
                         <li>
                           <a class="dropdown-item py-2 d-flex align-items-center" href="javascript:void(0)" onclick="convertToFormalOrder(<%= job.id %>)">
                             <i class="bi bi-receipt me-2 text-serene-primary"></i> Convert to Formal Order
@@ -1025,6 +1041,23 @@
   var selectedJobIds = new Set();
   var lastCheckedJobId = null;
 
+  function enterSelectionMode(jobId) {
+    document.body.classList.add('selection-mode-active');
+    if (jobId !== undefined && jobId !== null) {
+      const id = Number(jobId);
+      selectedJobIds.add(id);
+      setCardSelectedVisual(id, true);
+    }
+    updateSelectionUi();
+  }
+  window.enterSelectionMode = enterSelectionMode;
+
+  function exitSelectionMode() {
+    document.body.classList.remove('selection-mode-active');
+    clearAllSelections();
+  }
+  window.exitSelectionMode = exitSelectionMode;
+
   function updateSelectionUi() {
     const totalSelected = selectedJobIds.size;
     const countText = document.getElementById('selectionCountText');
@@ -1064,7 +1097,7 @@
       }
     }
     if (floatingBar) {
-      if (totalSelected > 0) {
+      if (document.body.classList.contains('selection-mode-active') && totalSelected > 0) {
         floatingBar.classList.remove('d-none');
         floatingBar.classList.add('d-flex');
         if (floatingCount) floatingCount.textContent = totalSelected;
@@ -1244,6 +1277,7 @@
 
         quickPrintJobsData = (quickPrintJobsData || []).filter(j => !selectedJobIds.has(j.id));
         selectedJobIds.clear();
+        exitSelectionMode();
 
         setTimeout(() => {
           updateQueueCounts();
@@ -1276,13 +1310,15 @@
         confirmBatchDelete();
       }
     } else if (e.key === 'Escape') {
-      if (selectedJobIds.size > 0) {
+      if (document.body.classList.contains('selection-mode-active')) {
         e.preventDefault();
-        clearAllSelections();
+        exitSelectionMode();
       }
     } else if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
-      e.preventDefault();
-      toggleSelectAllOrders(true);
+      if (document.body.classList.contains('selection-mode-active')) {
+        e.preventDefault();
+        toggleSelectAllOrders(true);
+      }
     }
   });
 
@@ -1831,8 +1867,8 @@
           <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 gap-lg-3">
             
             <!-- 1. Left: Selection Checkbox, Token & Customer Info -->
-            <div class="d-flex align-items-center gap-2" style="min-width: 215px;">
-              <div class="form-check m-0 p-0 d-flex align-items-center me-1">
+            <div class="d-flex align-items-center gap-2" style="min-width: 190px;">
+              <div class="form-check m-0 p-0 d-flex align-items-center me-1 order-checkbox-container">
                 <input class="form-check-input order-select-checkbox m-0" 
                        type="checkbox" 
                        data-job-id="${job.id}" 
@@ -1900,6 +1936,12 @@
                   <i class="bi bi-three-dots-vertical fs-6"></i>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow-sm" style="min-width: 200px; z-index: 1060;">
+                  <li>
+                    <a class="dropdown-item py-2 d-flex align-items-center" href="javascript:void(0)" onclick="enterSelectionMode(${job.id})">
+                      <i class="bi bi-check2-square me-2 text-primary"></i> Select
+                    </a>
+                  </li>
+                  <li><hr class="dropdown-divider my-1"></li>
                   <li>
                     <a class="dropdown-item py-2 d-flex align-items-center" href="javascript:void(0)" onclick="convertToFormalOrder(${job.id})">
                       <i class="bi bi-receipt me-2 text-serene-primary"></i> Convert to Formal Order
