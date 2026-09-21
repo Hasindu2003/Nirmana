@@ -49,6 +49,24 @@
     border-color: var(--serene-primary) !important;
     color: #ffffff !important;
   }
+
+  @keyframes qpArrivalPulse {
+    0% {
+      background-color: #fee2e2;
+      transform: scale(1.015);
+      box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.35);
+    }
+    50% {
+      background-color: #fef2f2;
+      transform: scale(1.005);
+      box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
+    }
+    100% {
+      background-color: #ffffff;
+      transform: scale(1);
+      box-shadow: none;
+    }
+  }
 </style>
 
 <main class="main-wrapper">
@@ -167,8 +185,8 @@
 
     <!-- FULL-WIDTH REDESIGNED QUEUE LIST -->
     <div id="jobsListContainer">
-      <% if (jobs && jobs.length > 0) { %>
-        <div class="d-flex flex-column gap-2" id="ordersListWrapper">
+      <div class="d-flex flex-column gap-2" id="ordersListWrapper">
+        <% if (jobs && jobs.length > 0) { %>
           <% jobs.forEach(job => { %>
             <% const isInitiallyActive = (currentStatus === 'PENDING' && job.status !== 'COMPLETED' && job.status !== 'CANCELLED') || (currentStatus === 'COMPLETED' && job.status === 'COMPLETED'); %>
             <div class="job-card-wrapper w-100 transition-all position-relative" 
@@ -313,53 +331,36 @@
               </div>
             </div>
           <% }); %>
-        </div>
+        <% } %>
+      </div>
 
-        <!-- Dynamic No Search Results Feedback -->
-        <div id="searchNoResults" class="card border-0 shadow-xs py-5 text-center my-3" style="display: none; border-radius: 12px; background: #fafafa;">
-          <div class="text-muted mb-2"><i class="bi bi-search fs-2"></i></div>
-          <h6 class="fw-bold text-dark mb-1">No matching orders found</h6>
-          <p class="text-muted small mb-3">No orders in this queue match "<span id="searchKeywordDisplay" class="fw-semibold text-dark"></span>"</p>
-          <div>
-            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearSearchFilter()">Clear Search</button>
+      <!-- Dynamic No Search Results Feedback -->
+      <div id="searchNoResults" class="card border-0 shadow-xs py-5 text-center my-3" style="display: none; border-radius: 12px; background: #fafafa;">
+        <div class="text-muted mb-2"><i class="bi bi-search fs-2"></i></div>
+        <h6 class="fw-bold text-dark mb-1">No matching orders found</h6>
+        <p class="text-muted small mb-3">No orders in this queue match "<span id="searchKeywordDisplay" class="fw-semibold text-dark"></span>"</p>
+        <div>
+          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearSearchFilter()">Clear Search</button>
+        </div>
+      </div>
+
+      <!-- Dynamic Empty State for Current Filter -->
+      <div id="queueEmptyState" class="serene-card text-center py-5" style="<%= (jobs && jobs.length > 0) ? 'display: none;' : '' %>">
+        <div class="mb-3">
+          <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light text-muted" style="width: 70px; height: 70px;">
+            <i class="bi bi-printer-fill fs-2 text-serene-primary"></i>
           </div>
         </div>
-        <!-- Dynamic Empty State for Current Filter -->
-        <div id="queueEmptyState" class="serene-card text-center py-5" style="display: none;">
-          <div class="mb-3">
-            <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light text-muted" style="width: 70px; height: 70px;">
-              <i class="bi bi-printer-fill fs-2 text-serene-primary"></i>
-            </div>
-          </div>
-          <h4 class="fs-5 fw-bold mb-1" id="emptyStateTitle">
-            <%= currentStatus === 'PENDING' ? 'No Pending Print Orders!' : 'No Completed Orders Found.' %>
-          </h4>
-          <p class="text-muted small mb-3" id="emptyStateSubtitle">
-            <%= currentStatus === 'PENDING' ? 'Walk-in customer uploads will appear here automatically.' : 'Completed print orders will be listed here.' %>
-          </p>
-          <button type="button" class="btn btn-serene-primary" data-bs-toggle="modal" data-bs-target="#qrCodeModal">
-            <i class="bi bi-qr-code-scan me-1"></i> Show Counter QR Code
-          </button>
-        </div>
-      <% } else { %>
-        <!-- Initial Empty State when 0 jobs exist -->
-        <div id="queueEmptyState" class="serene-card text-center py-5">
-          <div class="mb-3">
-            <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light text-muted" style="width: 70px; height: 70px;">
-              <i class="bi bi-printer-fill fs-2 text-serene-primary"></i>
-            </div>
-          </div>
-          <h4 class="fs-5 fw-bold mb-1" id="emptyStateTitle">
-            <%= currentStatus === 'PENDING' ? 'No Pending Print Orders!' : 'No Completed Orders Found.' %>
-          </h4>
-          <p class="text-muted small mb-3" id="emptyStateSubtitle">
-            <%= currentStatus === 'PENDING' ? 'Walk-in customer uploads will appear here automatically.' : 'Completed print orders will be listed here.' %>
-          </p>
-          <button type="button" class="btn btn-serene-primary" data-bs-toggle="modal" data-bs-target="#qrCodeModal">
-            <i class="bi bi-qr-code-scan me-1"></i> Show Counter QR Code
-          </button>
-        </div>
-      <% } %>
+        <h4 class="fs-5 fw-bold mb-1" id="emptyStateTitle">
+          <%= currentStatus === 'PENDING' ? 'No Pending Print Orders!' : 'No Completed Orders Found.' %>
+        </h4>
+        <p class="text-muted small mb-3" id="emptyStateSubtitle">
+          <%= currentStatus === 'PENDING' ? 'Walk-in customer uploads will appear here automatically.' : 'Completed print orders will be listed here.' %>
+        </p>
+        <button type="button" class="btn btn-serene-primary" data-bs-toggle="modal" data-bs-target="#qrCodeModal">
+          <i class="bi bi-qr-code-scan me-1"></i> Show Counter QR Code
+        </button>
+      </div>
     </div>
   </div>
 </main>
@@ -832,9 +833,20 @@
     if (soundEnabled) playChime();
   });
 
-  // Manual refresh button
-  document.getElementById('manualRefreshBtn').addEventListener('click', () => {
-    window.location.reload();
+  // Manual refresh button (polls asynchronously without full reload)
+  document.getElementById('manualRefreshBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('manualRefreshBtn');
+    const origHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Refreshing...';
+    try {
+      await pollQueue();
+    } finally {
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
+      }, 400);
+    }
   });
 
   // Direct Print File function
@@ -1017,19 +1029,30 @@
   }
 
   // Update counts asynchronously
-  async function updateQueueCounts() {
+  async function updateQueueCounts(providedStats) {
     try {
-      const res = await fetch('/api/quick-print/stats');
-      const data = await res.json();
-      if (data.success && data.data) {
-        const stats = data.data;
-        document.getElementById('statPending').textContent = stats.pending;
-        document.getElementById('statCompletedToday').textContent = stats.completedToday;
-        document.getElementById('tabPendingBadge').textContent = stats.pending;
-        document.getElementById('tabCompletedBadge').textContent = stats.completedToday;
-        document.getElementById('activeBadge').textContent = `${stats.pending} Pending`;
-        
+      let stats = providedStats;
+      if (!stats) {
+        const res = await fetch('/api/quick-print/stats');
+        const data = await res.json();
+        if (data.success && data.data) {
+          stats = data.data;
+        }
+      }
+      if (stats) {
+        const statPending = document.getElementById('statPending');
+        const statCompletedToday = document.getElementById('statCompletedToday');
+        const tabPendingBadge = document.getElementById('tabPendingBadge');
+        const tabCompletedBadge = document.getElementById('tabCompletedBadge');
+        const activeBadge = document.getElementById('activeBadge');
         const sidebarBadge = document.getElementById('sidebarQuickBadge');
+
+        if (statPending) statPending.textContent = stats.pending;
+        if (statCompletedToday) statCompletedToday.textContent = stats.completedToday;
+        if (tabPendingBadge) tabPendingBadge.textContent = stats.pending;
+        if (tabCompletedBadge) tabCompletedBadge.textContent = stats.completedToday;
+        if (activeBadge) activeBadge.textContent = `${stats.pending} Pending`;
+        
         if (sidebarBadge) {
           if (stats.pending > 0) {
             sidebarBadge.textContent = stats.pending;
@@ -1203,44 +1226,297 @@
   // Trigger search / initial tab layout on page load
   applyRealtimeSearch();
 
-  // Live polling for queue updates every 5s
+  // Helper to format order creation time to Sri Lanka time
+  function formatClientJobTime(dateVal) {
+    if (!dateVal) return '';
+    try {
+      const d = new Date(dateVal);
+      return new Intl.DateTimeFormat('en-LK', {
+        timeZone: 'Asia/Colombo',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      }).format(d);
+    } catch (e) {
+      return '';
+    }
+  }
+
+  // Generate identical markup for a job card dynamically
+  function renderJobCardHtml(job) {
+    const isInitiallyActive = (currentViewStatus === 'PENDING' && job.status !== 'COMPLETED' && job.status !== 'CANCELLED') || (currentViewStatus === 'COMPLETED' && job.status === 'COMPLETED');
+    const isPending = job.status === 'PENDING';
+    const borderClass = isPending ? 'border-start border-start-4 border-start-danger' : 'border-start border-start-4 border-start-success';
+    const badgeBg = isPending ? 'bg-danger' : 'bg-success';
+    const waNumber = (job.customerPhone || '').replace(/[^0-9]/g, '').replace(/^0/, '94');
+
+    const filesCount = (job.files && Array.isArray(job.files)) ? job.files.length : 0;
+    const documentBtnHtml = filesCount > 0
+      ? `<button type="button" class="btn btn-serene-outline btn-sm py-1 px-3 fw-semibold d-inline-flex align-items-center gap-2 shadow-xs" 
+                 onclick="openDocumentPreviewModal(${job.id})" 
+                 style="height: 32px; border-radius: 6px;"
+                 title="View Document Preview & Print">
+           <i class="bi bi-eye-fill"></i>
+           <span>View Document (${filesCount})</span>
+         </button>`
+      : `<span class="text-muted small fst-italic">No document attached</span>`;
+
+    let colorIcon = 'bi-circle-half text-secondary';
+    if (job.colorMode === 'COLOR') colorIcon = 'bi-palette-fill text-warning';
+    else if (job.colorMode === 'MIXED') colorIcon = 'bi-shuffle text-info';
+
+    const copiesText = (job.copies > 1 ? `${job.copies} copies` : '1 copy');
+
+    const actionBtnHtml = isPending
+      ? `<button type="button" class="btn btn-success fw-bold px-3 py-1 shadow-sm d-flex align-items-center gap-1" style="font-size: 0.8rem; height: 32px;"
+                 onclick="markJobCompleted(${job.id}, '${escapeHtml(job.tokenNumber)}')">
+           <i class="bi bi-check2-circle fs-6"></i>
+           <span>Mark Completed</span>
+         </button>`
+      : `<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 0.75rem;">
+           <i class="bi bi-check2-all me-1"></i> Completed
+         </span>
+         <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" style="font-size: 0.75rem; height: 28px;"
+                 onclick="reopenJob(${job.id}, '${escapeHtml(job.tokenNumber)}')" title="Move back to Pending">
+           <i class="bi bi-arrow-counterclockwise"></i>
+         </button>`;
+
+    const driveFile = (job.files && Array.isArray(job.files) && job.files.find(f => f.driveViewLink));
+    const driveLinkHtml = (driveFile && driveFile.driveViewLink)
+      ? `<li>
+           <a class="dropdown-item py-2 d-flex align-items-center text-primary" href="${escapeHtml(driveFile.driveViewLink)}" target="_blank" rel="noopener noreferrer">
+             <i class="bi bi-google me-2 text-primary"></i> Open in Google Drive
+           </a>
+         </li>`
+      : '';
+
+    const noteHtml = (job.customerMessage && job.customerMessage.trim())
+      ? `<div class="mt-1 pt-1 border-top d-flex align-items-center gap-2" style="font-size: 0.76rem;">
+           <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-1 py-0" style="font-size: 0.65rem; font-weight: 700;">
+             <i class="bi bi-chat-left-text-fill me-1"></i>NOTE
+           </span>
+           <span class="text-dark fw-medium text-truncate" title="${escapeHtml(job.customerMessage)}">
+             ${escapeHtml(job.customerMessage)}
+           </span>
+         </div>`
+      : '';
+
+    return `
+      <div class="job-card-wrapper w-100 transition-all position-relative" 
+           id="job-card-${job.id}" 
+           data-id="${job.id}"
+           data-status="${escapeHtml(job.status || 'PENDING')}"
+           data-token="${escapeHtml((job.tokenNumber || '').toLowerCase())}"
+           data-name="${escapeHtml((job.customerName || '').toLowerCase())}"
+           data-phone="${escapeHtml((job.customerPhone || '').toLowerCase())}"
+           data-message="${escapeHtml((job.customerMessage || '').toLowerCase())}"
+           data-colorspec="${escapeHtml((job.colorMode || '').toLowerCase())}"
+           data-papersize="${escapeHtml((job.paperSize || '').toLowerCase())}"
+           style="${isInitiallyActive ? '' : 'display: none !important;'} overflow: visible !important;">
+        <div class="serene-card overflow-visible w-100 border ${borderClass} shadow-xs py-2 px-3 position-relative" style="overflow: visible !important; transition: all 0.2s ease;">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 gap-lg-3">
+            
+            <!-- 1. Left: Token & Customer Info -->
+            <div class="d-flex align-items-center gap-2" style="min-width: 190px;">
+              <span class="badge ${badgeBg} text-white px-2 py-1 fw-bold fs-6 rounded-2 font-monospace" style="letter-spacing: 0.02em;">
+                #${escapeHtml(job.tokenNumber)}
+              </span>
+              <div class="lh-sm">
+                <div class="fw-bold text-dark text-truncate" style="max-width: 140px; font-size: 0.9rem;" title="${escapeHtml(job.customerName)}">
+                  ${escapeHtml(job.customerName)}
+                </div>
+                <div class="d-flex align-items-center gap-1 mt-0">
+                  <a href="tel:${escapeHtml(job.customerPhone)}" class="text-muted text-decoration-none" style="font-size: 0.74rem;" title="Call Customer">
+                    <i class="bi bi-telephone-fill me-1 text-serene-primary"></i>${escapeHtml(job.customerPhone)}
+                  </a>
+                  <a href="https://wa.me/${escapeHtml(waNumber)}" 
+                     target="_blank" class="badge bg-success-subtle text-success text-decoration-none border border-success-subtle px-1 py-0 ms-1" style="font-size: 0.65rem;" title="Message on WhatsApp">
+                    <i class="bi bi-whatsapp"></i>
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Center: View Document & Print Button -->
+            <div class="d-flex align-items-center">
+              ${documentBtnHtml}
+            </div>
+
+            <!-- 3. Center-Right: Specs Badges -->
+            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+              <span class="badge bg-light text-dark border px-2 py-1" style="font-size: 0.74rem;">
+                <i class="bi bi-copy text-muted me-1"></i><strong>${job.copies || 1}</strong> ${copiesText}
+              </span>
+              <span class="badge bg-light text-dark border px-2 py-1" style="font-size: 0.74rem;">
+                <i class="bi ${colorIcon} me-1"></i>
+                <strong>${escapeHtml(job.colorMode || 'BW')}</strong>
+              </span>
+              <span class="badge bg-light text-dark border px-2 py-1" style="font-size: 0.74rem;">
+                <strong>${escapeHtml(job.paperSize || 'A4')}</strong>
+              </span>
+            </div>
+
+            <!-- 4. Right: Time & Primary Action Button -->
+            <div class="d-flex align-items-center gap-2 ms-auto flex-shrink-0">
+              <div class="text-muted small d-none d-xl-block" style="font-size: 0.75rem;">
+                <i class="bi bi-clock me-1"></i>
+                ${escapeHtml(formatClientJobTime(job.createdAt))}
+              </div>
+
+              ${actionBtnHtml}
+
+              <!-- Options Dropdown -->
+              <div class="dropdown position-relative">
+                <button class="btn btn-sm btn-serene-ghost p-1 text-muted d-flex align-items-center justify-content-center" 
+                        type="button" 
+                        data-bs-toggle="dropdown" 
+                        data-bs-display="static" 
+                        aria-expanded="false" 
+                        title="More options" 
+                        style="width: 30px; height: 30px; border-radius: 6px;">
+                  <i class="bi bi-three-dots-vertical fs-6"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm" style="min-width: 200px; z-index: 1060;">
+                  <li>
+                    <a class="dropdown-item py-2 d-flex align-items-center" href="javascript:void(0)" onclick="convertToFormalOrder(${job.id})">
+                      <i class="bi bi-receipt me-2 text-serene-primary"></i> Convert to Formal Order
+                    </a>
+                  </li>
+                  ${driveLinkHtml}
+                  <li><hr class="dropdown-divider my-1"></li>
+                  <li>
+                    <a class="dropdown-item py-2 text-danger d-flex align-items-center" href="javascript:void(0)" onclick="deleteJob(${job.id})">
+                      <i class="bi bi-trash me-2"></i> Delete Order & Files
+                    </a>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+          </div>
+
+          ${noteHtml}
+
+        </div>
+      </div>
+    `;
+  }
+
+  // Live polling for queue updates every 4s
   async function pollQueue() {
     try {
-      const res = await fetch(`/api/quick-print/jobs?status=${encodeURIComponent(currentViewStatus)}`);
+      const res = await fetch('/api/quick-print/jobs?status=ALL');
       const result = await res.json();
 
-      if (result.success) {
-        updateQueueCounts();
-        if (result.data) {
-          quickPrintJobsData = result.data;
+      if (result.success && Array.isArray(result.data)) {
+        if (result.stats) {
+          updateQueueCounts(result.stats);
+        } else {
+          updateQueueCounts();
         }
 
-        // Check for newly arrived pending jobs
-        if (currentViewStatus === 'PENDING') {
-          let hasNew = false;
-          result.data.forEach(job => {
-            if (!knownJobIds.has(job.id)) {
-              hasNew = true;
-              knownJobIds.add(job.id);
+        // Cache updated jobs list for modals
+        quickPrintJobsData = result.data;
+
+        let wrapper = document.getElementById('ordersListWrapper');
+        if (!wrapper) {
+          const container = document.getElementById('jobsListContainer');
+          if (container) {
+            wrapper = document.createElement('div');
+            wrapper.className = 'd-flex flex-column gap-2';
+            wrapper.id = 'ordersListWrapper';
+            container.prepend(wrapper);
+          }
+        }
+
+        let hasNewPending = false;
+        const newlyAddedCardIds = [];
+
+        // Identify new jobs vs existing jobs
+        const newPendingJobs = [];
+        const otherNewJobs = [];
+
+        result.data.forEach(job => {
+          const card = document.getElementById(`job-card-${job.id}`);
+          if (!card) {
+            if (!knownJobIds.has(job.id) && job.status === 'PENDING') {
+              hasNewPending = true;
+              newlyAddedCardIds.push(job.id);
+              newPendingJobs.push(job);
+            } else {
+              otherNewJobs.push(job);
+            }
+            knownJobIds.add(job.id);
+          } else {
+            knownJobIds.add(job.id);
+            const currentCardStatus = card.getAttribute('data-status');
+            if (currentCardStatus !== job.status) {
+              card.setAttribute('data-status', job.status);
+              const temp = document.createElement('div');
+              temp.innerHTML = renderJobCardHtml(job).trim();
+              const updatedCard = temp.firstElementChild;
+              if (updatedCard) {
+                card.replaceWith(updatedCard);
+              }
+            }
+          }
+        });
+
+        // Remove cards that were deleted remotely
+        const remoteIds = new Set(result.data.map(j => j.id));
+        document.querySelectorAll('.job-card-wrapper').forEach(card => {
+          const cid = parseInt(card.getAttribute('data-id'), 10);
+          if (cid && !remoteIds.has(cid)) {
+            card.remove();
+            knownJobIds.delete(cid);
+          }
+        });
+
+        if (wrapper) {
+          // Prepend new pending jobs in chronological order so newest is at the very top
+          newPendingJobs.reverse().forEach(job => {
+            const temp = document.createElement('div');
+            temp.innerHTML = renderJobCardHtml(job).trim();
+            const newCard = temp.firstElementChild;
+            if (newCard) {
+              wrapper.prepend(newCard);
             }
           });
 
-          if (hasNew) {
-            playChime();
-            // Don't disrupt the user if they are currently typing in the search box
-            const activeSearch = searchInput ? searchInput.value.trim() : '';
-            if (!activeSearch) {
-              window.location.reload();
+          // Append any other new non-pending jobs
+          otherNewJobs.forEach(job => {
+            const temp = document.createElement('div');
+            temp.innerHTML = renderJobCardHtml(job).trim();
+            const newCard = temp.firstElementChild;
+            if (newCard) {
+              wrapper.appendChild(newCard);
             }
-          }
+          });
         }
+
+        // If newly arrived pending orders detected, play chime and highlight card
+        if (hasNewPending) {
+          playChime();
+          newlyAddedCardIds.forEach(id => {
+            const el = document.getElementById(`job-card-${id}`);
+            if (el) {
+              const inner = el.querySelector('.serene-card');
+              if (inner) {
+                inner.style.animation = 'qpArrivalPulse 2.5s ease';
+              }
+            }
+          });
+        }
+
+        // Re-apply real-time search & tab filter visibility seamlessly (0ms)
+        applyRealtimeSearch();
       }
     } catch (err) {
       console.warn('Queue poll failed:', err);
     }
   }
 
-  setInterval(pollQueue, 5000);
+  setInterval(pollQueue, 4000);
 
   // Ensure dropdown menu in queue cards floats cleanly above all other cards
   document.addEventListener('show.bs.dropdown', function (e) {
