@@ -265,13 +265,13 @@
         <div class="input-group">
           <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-whatsapp text-success"></i></span>
           <input type="tel" class="form-control border-start-0" id="customerPhone" name="customerPhone" 
-                 placeholder="Eg: 0771234567" maxlength="10" inputmode="numeric" required autocomplete="tel">
+                 placeholder="Eg: 0771234567" maxlength="20" inputmode="tel" required autocomplete="tel">
         </div>
         <div id="phoneHelpText" class="form-text small text-muted" style="font-size: 0.74rem;">
-          Print out එක Ready වුණාම කතා කරන්න මේ Number එක අවශ්‍ය වේ.
+          Print out එක Ready වුණාම කතා කරන්න මේ Number එක අවශ්‍ය වේ (Eg: 0771234567).
         </div>
         <div id="phoneErrorMsg" class="text-danger small mt-1 d-none fw-semibold" style="font-size: 0.78rem;">
-          <i class="bi bi-exclamation-circle-fill me-1"></i> Phone number can have only 10 digits. No less or more.
+          <i class="bi bi-exclamation-circle-fill me-1"></i> Phone number එකට ඉලක්කම් 10ක් (හෝ 9ක්) අවශ්‍ය වේ (Eg: 0771234567).
         </div>
       </div>
 
@@ -823,14 +823,31 @@
     updateMultiFilesNotice();
   }
 
-  // Real-time phone input validation & error visibility
+  // Real-time phone input validation & error visibility with auto-normalization
   const phoneInput = document.getElementById('customerPhone');
   const phoneHelpText = document.getElementById('phoneHelpText');
   const phoneErrorMsg = document.getElementById('phoneErrorMsg');
 
+  function cleanAndNormalizePhone(raw) {
+    if (!raw) return '';
+    let str = raw.toString().trim();
+    if (str.startsWith('+94')) {
+      str = '0' + str.substring(3);
+    } else if (str.startsWith('94') && str.replace(/\D/g, '').length === 11) {
+      str = '0' + str.replace(/\D/g, '').substring(2);
+    }
+    let digits = str.replace(/\D/g, '');
+    if (digits.length === 9) {
+      digits = '0' + digits;
+    }
+    return digits;
+  }
+
   function validatePhoneNumber(showError = false) {
-    const val = phoneInput.value.replace(/\D/g, '').trim();
-    if (val.length === 10) {
+    const raw = phoneInput.value.trim();
+    const normalized = cleanAndNormalizePhone(raw);
+    if (normalized.length === 10) {
+      phoneInput.value = normalized;
       phoneErrorMsg.classList.add('d-none');
       if (phoneHelpText) phoneHelpText.classList.remove('d-none');
       phoneInput.classList.remove('is-invalid');
@@ -846,8 +863,10 @@
   }
 
   phoneInput.addEventListener('input', (e) => {
-    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
-    if (e.target.value.length === 10) {
+    const val = e.target.value;
+    const norm = cleanAndNormalizePhone(val);
+    if (norm.length === 10) {
+      phoneInput.value = norm;
       validatePhoneNumber(false);
     } else if (!phoneErrorMsg.classList.contains('d-none')) {
       validatePhoneNumber(true);
@@ -855,10 +874,14 @@
   });
 
   phoneInput.addEventListener('blur', () => {
-    if (phoneInput.value.length > 0 && phoneInput.value.length !== 10) {
-      validatePhoneNumber(true);
-    } else if (phoneInput.value.length === 10) {
-      validatePhoneNumber(false);
+    if (phoneInput.value.trim().length > 0) {
+      const normalized = cleanAndNormalizePhone(phoneInput.value);
+      if (normalized.length === 10) {
+        phoneInput.value = normalized;
+        validatePhoneNumber(false);
+      } else {
+        validatePhoneNumber(true);
+      }
     }
   });
 
@@ -1056,7 +1079,8 @@
       return;
     }
 
-    const phone = phoneInput.value.replace(/\D/g, '').trim();
+    const phone = cleanAndNormalizePhone(phoneInput.value);
+    phoneInput.value = phone;
 
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Process කරනවා...';

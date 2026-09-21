@@ -32,67 +32,80 @@ class QuickPrintService {
    */
   normalizePhoneNumber(phone) {
     if (!phone) return '';
-    let cleaned = phone.toString().replace(/[^0-9+]/g, '');
-    if (cleaned.startsWith('+94')) {
-      cleaned = '0' + cleaned.substring(3);
-    } else if (cleaned.startsWith('94') && cleaned.length === 11) {
-      cleaned = '0' + cleaned.substring(2);
+    let str = phone.toString().trim();
+    if (str.startsWith('+94')) {
+      str = '0' + str.substring(3);
+    } else if (str.startsWith('94') && str.replace(/\D/g, '').length === 11) {
+      str = '0' + str.replace(/\D/g, '').substring(2);
     }
-    // Return only numeric digits
-    return cleaned.replace(/\D/g, '');
+    let digits = str.replace(/\D/g, '');
+    // If user entered 9 digits (e.g. 771234567 or 112345678), auto prepend leading 0
+    if (digits.length === 9) {
+      digits = '0' + digits;
+    }
+    return digits;
   }
 
   /**
    * Create a new quick print job with attached files
    */
   async createJob(data, uploadedFiles = []) {
-    return await sequelize.transaction(async (t) => {
-      const customerName = (data.customerName || data.name || '').trim();
-      const rawPhone = (data.customerPhone || data.phone || '').trim();
-      const customerPhone = this.normalizePhoneNumber(rawPhone);
+    const rawName = (data.customerName || data.name || '').trim();
+    const rawPhone = (data.customerPhone || data.phone || '').trim();
+    const customerPhone = this.normalizePhoneNumber(rawPhone);
+    const customerName = rawName.substring(0, 100);
 
-      if (!customerName) {
-        throw new Error('Please enter your name.');
-      }
+    if (!customerName) {
+      throw new Error('Please enter your name.');
+    }
 
-      if (!customerPhone) {
-        throw new Error('Please enter your phone number.');
-      }
+    if (!customerPhone) {
+      throw new Error('Please enter your phone number.');
+    }
 
-      if (customerPhone.length !== 10 || !/^\d{10}$/.test(customerPhone)) {
-        throw new Error('Phone number can have only 10 digits. No less or more.');
-      }
+    if (customerPhone.length !== 10 || !/^\d{10}$/.test(customerPhone)) {
+      throw new Error('Phone number can have only 10 digits. No less or more.');
+    }
 
-      if (uploadedFiles.length === 0) {
-        throw new Error('Please select at least one file to upload.');
-      }
+    if (uploadedFiles.length === 0) {
+      throw new Error('Please select at least one file to upload.');
+    }
 
-      // Check or create customer record in CRM
-      let customerId = null;
-      try {
-        let existingCustomer = null;
-        if (/^0\d{9}$/.test(customerPhone)) {
-          existingCustomer = await Customer.findOne({
-            where: { phone: customerPhone },
-            transaction: t,
-          });
+    // Check or create customer record in CRM (decoupled from job transaction so it cannot abort job creation)
+    let customerId = null;
+    try {
+      if (/^0\d{9}$/.test(customerPhone)) {
+        let existingCustomer = await Customer.findOne({
+          where: { phone: customerPhone },
+        }).catch(() => null);
 
-          if (!existingCustomer) {
-            const custCount = await Customer.count({ transaction: t });
-            const customerCode = `CUST-${(custCount + 1).toString().padStart(4, '0')}`;
-            existingCustomer = await Customer.create({
-              customerCode,
-              name: customerName,
-              phone: customerPhone,
-              notes: 'Created automatically via Counter QR Quick Print',
-            }, { transaction: t });
+        if (!existingCustomer) {
+          const custCount = await Customer.count().catch(() => 0);
+          let candidateCode = `CUST-${(custCount + 1).toString().padStart(4, '0')}`;
+          let offset = custCount + 1;
+          while (await Customer.findOne({ where: { customerCode: candidateCode } }).catch(() => null)) {
+            offset++;
+            candidateCode = `CUST-${offset.toString().padStart(4, '0')}`;
           }
+          existingCustomer = await Customer.create({
+            customerCode: candidateCode,
+            name: customerName,
+            phone: customerPhone,
+            notes: 'Created automatically via Counter QR Quick Print',
+          }).catch((err) => {
+            console.warn('Customer auto-create warning:', err.message);
+            return null;
+          });
+        }
+        if (existingCustomer) {
           customerId = existingCustomer.id;
         }
-      } catch (err) {
-        // Non-fatal: if customer validation fails, proceed with guest upload
-        console.warn('Could not auto-link Customer CRM record:', err.message);
       }
+    } catch (err) {
+      console.warn('Could not auto-link Customer CRM record:', err.message);
+    }
+
+    return await sequelize.transaction(async (t) => {
 
       const tokenNumber = await this.generateTokenNumber(t);
       // Parse per-file paper sizes if provided
@@ -167,12 +180,12 @@ class QuickPrintService {
 
       const job = await QuickPrintJob.create({
         tokenNumber,
-        customerName,
+        customerName: customerName.substring(0, 100),
         customerPhone: customerPhone || rawPhone,
-        customerMessage: (data.customerMessage || data.message || '').trim() || null,
-        colorMode: effectiveColorMode,
+        customerMessage: (data.customerMessage || data.message || '').trim().substring(0, 1000) || null,
+        colorMode: (effectiveColorMode || 'BW').substring(0, 20),
         copies: effectiveCopies,
-        paperSize: effectivePaperSize,
+        paperSize: (effectivePaperSize || 'A4').substring(0, 100),
         status: 'PENDING',
         customerId,
       }, { transaction: t });
@@ -210,21 +223,21 @@ class QuickPrintService {
           }
         }
 
-        const fileUrl = `/uploads/quick-print/${file.filename}`;
+        const fileUrl = `/uploads/quick-print/${file.filename}`.substring(0, 250);
         const fileRecord = await QuickPrintFile.create({
           jobId: job.id,
-          originalName: file.originalname,
-          filename: file.filename,
-          filePath: file.path,
-          fileSize: file.size,
-          mimeType: file.mimetype,
+          originalName: (file.originalname || 'document').substring(0, 240),
+          filename: (file.filename || 'file').substring(0, 240),
+          filePath: (file.path || '').substring(0, 240),
+          fileSize: file.size || 0,
+          mimeType: (file.mimetype || 'application/octet-stream').substring(0, 100),
           fileUrl,
           driveFileId,
           driveViewLink,
           driveDownloadLink,
           storageProvider,
-          paperSize: perFilePaperSize,
-          colorMode: perFileColorMode,
+          paperSize: (perFilePaperSize || 'A4').substring(0, 50),
+          colorMode: (perFileColorMode || 'BW').substring(0, 20),
           copies: perFileCopies,
         }, { transaction: t });
         fileRecords.push(fileRecord);
@@ -242,53 +255,62 @@ class QuickPrintService {
    * (Used for large files 10MB+ to bypass Vercel's 4.5MB limit)
    */
   async createJobWithDriveFiles(data, driveFiles = []) {
-    return await sequelize.transaction(async (t) => {
-      const customerName = (data.customerName || data.name || '').trim();
-      const rawPhone = (data.customerPhone || data.phone || '').trim();
-      const customerPhone = this.normalizePhoneNumber(rawPhone);
+    const rawName = (data.customerName || data.name || '').trim();
+    const rawPhone = (data.customerPhone || data.phone || '').trim();
+    const customerPhone = this.normalizePhoneNumber(rawPhone);
+    const customerName = rawName.substring(0, 100);
 
-      if (!customerName) {
-        throw new Error('Please enter your name.');
-      }
+    if (!customerName) {
+      throw new Error('Please enter your name.');
+    }
 
-      if (!customerPhone) {
-        throw new Error('Please enter your phone number.');
-      }
+    if (!customerPhone) {
+      throw new Error('Please enter your phone number.');
+    }
 
-      if (customerPhone.length !== 10 || !/^\d{10}$/.test(customerPhone)) {
-        throw new Error('Phone number can have only 10 digits. No less or more.');
-      }
+    if (customerPhone.length !== 10 || !/^\d{10}$/.test(customerPhone)) {
+      throw new Error('Phone number can have only 10 digits. No less or more.');
+    }
 
-      if (!driveFiles || driveFiles.length === 0) {
-        throw new Error('No uploaded files provided.');
-      }
+    if (!driveFiles || driveFiles.length === 0) {
+      throw new Error('No uploaded files provided.');
+    }
 
-      // Check or create customer record in CRM
-      let customerId = null;
-      try {
-        let existingCustomer = null;
-        if (/^0\d{9}$/.test(customerPhone)) {
-          existingCustomer = await Customer.findOne({
-            where: { phone: customerPhone },
-            transaction: t,
-          });
+    // Check or create customer record in CRM (decoupled from job transaction so it cannot abort job creation)
+    let customerId = null;
+    try {
+      if (/^0\d{9}$/.test(customerPhone)) {
+        let existingCustomer = await Customer.findOne({
+          where: { phone: customerPhone },
+        }).catch(() => null);
 
-          if (!existingCustomer) {
-            const custCount = await Customer.count({ transaction: t });
-            const customerCode = `CUST-${(custCount + 1).toString().padStart(4, '0')}`;
-            existingCustomer = await Customer.create({
-              customerCode,
-              name: customerName,
-              phone: customerPhone,
-              notes: 'Created automatically via Counter QR Quick Print',
-            }, { transaction: t });
+        if (!existingCustomer) {
+          const custCount = await Customer.count().catch(() => 0);
+          let candidateCode = `CUST-${(custCount + 1).toString().padStart(4, '0')}`;
+          let offset = custCount + 1;
+          while (await Customer.findOne({ where: { customerCode: candidateCode } }).catch(() => null)) {
+            offset++;
+            candidateCode = `CUST-${offset.toString().padStart(4, '0')}`;
           }
+          existingCustomer = await Customer.create({
+            customerCode: candidateCode,
+            name: customerName,
+            phone: customerPhone,
+            notes: 'Created automatically via Counter QR Quick Print',
+          }).catch((err) => {
+            console.warn('Customer auto-create warning:', err.message);
+            return null;
+          });
+        }
+        if (existingCustomer) {
           customerId = existingCustomer.id;
         }
-      } catch (err) {
-        console.warn('Could not auto-link Customer CRM record:', err.message);
       }
+    } catch (err) {
+      console.warn('Could not auto-link Customer CRM record:', err.message);
+    }
 
+    return await sequelize.transaction(async (t) => {
       const tokenNumber = await this.generateTokenNumber(t);
 
       // Calculate effective overall paper size from driveFiles
@@ -325,12 +347,12 @@ class QuickPrintService {
 
       const job = await QuickPrintJob.create({
         tokenNumber,
-        customerName,
+        customerName: customerName.substring(0, 100),
         customerPhone: customerPhone || rawPhone,
-        customerMessage: (data.customerMessage || data.message || '').trim() || null,
-        colorMode: effectiveColorMode,
+        customerMessage: (data.customerMessage || data.message || '').trim().substring(0, 1000) || null,
+        colorMode: (effectiveColorMode || 'BW').substring(0, 20),
         copies: effectiveCopies,
-        paperSize: effectivePaperSize,
+        paperSize: (effectivePaperSize || 'A4').substring(0, 100),
         status: 'PENDING',
         customerId,
       }, { transaction: t });
@@ -343,18 +365,18 @@ class QuickPrintService {
 
         const fileRecord = await QuickPrintFile.create({
           jobId: job.id,
-          originalName: df.originalName || df.name || 'document',
-          filename: df.originalName || df.name || 'document',
+          originalName: (df.originalName || df.name || 'document').substring(0, 240),
+          filename: (df.originalName || df.name || 'document').substring(0, 240),
           filePath: '',
           fileSize: df.fileSize || 0,
-          mimeType: df.mimeType || 'application/octet-stream',
-          fileUrl: df.webViewLink || `/api/quick-print/files/${df.driveFileId}/view`,
+          mimeType: (df.mimeType || 'application/octet-stream').substring(0, 100),
+          fileUrl: (df.webViewLink || `/api/quick-print/files/${df.driveFileId}/view`).substring(0, 250),
           driveFileId: df.driveFileId,
           driveViewLink: df.webViewLink,
           driveDownloadLink: df.webContentLink,
           storageProvider: 'GDRIVE',
-          paperSize: perFilePaperSize,
-          colorMode: perFileColorMode,
+          paperSize: (perFilePaperSize || 'A4').substring(0, 50),
+          colorMode: (perFileColorMode || 'BW').substring(0, 20),
           copies: perFileCopies,
         }, { transaction: t });
         fileRecords.push(fileRecord);

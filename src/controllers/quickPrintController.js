@@ -44,9 +44,18 @@ class QuickPrintController {
       });
     } catch (error) {
       console.error('Error in submitUpload:', error);
-      const details = (error.errors && error.errors.length > 0)
-        ? error.errors.map(e => e.message).join(', ')
-        : (error.message || 'Failed to upload files. Please try again.');
+      let details = error.message || 'Failed to upload files. Please try again.';
+      if (error.errors && error.errors.length > 0) {
+        const errorList = error.errors.map(e => {
+          if (e.message && e.message !== 'Validation error') return e.message;
+          if (e.path) return `${e.path} is invalid`;
+          return null;
+        }).filter(Boolean);
+
+        if (errorList.length > 0) {
+          details = [...new Set(errorList)].join(', ');
+        }
+      }
       return res.status(400).json({
         success: false,
         message: details,
@@ -388,12 +397,21 @@ class QuickPrintController {
       });
     } catch (error) {
       console.error('Error in completeDirectUpload:', error);
-      const msg = (error.errors && error.errors.length > 0)
-        ? error.errors.map(e => e.message).join(', ')
-        : (error.message || 'Failed to complete direct upload. Please try again.');
+      let details = error.message || 'Failed to complete direct upload. Please try again.';
+      if (error.errors && error.errors.length > 0) {
+        const errorList = error.errors.map(e => {
+          if (e.message && e.message !== 'Validation error') return e.message;
+          if (e.path) return `${e.path} is invalid`;
+          return null;
+        }).filter(Boolean);
+
+        if (errorList.length > 0) {
+          details = [...new Set(errorList)].join(', ');
+        }
+      }
       return res.status(400).json({
         success: false,
-        message: msg,
+        message: details,
       });
     }
   }
