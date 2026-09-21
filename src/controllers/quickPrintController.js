@@ -164,6 +164,45 @@ class QuickPrintController {
   }
 
   /**
+   * Batch delete multiple jobs and cleanup their files
+   */
+  async batchDeleteJobs(req, res) {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'No order IDs provided for deletion.',
+        });
+      }
+
+      let deletedCount = 0;
+      const errors = [];
+
+      for (const id of ids) {
+        try {
+          await quickPrintService.deleteJob(id);
+          deletedCount++;
+        } catch (err) {
+          errors.push({ id, error: err.message });
+        }
+      }
+
+      return res.json({
+        success: true,
+        message: `Successfully deleted ${deletedCount} order(s).`,
+        deletedCount,
+        errors: errors.length > 0 ? errors : undefined,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Batch delete failed.',
+      });
+    }
+  }
+
+  /**
    * Convert to formal billing order
    */
   async convertToOrder(req, res) {

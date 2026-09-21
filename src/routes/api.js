@@ -58,6 +58,7 @@ router.get('/customers/:id', authenticate, customerController.getCustomer);
 router.get('/quick-print/jobs', authenticate, quickPrintController.listJobs);
 router.put('/quick-print/jobs/:id/status', authenticate, quickPrintController.updateStatus);
 router.delete('/quick-print/jobs/:id', authenticate, quickPrintController.deleteJob);
+router.post('/quick-print/jobs/batch-delete', authenticate, quickPrintController.batchDeleteJobs);
 router.post('/quick-print/jobs/:id/convert', authenticate, quickPrintController.convertToOrder);
 router.get('/quick-print/stats', authenticate, quickPrintController.getStats);
 router.get('/quick-print/files/:fileId/view', authenticate, quickPrintController.viewFile);
