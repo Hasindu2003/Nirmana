@@ -316,15 +316,24 @@
 
                 </div>
 
-                <!-- Optional Compact Customer Note (single tight line only if message exists) -->
+                <!-- Optional Compact Customer Note with See Full Note Button -->
                 <% if (job.customerMessage) { %>
-                  <div class="mt-1 pt-1 border-top d-flex align-items-center gap-2" style="font-size: 0.76rem;">
-                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-1 py-0" style="font-size: 0.65rem; font-weight: 700;">
-                      <i class="bi bi-chat-left-text-fill me-1"></i>NOTE
-                    </span>
-                    <span class="text-dark fw-medium text-truncate" title="<%= job.customerMessage %>">
-                      <%= job.customerMessage %>
-                    </span>
+                  <div class="mt-1 pt-1 border-top d-flex align-items-center justify-content-between gap-2" style="font-size: 0.76rem;">
+                    <div class="d-flex align-items-center gap-2 text-truncate me-2">
+                      <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-1 py-0 flex-shrink-0" style="font-size: 0.65rem; font-weight: 700;">
+                        <i class="bi bi-chat-left-text-fill me-1"></i>NOTE
+                      </span>
+                      <span class="text-dark fw-medium text-truncate" title="<%= job.customerMessage %>">
+                        <%= job.customerMessage %>
+                      </span>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-warning text-dark py-0 px-2 fw-bold d-inline-flex align-items-center gap-1 flex-shrink-0 shadow-xs" 
+                            onclick="openCustomerNoteModal(<%= job.id %>)" 
+                            style="font-size: 0.72rem; height: 22px; border-radius: 4px;" 
+                            title="See full customer note">
+                      <i class="bi bi-eye-fill"></i>
+                      <span>See Full Note</span>
+                    </button>
                   </div>
                 <% } %>
 
@@ -422,13 +431,20 @@
         <div class="mt-2 d-flex flex-wrap align-items-center justify-content-between gap-2 p-2 rounded bg-white border">
           <div class="d-flex align-items-center gap-2 small text-truncate">
             <i class="bi bi-file-earmark-text text-serene-primary fs-5"></i>
-            <span class="fw-bold text-dark text-truncate" id="previewFileInfoName" style="max-width: 320px;">file.png</span>
+            <span class="fw-bold text-dark text-truncate" id="previewFileInfoName" style="max-width: 280px;">file.png</span>
             <span class="text-muted" id="previewFileInfoSize">0 KB</span>
           </div>
 
-          <div id="previewCustomerNoteContainer" class="small text-truncate d-none" style="max-width: 450px;">
-            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle me-1">Customer Note</span>
-            <span class="fw-semibold text-dark text-truncate" id="previewCustomerNoteText"></span>
+          <div id="previewCustomerNoteContainer" class="d-none d-flex align-items-center gap-2 small text-truncate" style="max-width: 520px;">
+            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle flex-shrink-0">
+              <i class="bi bi-chat-left-text-fill me-1"></i>Customer Note
+            </span>
+            <span class="fw-semibold text-dark text-truncate d-inline-block" id="previewCustomerNoteText" style="max-width: 280px;"></span>
+            <button type="button" class="btn btn-warning btn-sm py-0 px-2 fw-bold text-dark d-inline-flex align-items-center gap-1 flex-shrink-0 shadow-xs" 
+                    id="previewViewFullNoteBtn" onclick="openCurrentJobNoteModal()" style="font-size: 0.74rem; height: 24px; border-radius: 4px;" title="See full customer note">
+              <i class="bi bi-eye-fill"></i>
+              <span>See Full Note</span>
+            </button>
           </div>
         </div>
 
@@ -558,6 +574,45 @@
 </div>
 
 <!-- ========================================================================= -->
+<!-- FULL CUSTOMER NOTE MODAL -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="customerNoteModal" tabindex="-1" aria-labelledby="customerNoteModalLabel" aria-hidden="true" style="z-index: 1070;">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 540px;">
+    <div class="modal-content shadow-lg border-0">
+      <div class="modal-header py-2 px-3 border-bottom" style="background: #f8fafc;">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <span class="badge bg-warning text-dark fw-bold px-2 py-1 fs-6 font-monospace" id="customerNoteModalToken">#QP-000</span>
+          <h5 class="modal-title fw-bold fs-6 mb-0 text-dark" id="customerNoteModalLabel">
+            <i class="bi bi-chat-left-text-fill text-warning me-1"></i> Customer Note
+          </h5>
+          <span class="badge bg-light text-dark border ms-1" id="customerNoteModalCustomer">
+            <i class="bi bi-person me-1"></i>Customer
+          </span>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-3 bg-white">
+        <div class="p-3 rounded-3 bg-light border position-relative">
+          <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
+            <span class="text-muted small fw-semibold">
+              <i class="bi bi-quote fs-5 text-warning me-1"></i> Special Instructions from Customer:
+            </span>
+            <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 d-inline-flex align-items-center gap-1 shadow-xs" id="copyCustomerNoteBtn" onclick="copyCustomerNoteToClipboard()" title="Copy instructions to clipboard" style="font-size: 0.75rem; height: 26px;">
+              <i class="bi bi-clipboard"></i>
+              <span>Copy</span>
+            </button>
+          </div>
+          <div id="customerNoteModalBody" class="text-dark fs-6" style="white-space: pre-wrap; word-break: break-word; line-height: 1.6; user-select: text; max-height: 50vh; overflow-y: auto;"></div>
+        </div>
+      </div>
+      <div class="modal-footer py-2 px-3 bg-light border-top d-flex justify-content-end">
+        <button type="button" class="btn btn-serene-secondary btn-sm px-3" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================= -->
 <!-- HIDDEN PRINTABLE COUNTER PLACARD / FLYER -->
 <!-- ========================================================================= -->
 <div id="printableCounterFlyer" class="d-none">
@@ -642,7 +697,9 @@
     const noteContainer = document.getElementById('previewCustomerNoteContainer');
     const noteText = document.getElementById('previewCustomerNoteText');
     if (job.customerMessage && job.customerMessage.trim()) {
-      noteText.textContent = job.customerMessage.trim();
+      const cleanMsg = job.customerMessage.trim();
+      noteText.textContent = cleanMsg;
+      noteText.title = cleanMsg;
       noteContainer.classList.remove('d-none');
     } else {
       noteContainer.classList.add('d-none');
@@ -786,6 +843,78 @@
     div.textContent = text;
     return div.innerHTML;
   }
+
+  // Customer Note Modal Handlers
+  function openCustomerNoteModal(jobId) {
+    const job = (quickPrintJobsData || []).find(j => j.id == jobId);
+    if (!job) {
+      alert('Order details not found.');
+      return;
+    }
+    const tokenEl = document.getElementById('customerNoteModalToken');
+    const custEl = document.getElementById('customerNoteModalCustomer');
+    const bodyEl = document.getElementById('customerNoteModalBody');
+
+    if (tokenEl) tokenEl.textContent = '#' + (job.tokenNumber || 'QP-000');
+    if (custEl) custEl.innerHTML = '<i class="bi bi-person me-1"></i>' + escapeHtml(job.customerName || 'Customer');
+    if (bodyEl) bodyEl.textContent = (job.customerMessage && job.customerMessage.trim()) ? job.customerMessage.trim() : 'No special note provided for this order.';
+
+    const modalEl = document.getElementById('customerNoteModal');
+    if (modalEl) {
+      const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+      modalInstance.show();
+    }
+  }
+  window.openCustomerNoteModal = openCustomerNoteModal;
+
+  function openCurrentJobNoteModal() {
+    if (currentPreviewJob) {
+      openCustomerNoteModal(currentPreviewJob.id);
+    }
+  }
+  window.openCurrentJobNoteModal = openCurrentJobNoteModal;
+
+  function copyCustomerNoteToClipboard() {
+    const bodyEl = document.getElementById('customerNoteModalBody');
+    const copyBtn = document.getElementById('copyCustomerNoteBtn');
+    if (!bodyEl) return;
+    const text = bodyEl.textContent || '';
+    if (!navigator.clipboard) {
+      return;
+    }
+    navigator.clipboard.writeText(text).then(() => {
+      if (copyBtn) {
+        const orig = copyBtn.innerHTML;
+        copyBtn.innerHTML = '<i class="bi bi-check2 text-success"></i> <span>Copied!</span>';
+        setTimeout(() => { copyBtn.innerHTML = orig; }, 2000);
+      }
+    });
+  }
+  window.copyCustomerNoteToClipboard = copyCustomerNoteToClipboard;
+
+  // Nested modal backdrop management for customerNoteModal & documentPreviewModal
+  (function initCustomerNoteModalBackdrop() {
+    const noteModalEl = document.getElementById('customerNoteModal');
+    if (noteModalEl) {
+      noteModalEl.addEventListener('show.bs.modal', function() {
+        const previewModalEl = document.getElementById('documentPreviewModal');
+        if (previewModalEl && previewModalEl.classList.contains('show')) {
+          setTimeout(() => {
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 1) {
+              backdrops[backdrops.length - 1].style.zIndex = '1065';
+            }
+          }, 0);
+        }
+      });
+      noteModalEl.addEventListener('hidden.bs.modal', function() {
+        const previewModalEl = document.getElementById('documentPreviewModal');
+        if (previewModalEl && previewModalEl.classList.contains('show')) {
+          document.body.classList.add('modal-open');
+        }
+      });
+    }
+  })();
 
   // Web Audio Synthesizer for arrival chime
   function playChime() {
@@ -1291,13 +1420,22 @@
       : '';
 
     const noteHtml = (job.customerMessage && job.customerMessage.trim())
-      ? `<div class="mt-1 pt-1 border-top d-flex align-items-center gap-2" style="font-size: 0.76rem;">
-           <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-1 py-0" style="font-size: 0.65rem; font-weight: 700;">
-             <i class="bi bi-chat-left-text-fill me-1"></i>NOTE
-           </span>
-           <span class="text-dark fw-medium text-truncate" title="${escapeHtml(job.customerMessage)}">
-             ${escapeHtml(job.customerMessage)}
-           </span>
+      ? `<div class="mt-1 pt-1 border-top d-flex align-items-center justify-content-between gap-2" style="font-size: 0.76rem;">
+           <div class="d-flex align-items-center gap-2 text-truncate me-2">
+             <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-1 py-0 flex-shrink-0" style="font-size: 0.65rem; font-weight: 700;">
+               <i class="bi bi-chat-left-text-fill me-1"></i>NOTE
+             </span>
+             <span class="text-dark fw-medium text-truncate" title="${escapeHtml(job.customerMessage)}">
+               ${escapeHtml(job.customerMessage)}
+             </span>
+           </div>
+           <button type="button" class="btn btn-sm btn-warning text-dark py-0 px-2 fw-bold d-inline-flex align-items-center gap-1 flex-shrink-0 shadow-xs" 
+                   onclick="openCustomerNoteModal(${job.id})" 
+                   style="font-size: 0.72rem; height: 22px; border-radius: 4px;" 
+                   title="See full customer note">
+             <i class="bi bi-eye-fill"></i>
+             <span>See Full Note</span>
+           </button>
          </div>`
       : '';
 
