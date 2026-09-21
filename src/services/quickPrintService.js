@@ -7,21 +7,45 @@ const { getSriLankaDayBounds } = require('../utils/dateUtils');
 
 class QuickPrintService {
   /**
-   * Generates a daily sequential token number (e.g. QP-001, QP-002)
+   * Generates a daily date-based sequential token number in Sri Lanka timezone
+   * Format: QP-MMDDXX (e.g. October 17, 8th order -> QP-101708)
    */
   async generateTokenNumber(transaction = null) {
-    const totalCount = await QuickPrintJob.count().catch(() => 0);
-    const lastJob = await QuickPrintJob.findOne({
-      order: [['id', 'DESC']],
-      attributes: ['id', 'tokenNumber'],
-    }).catch(() => null);
+    const { dateStr } = getSriLankaDayBounds();
+    const parts = dateStr.split('-');
+    const month = parts[1];
+    const day = parts[2];
+    const prefix = `QP-${month}${day}`;
 
-    let nextNum = Math.max(totalCount + 1, (lastJob ? lastJob.id + 1 : 1));
-    let candidate = `QP-${nextNum.toString().padStart(3, '0')}`;
+    // Find all tokens created for this date prefix to determine the highest order counter
+    const todayJobs = await QuickPrintJob.findAll({
+      where: {
+        tokenNumber: {
+          [Op.like]: `${prefix}%`,
+        },
+      },
+      attributes: ['tokenNumber'],
+      transaction,
+    }).catch(() => []);
 
-    while (await QuickPrintJob.findOne({ where: { tokenNumber: candidate } })) {
-      nextNum++;
-      candidate = `QP-${nextNum.toString().padStart(3, '0')}`;
+    let maxCounter = 0;
+    for (const job of todayJobs) {
+      if (job && job.tokenNumber && job.tokenNumber.startsWith(prefix)) {
+        const suffix = job.tokenNumber.substring(prefix.length);
+        const num = parseInt(suffix, 10);
+        if (!isNaN(num) && num > maxCounter) {
+          maxCounter = num;
+        }
+      }
+    }
+
+    let nextCounter = maxCounter + 1;
+    let candidate = `${prefix}${nextCounter.toString().padStart(2, '0')}`;
+
+    // Collision safety guard for concurrent transactions
+    while (await QuickPrintJob.findOne({ where: { tokenNumber: candidate }, transaction })) {
+      nextCounter++;
+      candidate = `${prefix}${nextCounter.toString().padStart(2, '0')}`;
     }
 
     return candidate;
