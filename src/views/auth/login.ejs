@@ -30,21 +30,6 @@
       box-shadow: var(--serene-shadow-card);
       padding: 2.5rem 2rem;
     }
-    .quick-role-btn {
-      font-size: 0.75rem;
-      padding: 0.35rem 0.6rem;
-      border-radius: 6px;
-      border: 1px solid var(--serene-border);
-      background: #fff;
-      color: var(--serene-text-muted);
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .quick-role-btn:hover {
-      background: var(--serene-primary-light);
-      border-color: var(--serene-primary);
-      color: var(--serene-primary);
-    }
   </style>
 </head>
 <body>
@@ -93,23 +78,11 @@
         <span class="small text-muted">Phase 1 MVP</span>
       </div>
 
-      <button type="submit" class="btn btn-serene-primary w-100 justify-content-center py-2 mb-4">
+      <button type="submit" class="btn btn-serene-primary w-100 justify-content-center py-2 mb-0">
         <span>Sign In to Workspace</span>
         <i class="bi bi-arrow-right"></i>
       </button>
     </form>
-
-    <!-- Role Switching Helper for Testing -->
-    <div class="border-top pt-3">
-      <div class="small text-muted mb-2 text-center" style="font-size:0.75rem;">QUICK ROLE LOGIN (TEST CREDENTIALS)</div>
-      <div class="d-flex flex-wrap gap-1 justify-content-center">
-        <button type="button" class="quick-role-btn" onclick="fillCreds('admin')">👑 Owner/Admin</button>
-        <button type="button" class="quick-role-btn" onclick="fillCreds('sales')">💼 Sales</button>
-        <button type="button" class="quick-role-btn" onclick="fillCreds('production')">🖨️ Production</button>
-        <button type="button" class="quick-role-btn" onclick="fillCreds('inventory')">📦 Inventory</button>
-        <button type="button" class="quick-role-btn" onclick="fillCreds('accountant')">📊 Accountant</button>
-      </div>
-    </div>
   </div>
 
   <div class="text-center mt-3 text-muted small">
@@ -117,11 +90,5 @@
   </div>
 </div>
 
-<script>
-function fillCreds(role) {
-  document.getElementById('usernameInput').value = role;
-  document.getElementById('passwordInput').value = 'Password123!';
-}
-</script>
 </body>
 </html>
