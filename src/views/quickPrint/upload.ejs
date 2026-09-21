@@ -297,93 +297,14 @@
         <div id="fileList" class="mt-2"></div>
       </div>
 
-      <!-- 4. Paper Size Selection -->
-      <div class="mb-3">
-        <div class="d-flex justify-content-between align-items-center mb-1">
-          <label class="form-label fw-bold small text-muted text-uppercase mb-0">
-            4. Print Size එක (Paper Size) <span class="text-danger">*</span>
-          </label>
-          <span class="badge bg-light text-muted border small d-none" id="multiFilesNotice" style="font-size: 0.7rem;">
-            <i class="bi bi-info-circle me-1 text-primary"></i> Default for all files
-          </span>
-        </div>
-        <div class="pill-radio-group grid-sizes" id="paperSizeGroup">
-          <input type="radio" id="sizeA4" name="paperSize" value="A4" checked>
-          <label for="sizeA4">
-            <span class="d-block fw-bold fs-6">A4</span>
-            <span class="d-block text-muted" style="font-size: 0.7rem;">Normal</span>
-          </label>
-
-          <input type="radio" id="sizeA3" name="paperSize" value="A3">
-          <label for="sizeA3">
-            <span class="d-block fw-bold fs-6">A3</span>
-            <span class="d-block text-muted" style="font-size: 0.7rem;">Large (2×A4)</span>
-          </label>
-
-          <input type="radio" id="sizeLegal" name="paperSize" value="Legal">
-          <label for="sizeLegal">
-            <span class="d-block fw-bold fs-6">Legal</span>
-            <span class="d-block text-muted" style="font-size: 0.7rem;">Long sheet</span>
-          </label>
-
-          <input type="radio" id="sizeA5" name="paperSize" value="A5">
-          <label for="sizeA5">
-            <span class="d-block fw-bold fs-6">A5</span>
-            <span class="d-block text-muted" style="font-size: 0.7rem;">Small (½ A4)</span>
-          </label>
-
-          <input type="radio" id="sizeOther" name="paperSize" value="Other">
-          <label for="sizeOther">
-            <span class="d-block fw-bold fs-6">Other</span>
-            <span class="d-block text-muted" style="font-size: 0.7rem;">වෙනත් Size</span>
-          </label>
-        </div>
-
-        <div id="customPaperSizeContainer" class="mt-2 d-none">
-          <input type="text" class="form-control form-control-sm" id="customPaperSizeInput" 
-                 placeholder="ඔයාට අවශ්‍ය Size එක මෙතන Type කරන්න (Eg: 12x18, Passport, Banner...)">
-        </div>
-      </div>
-
-      <!-- 5. Quick Options: Color Mode & Copies -->
-      <div class="mb-3">
-        <div class="d-flex justify-content-between align-items-center mb-1">
-          <label class="form-label fw-bold small text-muted text-uppercase mb-0">5. Color Mode & Copies</label>
-          <span class="badge bg-light text-muted border small d-none" id="multiOptionsNotice" style="font-size: 0.7rem;">
-            <i class="bi bi-info-circle me-1 text-primary"></i> Default for all files
-          </span>
-        </div>
-        <div class="row g-2">
-          <div class="col-6">
-            <label class="form-label small text-muted mb-1" style="font-size: 0.75rem;">Color ද B&W ද?</label>
-            <div class="pill-radio-group">
-              <input type="radio" id="modeBw" name="colorMode" value="BW" checked>
-              <label for="modeBw"><i class="bi bi-circle-half me-1"></i> B&W</label>
-              
-              <input type="radio" id="modeColor" name="colorMode" value="COLOR">
-              <label for="modeColor"><i class="bi bi-palette-fill me-1 text-warning"></i> Color</label>
-            </div>
-          </div>
-
-          <div class="col-6">
-            <label class="form-label small text-muted mb-1" style="font-size: 0.75rem;">Copies ගණන</label>
-            <div class="input-group">
-              <button class="btn btn-outline-secondary btn-sm" type="button" id="decCopies">-</button>
-              <input type="number" class="form-control text-center fw-bold" id="copies" name="copies" value="1" min="1" max="99">
-              <button class="btn btn-outline-secondary btn-sm" type="button" id="incCopies">+</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 6. Customer Message / Instructions -->
+      <!-- 4. Customer Message / Instructions -->
       <div class="mb-4">
         <label for="customerMessage" class="form-label fw-bold small text-muted text-uppercase mb-1">
-          6. Print Instructions / Notes (විශේෂ උපදෙස්)
+          4. Print Instructions / Notes (විශේෂ උපදෙස් - Optional)
         </label>
         <div class="input-group">
           <textarea class="form-control" id="customerMessage" name="customerMessage" rows="2" 
-                    placeholder="Eg: Color copy 2යි, staple කරන්න, page 1 ඉඳලා 5 වෙනකන් විතරක් print කරන්න..."></textarea>
+                    placeholder="Eg: Staple කරන්න, page 1 ඉඳලා 5 වෙනකන් විතරක් print කරන්න..."></textarea>
         </div>
       </div>
 
@@ -499,117 +420,6 @@
       .replace(/"/g, '&quot;');
   }
 
-  function getGlobalPaperSize() {
-    const checked = document.querySelector('input[name="paperSize"]:checked');
-    if (!checked) return 'A4';
-    if (checked.value === 'Other') {
-      const customVal = document.getElementById('customPaperSizeInput')?.value.trim();
-      return customVal || 'Other';
-    }
-    return checked.value;
-  }
-
-  function getGlobalColorMode() {
-    const checked = document.querySelector('input[name="colorMode"]:checked');
-    return checked ? checked.value : 'BW';
-  }
-
-  function getGlobalCopies() {
-    const input = document.getElementById('copies');
-    return parseInt(input?.value, 10) || 1;
-  }
-
-  function updateMultiFilesNotice() {
-    const notice = document.getElementById('multiFilesNotice');
-    const optionsNotice = document.getElementById('multiOptionsNotice');
-    if (selectedFiles.length > 1) {
-      if (notice) notice.classList.remove('d-none');
-      if (optionsNotice) optionsNotice.classList.remove('d-none');
-    } else {
-      if (notice) notice.classList.add('d-none');
-      if (optionsNotice) optionsNotice.classList.add('d-none');
-    }
-  }
-
-  function handleGlobalPaperSizeChange() {
-    const globalSize = getGlobalPaperSize();
-    // Update any file that hasn't been manually customized by the customer
-    selectedFiles.forEach(file => {
-      if (!file.hasCustomPaperSize) {
-        file.selectedPaperSize = globalSize;
-      }
-    });
-    renderFileList();
-  }
-
-  function handleGlobalColorModeChange() {
-    const globalMode = getGlobalColorMode();
-    selectedFiles.forEach(file => {
-      if (!file.hasCustomColorMode) {
-        file.selectedColorMode = globalMode;
-      }
-    });
-    renderFileList();
-  }
-
-  function handleGlobalCopiesChange() {
-    const globalCopies = getGlobalCopies();
-    selectedFiles.forEach(file => {
-      if (!file.hasCustomCopies) {
-        file.selectedCopies = globalCopies;
-      }
-    });
-    renderFileList();
-  }
-
-  // Paper size toggle custom input & sync default
-  document.querySelectorAll('input[name="paperSize"]').forEach(radio => {
-    radio.addEventListener('change', (e) => {
-      const customContainer = document.getElementById('customPaperSizeContainer');
-      const customInput = document.getElementById('customPaperSizeInput');
-      if (e.target.value === 'Other') {
-        customContainer.classList.remove('d-none');
-        customInput.focus();
-      } else {
-        customContainer.classList.add('d-none');
-      }
-      handleGlobalPaperSizeChange();
-    });
-  });
-
-  const customPaperSizeInput = document.getElementById('customPaperSizeInput');
-  if (customPaperSizeInput) {
-    customPaperSizeInput.addEventListener('input', () => {
-      handleGlobalPaperSizeChange();
-    });
-  }
-
-  // Color mode & Copies sync defaults
-  document.querySelectorAll('input[name="colorMode"]').forEach(radio => {
-    radio.addEventListener('change', () => {
-      handleGlobalColorModeChange();
-    });
-  });
-
-  const copiesInput = document.getElementById('copies');
-  if (copiesInput) {
-    copiesInput.addEventListener('input', () => {
-      handleGlobalCopiesChange();
-    });
-  }
-  document.getElementById('incCopies').addEventListener('click', () => {
-    if (copiesInput) {
-      copiesInput.value = parseInt(copiesInput.value, 10) + 1;
-      handleGlobalCopiesChange();
-    }
-  });
-  document.getElementById('decCopies').addEventListener('click', () => {
-    if (copiesInput && parseInt(copiesInput.value, 10) > 1) {
-      copiesInput.value = parseInt(copiesInput.value, 10) - 1;
-      handleGlobalCopiesChange();
-    }
-  });
-
   // Dropzone click & drag handlers
   dropzoneBox.addEventListener('click', () => fileInput.click());
   browseBtn.addEventListener('click', (e) => {
@@ -641,23 +451,16 @@
   });
 
   function handleFilesAdded(files) {
-    const defaultSize = getGlobalPaperSize();
-    const defaultColor = getGlobalColorMode();
-    const defaultCopies = getGlobalCopies();
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
       if (!selectedFiles.some(existing => existing.name === f.name && existing.size === f.size)) {
-        f.selectedPaperSize = defaultSize;
-        f.hasCustomPaperSize = false;
-        f.selectedColorMode = defaultColor;
-        f.hasCustomColorMode = false;
-        f.selectedCopies = defaultCopies;
-        f.hasCustomCopies = false;
+        f.selectedPaperSize = 'A4';
+        f.selectedColorMode = 'BW';
+        f.selectedCopies = 1;
         selectedFiles.push(f);
       }
     }
     renderFileList();
-    updateMultiFilesNotice();
   }
 
   function formatBytes(bytes) {
@@ -671,7 +474,6 @@
   function renderFileList() {
     fileList.innerHTML = '';
     if (selectedFiles.length === 0) {
-      updateMultiFilesNotice();
       return;
     }
 
@@ -689,9 +491,9 @@
         thumbHtml = `<div class="file-preview-thumb"><i class="bi ${icon}"></i></div>`;
       }
 
-      const curSize = file.selectedPaperSize || getGlobalPaperSize() || 'A4';
-      const curColor = file.selectedColorMode || getGlobalColorMode() || 'BW';
-      const curCopies = parseInt(file.selectedCopies, 10) || getGlobalCopies() || 1;
+      const curSize = file.selectedPaperSize || 'A4';
+      const curColor = file.selectedColorMode || 'BW';
+      const curCopies = parseInt(file.selectedCopies, 10) || 1;
       const standardSizes = ['A4', 'A3', 'Legal', 'A5'];
       const isCustom = !standardSizes.includes(curSize);
 
@@ -748,7 +550,6 @@
         const idx = parseInt(btn.getAttribute('data-index'), 10);
         selectedFiles.splice(idx, 1);
         renderFileList();
-        updateMultiFilesNotice();
       });
     });
 
@@ -819,8 +620,6 @@
         }
       });
     });
-
-    updateMultiFilesNotice();
   }
 
   // Real-time phone input validation & error visibility with auto-normalization
@@ -1097,32 +896,29 @@
         if (f.type && f.type.startsWith('image/') && f.size > 3 * 1024 * 1024) {
           uploadStatusText.textContent = `Photo ${i + 1} Print Quality එකට Optimize කරනවා...`;
           const optimized = await optimizeImageIfLarge(f);
-          optimized.selectedPaperSize = f.selectedPaperSize || getGlobalPaperSize() || 'A4';
-          optimized.selectedColorMode = f.selectedColorMode || getGlobalColorMode() || 'BW';
-          optimized.selectedCopies = f.selectedCopies || getGlobalCopies() || 1;
+          optimized.selectedPaperSize = f.selectedPaperSize || 'A4';
+          optimized.selectedColorMode = f.selectedColorMode || 'BW';
+          optimized.selectedCopies = parseInt(f.selectedCopies, 10) || 1;
           processedFiles.push(optimized);
         } else {
-          f.selectedPaperSize = f.selectedPaperSize || getGlobalPaperSize() || 'A4';
-          f.selectedColorMode = f.selectedColorMode || getGlobalColorMode() || 'BW';
-          f.selectedCopies = f.selectedCopies || getGlobalCopies() || 1;
+          f.selectedPaperSize = f.selectedPaperSize || 'A4';
+          f.selectedColorMode = f.selectedColorMode || 'BW';
+          f.selectedCopies = parseInt(f.selectedCopies, 10) || 1;
           processedFiles.push(f);
         }
       }
 
-      const colorModeChecked = document.querySelector('input[name="colorMode"]:checked');
-      const colorMode = colorModeChecked ? colorModeChecked.value : 'BW';
-      const copies = document.getElementById('copies').value || '1';
+      const filePaperSizes = processedFiles.map(f => f.selectedPaperSize || 'A4');
+      const fileColorModes = processedFiles.map(f => f.selectedColorMode || 'BW');
+      const fileCopies = processedFiles.map(f => parseInt(f.selectedCopies, 10) || 1);
 
-      let selectedPaperSize = 'A4';
-      const paperSizeChecked = document.querySelector('input[name="paperSize"]:checked');
-      if (paperSizeChecked) {
-        if (paperSizeChecked.value === 'Other') {
-          const customVal = document.getElementById('customPaperSizeInput').value.trim();
-          selectedPaperSize = customVal || 'Other';
-        } else {
-          selectedPaperSize = paperSizeChecked.value;
-        }
-      }
+      const uniqueSizes = [...new Set(filePaperSizes.filter(Boolean))];
+      const selectedPaperSize = uniqueSizes.length > 1 ? `Mixed (${uniqueSizes.join(', ')})` : (uniqueSizes[0] || 'A4');
+
+      const uniqueModes = [...new Set(fileColorModes.filter(Boolean))];
+      const colorMode = uniqueModes.length > 1 ? 'MIXED' : (uniqueModes[0] || 'BW');
+
+      const copies = String(fileCopies.reduce((sum, c) => sum + c, 0) || 1);
 
       // Check if total upload is large (> 3.5 MB, which exceeds Vercel 4.5MB payload limit)
       const totalSize = processedFiles.reduce((acc, f) => acc + f.size, 0);
@@ -1145,10 +941,6 @@
           });
           driveFiles.push(uploadedMeta);
         }
-
-        const filePaperSizes = processedFiles.map(f => f.selectedPaperSize || selectedPaperSize || 'A4');
-        const fileColorModes = processedFiles.map(f => f.selectedColorMode || colorMode || 'BW');
-        const fileCopies = processedFiles.map(f => parseInt(f.selectedCopies, 10) || parseInt(copies, 10) || 1);
 
         uploadStatusText.textContent = 'Order එක Counter එකට Save කරනවා...';
         const completeRes = await fetch('/api/quick-print/complete-direct-upload', {
@@ -1188,9 +980,6 @@
 
       // Standard upload for small files under 3.5 MB
       uploadStatusText.textContent = 'Files Counter එකට Send වෙනවා...';
-      const filePaperSizes = processedFiles.map(f => f.selectedPaperSize || selectedPaperSize || 'A4');
-      const fileColorModes = processedFiles.map(f => f.selectedColorMode || colorMode || 'BW');
-      const fileCopies = processedFiles.map(f => parseInt(f.selectedCopies, 10) || parseInt(copies, 10) || 1);
 
       const formData = new FormData();
       formData.append('customerName', name);
