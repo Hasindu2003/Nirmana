@@ -7,6 +7,8 @@ const StockTransaction = require('./StockTransaction');
 const QuickPrintJob = require('./QuickPrintJob');
 const QuickPrintFile = require('./QuickPrintFile');
 const AuditLog = require('./AuditLog');
+const PosSale = require('./PosSale');
+const PosSaleItem = require('./PosSaleItem');
 
 // Customer <-> Orders
 Customer.hasMany(Order, { foreignKey: 'customerId', as: 'orders' });
@@ -28,6 +30,21 @@ QuickPrintJob.belongsTo(Customer, { foreignKey: 'customerId', as: 'customer' });
 Order.hasOne(QuickPrintJob, { foreignKey: 'orderId', as: 'quickPrintJob' });
 QuickPrintJob.belongsTo(Order, { foreignKey: 'orderId', as: 'order' });
 
+// PosSale <-> PosSaleItem
+PosSale.hasMany(PosSaleItem, { foreignKey: 'saleId', as: 'items', onDelete: 'CASCADE' });
+PosSaleItem.belongsTo(PosSale, { foreignKey: 'saleId', as: 'sale' });
+
+// PosSaleItem <-> StockItem
+StockItem.hasMany(PosSaleItem, { foreignKey: 'stockItemId', as: 'posSaleItems' });
+PosSaleItem.belongsTo(StockItem, { foreignKey: 'stockItemId', as: 'stockItem' });
+
+// PosSale <-> Customer & User
+Customer.hasMany(PosSale, { foreignKey: 'customerId', as: 'posSales' });
+PosSale.belongsTo(Customer, { foreignKey: 'customerId', as: 'customer' });
+
+User.hasMany(PosSale, { foreignKey: 'cashierId', as: 'posSales' });
+PosSale.belongsTo(User, { foreignKey: 'cashierId', as: 'cashier' });
+
 module.exports = {
   sequelize,
   User,
@@ -38,5 +55,7 @@ module.exports = {
   QuickPrintJob,
   QuickPrintFile,
   AuditLog,
+  PosSale,
+  PosSaleItem,
 };
 

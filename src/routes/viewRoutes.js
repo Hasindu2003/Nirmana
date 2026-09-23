@@ -8,6 +8,7 @@ const orderService = require('../services/orderService');
 const stockService = require('../services/stockService');
 const customerService = require('../services/customerService');
 const quickPrintService = require('../services/quickPrintService');
+const posService = require('../services/posService');
 const googleDriveService = require('../services/googleDriveService');
 const jwt = require('jsonwebtoken');
 const config = require('../config/config');
@@ -386,6 +387,42 @@ router.get('/quick-print', async (req, res, next) => {
       search,
       defaultUploadUrl,
       availableIps,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 8. Point of Sale (POS) Counter Checkout & Sales Ledger
+router.get('/pos', async (req, res, next) => {
+  try {
+    const { search, dateFrom, dateTo, paymentMethod, page } = req.query;
+
+    const [stockItems, todayStats, salesResult] = await Promise.all([
+      stockService.getAllStockItems(),
+      posService.getDailyStats(),
+      posService.getAllSales({
+        search: search || '',
+        dateFrom: dateFrom || '',
+        dateTo: dateTo || '',
+        paymentMethod: paymentMethod || 'ALL',
+        page: parseInt(page, 10) || 1,
+        limit: 15,
+        paginate: true,
+      }),
+    ]);
+
+    res.render('pos/index', {
+      title: 'Point of Sale (POS) · Nirmana Printing',
+      activePage: 'pos',
+      stockItems,
+      todayStats,
+      sales: salesResult.sales,
+      pagination: salesResult.pagination,
+      search: search || '',
+      dateFrom: dateFrom || '',
+      dateTo: dateTo || '',
+      paymentMethod: paymentMethod || 'ALL',
     });
   } catch (err) {
     next(err);

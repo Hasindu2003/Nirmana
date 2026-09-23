@@ -8,6 +8,7 @@ const stockController = require('../controllers/stockController');
 const customerController = require('../controllers/customerController');
 const dashboardController = require('../controllers/dashboardController');
 const quickPrintController = require('../controllers/quickPrintController');
+const posController = require('../controllers/posController');
 const { uploadQuickPrint } = require('../middleware/upload');
 const { authenticate } = require('../middleware/auth');
 const { requireRole } = require('../middleware/rbac');
@@ -63,6 +64,13 @@ router.post('/quick-print/jobs/:id/convert', authenticate, quickPrintController.
 router.get('/quick-print/stats', authenticate, quickPrintController.getStats);
 router.get('/quick-print/files/:fileId/view', authenticate, quickPrintController.viewFile);
 router.get('/quick-print/files/:fileId/download', authenticate, quickPrintController.downloadFile);
+
+// Point of Sale (POS) Counter Operations
+router.get('/pos/sales', authenticate, posController.listSales);
+router.post('/pos/sales', authenticate, posController.createSale);
+router.get('/pos/sales/:id', authenticate, posController.getSale);
+router.post('/pos/sales/:id/void', authenticate, posController.voidSale);
+router.get('/pos/stats', authenticate, posController.getStats);
 
 // =========================================================================
 // 3. ADMIN-ONLY USER & ROLE ADMINISTRATION (Shop Employees)
