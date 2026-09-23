@@ -151,50 +151,40 @@
         <div class="card border-0 shadow-sm rounded-3">
           <div class="card-body p-3 p-md-4">
             <div class="row g-4">
-              <!-- Left Side: Customer & Payment Details -->
+              <!-- Left Side: Payment Details -->
               <div class="col-12 col-lg-6 border-end-lg">
                 <h6 class="fw-bold small text-uppercase text-secondary mb-3 d-flex align-items-center gap-2">
-                  <i class="bi bi-person-check"></i> Customer & Payment Details
+                  <i class="bi bi-wallet2 text-primary"></i> Payment Details
                 </h6>
 
-                <div class="row g-2 mb-3">
-                  <div class="col-12 col-sm-7">
-                    <label class="form-label small text-muted mb-1">Customer Name</label>
-                    <input type="text" id="saleCustomerName" class="form-control form-control-sm" placeholder="Walk-in Customer" value="Walk-in Customer">
-                  </div>
-                  <div class="col-12 col-sm-5">
-                    <label class="form-label small text-muted mb-1">Phone Number (Optional)</label>
-                    <input type="text" id="saleCustomerPhone" class="form-control form-control-sm" placeholder="e.g. 0771234567">
-                  </div>
+                <div class="mb-3">
+                  <label class="form-label small text-muted mb-1 fw-semibold">Payment Method</label>
+                  <select id="salePaymentMethod" class="form-select form-select-sm" onchange="onPaymentMethodChange()">
+                    <option value="CASH" selected>Cash</option>
+                    <option value="CARD">Credit / Debit Card</option>
+                    <option value="BANK_TRANSFER">Bank Transfer</option>
+                    <option value="OTHER">Other / QR</option>
+                  </select>
                 </div>
 
-                <div class="row g-2 mb-3">
-                  <div class="col-12 col-sm-6">
-                    <label class="form-label small text-muted mb-1">Payment Method</label>
-                    <select id="salePaymentMethod" class="form-select form-select-sm" onchange="onPaymentMethodChange()">
-                      <option value="CASH" selected>Cash</option>
-                      <option value="CARD">Credit / Debit Card</option>
-                      <option value="BANK_TRANSFER">Bank Transfer</option>
-                      <option value="OTHER">Other / QR</option>
-                    </select>
+                <div class="mb-3" id="cashTenderedGroup">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <label class="form-label small text-muted mb-0 fw-semibold">Amount Received</label>
+                    <button type="button" class="btn btn-xs btn-link p-0 text-decoration-none small fw-semibold" onclick="setExactCash()">Exact Amount</button>
                   </div>
-
-                  <div class="col-12 col-sm-6" id="cashTenderedGroup">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                      <label class="form-label small text-muted mb-0">Amount Received</label>
-                      <button type="button" class="btn btn-xs btn-link p-0 text-decoration-none small" onclick="setExactCash()">Exact</button>
-                    </div>
-                    <div class="input-group input-group-sm">
-                      <span class="input-group-text bg-light"><%= currencySymbol %></span>
-                      <input type="number" id="amountTenderedInput" class="form-control form-control-sm tabular-nums text-end fw-bold" placeholder="0.00" oninput="calculateChange()">
-                    </div>
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light"><%= currencySymbol %></span>
+                    <input type="number" id="amountTenderedInput" class="form-control form-control-sm tabular-nums text-end fw-bold fs-6" placeholder="0.00" min="0" step="any" oninput="calculateChange()">
                   </div>
                 </div>
 
                 <!-- Change Due Box (Visible for Cash) -->
-                <div id="changeDueBox" class="p-2-5 rounded-2 d-flex justify-content-between align-items-center" style="background: #f8fafc; border: 1px dashed #cbd5e1;">
-                  <span class="small text-muted fw-semibold">Change Due:</span>
-                  <span class="fs-6 fw-bold tabular-nums text-success" id="changeDueText"><%= currencySymbol %> 0.00</span>
+                <div id="changeDueBox" class="p-3 rounded-3 d-flex justify-content-between align-items-center" style="background: #f8fafc; border: 1px dashed #cbd5e1;">
+                  <div>
+                    <span class="small text-muted fw-bold d-block">Change Due</span>
+                    <small class="text-muted" style="font-size: 0.72rem;">Customer return balance</small>
+                  </div>
+                  <span class="fs-4 fw-bold tabular-nums text-muted" id="changeDueText"><%= currencySymbol %> 0.00</span>
                 </div>
               </div>
 
@@ -309,7 +299,7 @@
               <div class="col-12 col-md-4">
                 <div class="input-group input-group-sm">
                   <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
-                  <input type="text" name="search" class="form-control form-control-sm" placeholder="Search receipt #, customer..." value="<%= search %>">
+                  <input type="text" name="search" class="form-control form-control-sm" placeholder="Search receipt #..." value="<%= search %>">
                 </div>
               </div>
               <div class="col-6 col-md-2">
@@ -342,7 +332,6 @@
                 <tr>
                   <th class="ps-3">Receipt #</th>
                   <th>Date & Time</th>
-                  <th>Customer</th>
                   <th>Items</th>
                   <th>Payment</th>
                   <th class="text-end">Total Amount</th>
@@ -360,12 +349,6 @@
                       <td>
                         <div><%= formatDate(sale.createdAt) %></div>
                         <small class="text-muted" style="font-size: 0.72rem;"><%= formatTime(sale.createdAt) %></small>
-                      </td>
-                      <td>
-                        <div class="fw-semibold"><%= sale.customerName %></div>
-                        <% if (sale.customerPhone) { %>
-                          <small class="text-muted"><%= sale.customerPhone %></small>
-                        <% } %>
                       </td>
                       <td>
                         <span class="badge bg-light text-dark border">
@@ -412,7 +395,7 @@
                   <% }); %>
                 <% } else { %>
                   <tr>
-                    <td colspan="8" class="text-center text-muted py-5">
+                    <td colspan="7" class="text-center text-muted py-5">
                       <i class="bi bi-journal-x fs-1 opacity-25 d-block mb-1"></i>
                       <span>No sales recorded yet.</span>
                     </td>
@@ -476,10 +459,6 @@
           <div class="d-flex justify-content-between" style="font-size: 12px;">
             <span>Cashier:</span>
             <span id="rcptCashier"><%= currentUser ? (currentUser.fullName || currentUser.username) : 'Staff' %></span>
-          </div>
-          <div class="d-flex justify-content-between" style="font-size: 12px;">
-            <span>Customer:</span>
-            <span id="rcptCustomer">Walk-in</span>
           </div>
 
           <div style="border-top: 1px dashed #000; margin: 8px 0;"></div>
@@ -585,6 +564,8 @@
   const rawStockItems = JSON.parse(document.getElementById('rawStockItemsJson').textContent || '[]');
   let cart = []; // Array of { id, stockItemId, itemCode, name, unitPrice, quantity, lineTotal, unit }
   let lastCompletedSale = null;
+  let currentSubtotal = 0;
+  let currentNetTotal = 0;
 
   document.addEventListener('DOMContentLoaded', () => {
     // Check if URL has tab=records
@@ -807,23 +788,23 @@
 
   // Calculate Subtotal, Discounts, Net Total
   function calculateTotals() {
-    const subtotal = cart.reduce((sum, item) => sum + item.lineTotal, 0);
+    currentSubtotal = cart.reduce((sum, item) => sum + item.lineTotal, 0);
     const discountVal = Math.max(0, parseFloat(document.getElementById('billDiscountInput').value) || 0);
     const isPercent = document.getElementById('discountPercent').checked;
 
     let discountAmount = 0;
     if (isPercent) {
-      discountAmount = (subtotal * discountVal) / 100;
+      discountAmount = (currentSubtotal * discountVal) / 100;
     } else {
       discountAmount = discountVal;
     }
 
-    if (discountAmount > subtotal) discountAmount = subtotal;
+    if (discountAmount > currentSubtotal) discountAmount = currentSubtotal;
 
-    const netTotal = Math.max(0, subtotal - discountAmount);
+    currentNetTotal = Math.max(0, currentSubtotal - discountAmount);
 
-    document.getElementById('billSubtotal').textContent = '<%= currencySymbol %> ' + subtotal.toFixed(2);
-    document.getElementById('billGrandTotal').textContent = '<%= currencySymbol %> ' + netTotal.toFixed(2);
+    document.getElementById('billSubtotal').textContent = '<%= currencySymbol %> ' + currentSubtotal.toFixed(2);
+    document.getElementById('billGrandTotal').textContent = '<%= currencySymbol %> ' + currentNetTotal.toFixed(2);
 
     calculateChange();
   }
@@ -845,36 +826,40 @@
   }
 
   function setExactCash() {
-    const netTotal = getNetTotalNumber();
-    document.getElementById('amountTenderedInput').value = netTotal.toFixed(2);
+    document.getElementById('amountTenderedInput').value = currentNetTotal.toFixed(2);
     calculateChange();
   }
 
   function getNetTotalNumber() {
-    const totalText = document.getElementById('billGrandTotal').textContent || '0';
-    return parseFloat(totalText.replace(/[^0-9.]/g, '')) || 0;
+    return currentNetTotal;
   }
 
   function calculateChange() {
     const method = document.getElementById('salePaymentMethod').value;
-    if (method !== 'CASH') return;
-
-    const netTotal = getNetTotalNumber();
-    const tenderedVal = document.getElementById('amountTenderedInput').value;
     const changeText = document.getElementById('changeDueText');
+    if (!changeText) return;
+
+    if (method !== 'CASH') {
+      changeText.textContent = '<%= currencySymbol %> 0.00';
+      changeText.className = 'fs-4 fw-bold tabular-nums text-muted';
+      return;
+    }
+
+    const netTotal = currentNetTotal;
+    const tenderedVal = document.getElementById('amountTenderedInput').value;
 
     const tendered = parseFloat(tenderedVal) || 0;
     const change = tendered - netTotal;
 
     if (tenderedVal === '' || tendered === 0) {
       changeText.textContent = '<%= currencySymbol %> 0.00';
-      changeText.className = 'fs-6 fw-bold tabular-nums text-muted';
+      changeText.className = 'fs-4 fw-bold tabular-nums text-muted';
     } else if (change >= 0) {
       changeText.textContent = '<%= currencySymbol %> ' + change.toFixed(2);
-      changeText.className = 'fs-6 fw-bold tabular-nums text-success';
+      changeText.className = 'fs-4 fw-bold tabular-nums text-success';
     } else {
       changeText.textContent = 'Due: <%= currencySymbol %> ' + Math.abs(change).toFixed(2);
-      changeText.className = 'fs-6 fw-bold tabular-nums text-danger';
+      changeText.className = 'fs-4 fw-bold tabular-nums text-danger';
     }
   }
 
@@ -909,8 +894,8 @@
     }
 
     const payload = {
-      customerName: document.getElementById('saleCustomerName').value.trim() || 'Walk-in Customer',
-      customerPhone: document.getElementById('saleCustomerPhone').value.trim() || null,
+      customerName: 'Walk-in Customer',
+      customerPhone: null,
       paymentMethod: method,
       discount: parseFloat(document.getElementById('billDiscountInput').value) || 0,
       discountType: document.querySelector('input[name="discountType"]:checked').value,
@@ -942,8 +927,6 @@
       cart = [];
       document.getElementById('billDiscountInput').value = '0';
       document.getElementById('amountTenderedInput').value = '';
-      document.getElementById('saleCustomerName').value = 'Walk-in Customer';
-      document.getElementById('saleCustomerPhone').value = '';
       renderCartTable();
 
       // Show Success Toast / Alert
@@ -996,7 +979,6 @@
       hour: '2-digit', minute: '2-digit'
     });
     document.getElementById('rcptCashier').textContent = sale.cashier ? (sale.cashier.fullName || sale.cashier.username) : 'Staff';
-    document.getElementById('rcptCustomer').textContent = sale.customerName + (sale.customerPhone ? ` (${sale.customerPhone})` : '');
 
     const itemsTbody = document.getElementById('rcptItemsBody');
     let rowsHtml = '';
