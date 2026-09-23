@@ -57,14 +57,14 @@
                 <label class="form-label small text-muted mb-1 fw-semibold">Item Code</label>
                 <div class="input-group input-group-sm">
                   <span class="input-group-text bg-light"><i class="bi bi-upc-scan"></i></span>
-                  <input type="text" id="itemCodeInput" class="form-control form-control-sm font-monospace" placeholder="e.g. STK-0001" autocomplete="off" oninput="onItemCodeInput(this.value)">
+                  <input type="text" id="itemCodeInput" class="form-control form-control-sm font-monospace" placeholder="e.g. STK-0001" autocomplete="off" oninput="onItemCodeInput(this.value)" onkeydown="handleItemCodeKeydown(event)">
                 </div>
               </div>
 
               <!-- Select Item Dropdown -->
               <div class="col-12 col-sm-6 col-md-3">
                 <label class="form-label small text-muted mb-1 fw-semibold">Select Item from List</label>
-                <select id="itemSelectDropdown" class="form-select form-select-sm" onchange="onItemDropdownSelect(this.value)">
+                <select id="itemSelectDropdown" class="form-select form-select-sm" onchange="onItemDropdownSelect(this.value)" onkeydown="handleItemSelectKeydown(event)">
                   <option value="">-- Choose item from inventory --</option>
                   <% if (stockItems && stockItems.length > 0) { %>
                     <% stockItems.forEach(item => { %>
@@ -85,19 +85,19 @@
               <!-- Item Description -->
               <div class="col-12 col-sm-6 col-md-3">
                 <label class="form-label small text-muted mb-1 fw-semibold">Item / Service Description</label>
-                <input type="text" id="itemNameInput" class="form-control form-control-sm" placeholder="Item name or custom service..." required autocomplete="off">
+                <input type="text" id="itemNameInput" class="form-control form-control-sm" placeholder="Item name or custom service..." required autocomplete="off" onkeydown="handleItemNameKeydown(event)">
               </div>
 
               <!-- Unit Price -->
               <div class="col-6 col-sm-3 col-md-2">
                 <label class="form-label small text-muted mb-1 fw-semibold">Unit Price (<%= currencySymbol %>)</label>
-                <input type="number" id="itemPriceInput" class="form-control form-control-sm tabular-nums text-end" min="0" step="any" placeholder="0.00" required>
+                <input type="number" id="itemPriceInput" class="form-control form-control-sm tabular-nums text-end" min="0" step="any" placeholder="0.00" required onkeydown="handleItemPriceKeydown(event)">
               </div>
 
               <!-- Quantity -->
               <div class="col-6 col-sm-3 col-md-1">
                 <label class="form-label small text-muted mb-1 fw-semibold">Quantity</label>
-                <input type="number" id="itemQtyInput" class="form-control form-control-sm tabular-nums text-center" value="1" min="0.01" step="any" required>
+                <input type="number" id="itemQtyInput" class="form-control form-control-sm tabular-nums text-center" value="1" min="0.01" step="any" required onkeydown="handleItemQtyKeydown(event)">
               </div>
 
               <!-- Add Button -->
@@ -174,7 +174,7 @@
                   </div>
                   <div class="input-group input-group-sm">
                     <span class="input-group-text bg-light"><%= currencySymbol %></span>
-                    <input type="number" id="amountTenderedInput" class="form-control form-control-sm tabular-nums text-end fw-bold fs-6" placeholder="0.00" min="0" step="any" oninput="calculateChange()">
+                    <input type="number" id="amountTenderedInput" class="form-control form-control-sm tabular-nums text-end fw-bold fs-6" placeholder="0.00" min="0" step="any" oninput="calculateChange()" onkeydown="handleAmountTenderedKeydown(event)">
                   </div>
                 </div>
 
@@ -566,6 +566,8 @@
   let lastCompletedSale = null;
   let currentSubtotal = 0;
   let currentNetTotal = 0;
+  let lastItemAddedTime = 0;
+  let lastQtyEnterTime = 0;
 
   document.addEventListener('DOMContentLoaded', () => {
     // Check if URL has tab=records
@@ -582,6 +584,120 @@
     if (codeInput) codeInput.focus();
   });
 
+  // Jump to Unit Price section and select text
+  function goToUnitPrice() {
+    const priceInput = document.getElementById('itemPriceInput');
+    if (priceInput) {
+      priceInput.focus();
+      priceInput.select();
+    }
+  }
+
+  // Jump to Quantity section and select text
+  function goToQuantity() {
+    const qtyInput = document.getElementById('itemQtyInput');
+    if (qtyInput) {
+      qtyInput.focus();
+      qtyInput.select();
+    }
+  }
+
+  // Jump to Amount Received section and select text
+  function goToAmountReceived() {
+    const method = document.getElementById('salePaymentMethod').value;
+    const tenderedInput = document.getElementById('amountTenderedInput');
+    if (tenderedInput && method === 'CASH') {
+      if (!tenderedInput.value || parseFloat(tenderedInput.value) === 0) {
+        tenderedInput.value = currentNetTotal.toFixed(2);
+      }
+      calculateChange();
+      tenderedInput.focus();
+      tenderedInput.select();
+    } else {
+      const printBtn = document.getElementById('saveAndPrintBtn');
+      if (printBtn) printBtn.focus();
+    }
+  }
+
+  // Keydown on Item Code input
+  function handleItemCodeKeydown(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const now = Date.now();
+      const val = document.getElementById('itemCodeInput').value.trim();
+
+      // If user hit Enter twice in a row in short time right after adding an item, OR if input is empty and cart has items:
+      if ((now - lastItemAddedTime < 650 || val === '') && cart.length > 0) {
+        goToAmountReceived();
+        return;
+      }
+
+      // If an item code was entered, try to resolve it
+      if (val) {
+        const matched = rawStockItems.find(i => (i.code || '').toUpperCase() === val.toUpperCase());
+        if (matched) {
+          document.getElementById('itemSelectDropdown').value = matched.id;
+          document.getElementById('itemNameInput').value = matched.name;
+          document.getElementById('itemPriceInput').value = parseFloat(matched.sellingPrice || 0);
+        }
+      }
+
+      // Move to Unit Price section
+      goToUnitPrice();
+    }
+  }
+
+  // Keydown on Item Select Dropdown
+  function handleItemSelectKeydown(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      goToUnitPrice();
+    }
+  }
+
+  // Keydown on Item Description
+  function handleItemNameKeydown(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      goToUnitPrice();
+    }
+  }
+
+  // Keydown on Unit Price
+  function handleItemPriceKeydown(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      goToQuantity();
+    }
+  }
+
+  // Keydown on Quantity
+  function handleItemQtyKeydown(e) {
+    if (e.key === 'Enter') {
+      const now = Date.now();
+      // If hit enter twice in a row in short time (< 500ms) with items in cart:
+      if (now - lastQtyEnterTime < 500 && cart.length > 0) {
+        e.preventDefault();
+        goToAmountReceived();
+        return;
+      }
+      lastQtyEnterTime = now;
+      // Normal single enter submits the form (calls handleAddItemSubmit)
+    }
+  }
+
+  // Keydown on Amount Received (Cash Tendered)
+  function handleAmountTenderedKeydown(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      // When hit enter in amount received section -> Print receipt!
+      processSale(true);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      document.getElementById('itemCodeInput').focus();
+    }
+  }
+
   // When staff types an Item Code
   function onItemCodeInput(val) {
     const code = val.trim().toUpperCase();
@@ -592,7 +708,6 @@
       document.getElementById('itemSelectDropdown').value = matched.id;
       document.getElementById('itemNameInput').value = matched.name;
       document.getElementById('itemPriceInput').value = parseFloat(matched.sellingPrice || 0);
-      document.getElementById('itemQtyInput').focus();
     }
   }
 
@@ -618,7 +733,7 @@
       document.getElementById('itemCodeInput').value = matched.code || '';
       document.getElementById('itemNameInput').value = matched.name || '';
       document.getElementById('itemPriceInput').value = parseFloat(matched.sellingPrice || 0);
-      document.getElementById('itemQtyInput').focus();
+      goToUnitPrice();
     }
   }
 
@@ -680,6 +795,8 @@
     document.getElementById('itemNameInput').value = '';
     document.getElementById('itemPriceInput').value = '';
     document.getElementById('itemQtyInput').value = '1';
+
+    lastItemAddedTime = Date.now();
     document.getElementById('itemCodeInput').focus();
 
     renderCartTable();
