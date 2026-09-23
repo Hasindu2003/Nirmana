@@ -358,8 +358,8 @@
                         <%= sale.receiptNumber %>
                       </td>
                       <td>
-                        <div><%= formatSriLankaDate(sale.createdAt) %></div>
-                        <small class="text-muted" style="font-size: 0.72rem;"><%= formatSriLankaTime(sale.createdAt) %></small>
+                        <div><%= formatDate(sale.createdAt) %></div>
+                        <small class="text-muted" style="font-size: 0.72rem;"><%= formatTime(sale.createdAt) %></small>
                       </td>
                       <td>
                         <div class="fw-semibold"><%= sale.customerName %></div>

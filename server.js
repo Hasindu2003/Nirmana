@@ -97,6 +97,9 @@ app.use(async (req, res, next) => {
   res.locals.formatDate = formatSriLankaDate;
   res.locals.formatDateTime = formatSriLankaDateTime;
   res.locals.formatTime = formatSriLankaTime;
+  res.locals.formatSriLankaDate = formatSriLankaDate;
+  res.locals.formatSriLankaDateTime = formatSriLankaDateTime;
+  res.locals.formatSriLankaTime = formatSriLankaTime;
   res.locals.todayDate = getSriLankaTodayString;
 
   try {
