@@ -167,35 +167,50 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/js/app.js"></script>
 <script>
-// Populate Stock Dropdowns for modals (Lazy-loaded on modal show)
+// Populate Stock Dropdowns for modals (Lazy-loaded or pre-loaded)
 let globalStockItems = null;
 
-async function loadStockDropdowns() {
+async function loadStockDropdowns(preselectInId = null, preselectOutId = null) {
   const inSelect = document.getElementById('stockInSelect');
   const outSelect = document.getElementById('stockOutSelect');
-  if (!inSelect && !outSelect) return;
+  if (!inSelect && !outSelect) return [];
+
+  // Use preloaded items if available on the page
+  if (!globalStockItems && window._preloadedStockItems && Array.isArray(window._preloadedStockItems) && window._preloadedStockItems.length > 0) {
+    globalStockItems = window._preloadedStockItems;
+  }
 
   if (globalStockItems && globalStockItems.length > 0) {
-    populateStockDropdowns(globalStockItems);
-    return;
+    populateStockDropdowns(globalStockItems, preselectInId, preselectOutId);
+    return globalStockItems;
   }
 
   try {
     const res = await fetch('/api/stock');
     const data = await res.json();
-    if (data.success) {
+    if (data.success && Array.isArray(data.data)) {
       globalStockItems = data.data;
-      populateStockDropdowns(globalStockItems);
+      populateStockDropdowns(globalStockItems, preselectInId, preselectOutId);
+      return globalStockItems;
     }
   } catch (err) {
     console.error('Error loading stock options:', err);
   }
+  return [];
 }
 
-function populateStockDropdowns(items) {
+function populateStockDropdowns(items, preselectInId = null, preselectOutId = null) {
   const inSelect = document.getElementById('stockInSelect');
   const outSelect = document.getElementById('stockOutSelect');
   if (!inSelect && !outSelect) return;
+
+  const targetInVal = (preselectInId !== null && preselectInId !== undefined && String(preselectInId) !== '')
+    ? String(preselectInId)
+    : (inSelect.dataset.pendingSelectedId || inSelect.value || '');
+
+  const targetOutVal = (preselectOutId !== null && preselectOutId !== undefined && String(preselectOutId) !== '')
+    ? String(preselectOutId)
+    : (outSelect.dataset.pendingSelectedId || outSelect.value || '');
 
   if (items.length === 0) {
     if (inSelect) inSelect.innerHTML = '<option value="">-- No materials in stock yet. Add item first --</option>';
@@ -204,18 +219,107 @@ function populateStockDropdowns(items) {
     if (inSelect) {
       inSelect.innerHTML = '<option value="">-- Choose Stock Item --</option>' +
         items.map(i => `<option value="${i.id}" data-unitcost="${i.unitCost || 0}" data-sellingprice="${i.sellingPrice || ''}" data-unit="${i.unit}">${i.name} (${i.currentStock} ${i.unit} in stock)</option>`).join('');
+
+      if (targetInVal) {
+        inSelect.value = targetInVal;
+        delete inSelect.dataset.pendingSelectedId;
+        onStockInItemChange(inSelect);
+      }
     }
     if (outSelect) {
       outSelect.innerHTML = '<option value="">-- Choose Stock Item --</option>' +
         items.map(i => `<option value="${i.id}" data-current="${i.currentStock}" data-unit="${i.unit}">${i.name} (${i.currentStock} ${i.unit} available)</option>`).join('');
+
+      if (targetOutVal) {
+        outSelect.value = targetOutVal;
+        delete outSelect.dataset.pendingSelectedId;
+        if (typeof showCurrentAvailableStock === 'function') {
+          showCurrentAvailableStock(outSelect);
+        }
+      }
     }
   }
 }
 
-// Lazy load when user opens Stock In or Stock Out modal
+// Global quickStockIn function available on all pages
+window.quickStockIn = async function(itemId, suggestedQty = null) {
+  const modalEl = document.getElementById('stockInModal');
+  if (!modalEl) return;
+
+  const inSelect = document.getElementById('stockInSelect');
+  if (inSelect && itemId) {
+    inSelect.dataset.pendingSelectedId = String(itemId);
+  }
+
+  // Pre-load stock items and set selection
+  await loadStockDropdowns(itemId, null);
+
+  if (inSelect && itemId) {
+    inSelect.value = String(itemId);
+    delete inSelect.dataset.pendingSelectedId;
+    onStockInItemChange(inSelect);
+  }
+
+  if (suggestedQty) {
+    const qtyInput = document.getElementById('stockInQuantity');
+    if (qtyInput) {
+      qtyInput.value = suggestedQty;
+      calculateStockInProfit('qty');
+    }
+  }
+
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  modal.show();
+
+  setTimeout(() => {
+    const qtyInput = document.getElementById('stockInQuantity');
+    if (qtyInput) {
+      qtyInput.focus();
+      if (qtyInput.value) qtyInput.select();
+    }
+  }, 350);
+};
+
+// Global quickStockOut function available on all pages
+window.quickStockOut = async function(itemId) {
+  const modalEl = document.getElementById('stockOutModal');
+  if (!modalEl) return;
+
+  const outSelect = document.getElementById('stockOutSelect');
+  if (outSelect && itemId) {
+    outSelect.dataset.pendingSelectedId = String(itemId);
+  }
+
+  await loadStockDropdowns(null, itemId);
+
+  if (outSelect && itemId) {
+    outSelect.value = String(itemId);
+    delete outSelect.dataset.pendingSelectedId;
+    if (typeof showCurrentAvailableStock === 'function') {
+      showCurrentAvailableStock(outSelect);
+    }
+  }
+
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  modal.show();
+
+  setTimeout(() => {
+    const qtyInput = modalEl.querySelector('input[name="quantity"]');
+    if (qtyInput) {
+      qtyInput.focus();
+      if (qtyInput.value) qtyInput.select();
+    }
+  }, 350);
+};
+
+// Lazy load when user opens Stock In or Stock Out modal from header toolbar without preselection
 document.addEventListener('show.bs.modal', function (e) {
   if (e.target && (e.target.id === 'stockInModal' || e.target.id === 'stockOutModal')) {
-    loadStockDropdowns();
+    const inSelect = document.getElementById('stockInSelect');
+    const outSelect = document.getElementById('stockOutSelect');
+    const pendingIn = inSelect ? inSelect.dataset.pendingSelectedId : null;
+    const pendingOut = outSelect ? outSelect.dataset.pendingSelectedId : null;
+    loadStockDropdowns(pendingIn, pendingOut);
   }
 });
 

@@ -314,26 +314,18 @@
 <%- include('../partials/footer') %>
 
 <script>
+window._preloadedStockItems = <%- JSON.stringify((allItems || items || []).map(i => ({ id: i.id, name: i.name, code: i.code, unit: i.unit, currentStock: i.currentStock, unitCost: i.unitCost, sellingPrice: i.sellingPrice }))) %>;
+
 function quickStockIn(itemId) {
-  const modalEl = document.getElementById('stockInModal');
-  const modal = new bootstrap.Modal(modalEl);
-  const select = document.getElementById('stockInSelect');
-  if (select) {
-    select.value = itemId;
-    if (typeof onStockInItemChange === 'function') {
-      onStockInItemChange(select);
-    }
+  if (typeof window.quickStockIn === 'function') {
+    window.quickStockIn(itemId);
   }
-  modal.show();
 }
 
 function quickStockOut(itemId) {
-  const modalEl = document.getElementById('stockOutModal');
-  const modal = new bootstrap.Modal(modalEl);
-  const select = document.getElementById('stockOutSelect');
-  select.value = itemId;
-  showCurrentAvailableStock(select);
-  modal.show();
+  if (typeof window.quickStockOut === 'function') {
+    window.quickStockOut(itemId);
+  }
 }
 
 function calculateNewItemProfit(trigger) {
