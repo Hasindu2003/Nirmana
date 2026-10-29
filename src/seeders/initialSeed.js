@@ -5,22 +5,27 @@ const {
 
 async function seedDatabase() {
   console.log('--- Initializing Clean Production Database ---');
-  await sequelize.sync({ force: true });
-  console.log('✓ Database tables initialized cleanly (empty schema).');
+  await sequelize.sync();
+  console.log('✓ Database schema synchronized.');
 
   // Seed Admin User
   console.log('Seeding system administrator account...');
-  await User.create({
-    username: 'admin',
-    email: 'admin@nirmana.lk',
-    password: 'Password123!',
-    fullName: 'Nirmana Shop Manager',
-    role: 'ADMIN',
-    phone: '0771234567',
-    isActive: true,
-  });
-  console.log('✓ System admin account created (username: admin / password: Password123!)');
-  console.log('✓ Database is completely clean and ready for real operational data.');
+  const existingAdmin = await User.findOne({ where: { username: 'admin' } });
+  if (!existingAdmin) {
+    await User.create({
+      username: 'admin',
+      email: 'admin@nirmana.lk',
+      password: 'Password123!',
+      fullName: 'Nirmana Shop Manager',
+      role: 'ADMIN',
+      phone: '0771234567',
+      isActive: true,
+    });
+    console.log('✓ System admin account created (username: admin / password: Password123!)');
+  } else {
+    console.log('✓ System admin account already exists (username: admin).');
+  }
+  console.log('✓ Database is ready for operations.');
 }
 
 if (require.main === module) {

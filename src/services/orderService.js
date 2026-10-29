@@ -5,10 +5,18 @@ const { getSriLankaTodayString } = require('../utils/dateUtils');
 const { buildPagination } = require('../utils/pagination');
 
 class OrderService {
-  async generateOrderNumber() {
+  async generateOrderNumber(transaction = null) {
     const year = new Date().getFullYear();
-    const count = await Order.count();
-    return `ORD-${year}-${(count + 1).toString().padStart(4, '0')}`;
+    const prefix = `ORD-${year}-`;
+    const count = await Order.count({ transaction });
+    let seq = count + 1;
+    let candidate = `${prefix}${seq.toString().padStart(4, '0')}`;
+
+    while (await Order.findOne({ where: { orderNumber: candidate }, transaction })) {
+      seq++;
+      candidate = `${prefix}${seq.toString().padStart(4, '0')}`;
+    }
+    return candidate;
   }
 
   async getAllOrders({ status, search, customerId, page = 1, limit = 10, paginate = true } = {}) {
@@ -95,7 +103,12 @@ class OrderService {
 
         // Auto generate customer code
         const custCount = await Customer.count({ transaction: t });
-        const customerCode = `CUST-${(custCount + 1).toString().padStart(4, '0')}`;
+        let custSeq = custCount + 1;
+        let customerCode = `CUST-${custSeq.toString().padStart(4, '0')}`;
+        while (await Customer.findOne({ where: { customerCode }, transaction: t })) {
+          custSeq++;
+          customerCode = `CUST-${custSeq.toString().padStart(4, '0')}`;
+        }
 
         const newCustomer = await Customer.create({
           customerCode,
@@ -118,7 +131,7 @@ class OrderService {
       const customer = await Customer.findByPk(customerId, { transaction: t });
       if (!customer) throw new Error('Customer not found.');
 
-      const orderNumber = data.orderNumber || (await this.generateOrderNumber());
+      const orderNumber = data.orderNumber || (await this.generateOrderNumber(t));
 
       const qty = parseInt(data.quantity, 10) || 1;
       const subtotal = parseFloat(data.subtotal) || parseFloat(data.totalAmount) || 0.00;

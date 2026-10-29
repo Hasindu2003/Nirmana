@@ -333,10 +333,10 @@ async function ensureDbInitialized() {
           // Non-fatal
         }
 
-        // Seed default admin if User table is empty (e.g. fresh ephemeral /tmp SQLite on Vercel)
+        // Seed default admin if no ADMIN user exists (e.g. fresh DB or only customer accounts exist)
         const { User } = require('./src/models');
-        const adminCount = await User.count().catch(() => 0);
-        if (adminCount === 0) {
+        const adminExists = await User.findOne({ where: { role: 'ADMIN' } }).catch(() => null);
+        if (!adminExists) {
           await User.create({
             username: 'admin',
             email: 'admin@nirmana.lk',

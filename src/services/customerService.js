@@ -154,7 +154,12 @@ class CustomerService {
     let customerCode = data.customerCode;
     if (!customerCode) {
       const count = await Customer.count();
-      customerCode = `CUST-${(count + 1).toString().padStart(4, '0')}`;
+      let seq = count + 1;
+      customerCode = `CUST-${seq.toString().padStart(4, '0')}`;
+      while (await Customer.findOne({ where: { customerCode } })) {
+        seq++;
+        customerCode = `CUST-${seq.toString().padStart(4, '0')}`;
+      }
     }
 
     const phone = (data.phone || '').trim();

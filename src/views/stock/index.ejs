@@ -147,7 +147,7 @@
             <a href="/stock?tab=inventory" class="btn btn-sm <%= currentCategory === 'ALL' ? 'btn-serene-primary' : 'btn-serene-secondary' %>">
               All (<%= items.length %>)
             </a>
-            <% categories.forEach(cat => { %>
+            <% (locals.categories || []).forEach(cat => { %>
               <a href="/stock?category=<%= encodeURIComponent(cat) %>&tab=inventory" class="btn btn-sm <%= currentCategory === cat ? 'btn-serene-primary' : 'btn-serene-secondary' %>">
                 <%= cat %>
               </a>
@@ -386,11 +386,11 @@
             </table>
           </div>
           <%- include('../partials/pagination', { 
-            pagination: officePagination, 
+            pagination: typeof officePagination !== 'undefined' ? officePagination : (locals.officePagination || null), 
             baseUrl: '/stock', 
             queryParams: { 
-              category: currentCategory !== 'ALL' ? currentCategory : undefined, 
-              search: search || undefined, 
+              category: typeof currentCategory !== 'undefined' && currentCategory !== 'ALL' ? currentCategory : undefined, 
+              search: (typeof search !== 'undefined' && search) ? search : undefined, 
               page: typeof currentPage !== 'undefined' ? currentPage : undefined,
               txPage: typeof currentTxPage !== 'undefined' ? currentTxPage : undefined,
               tab: 'office'
@@ -472,11 +472,11 @@
             </table>
           </div>
           <%- include('../partials/pagination', { 
-            pagination: transactionsPagination, 
+            pagination: typeof transactionsPagination !== 'undefined' ? transactionsPagination : (locals.transactionsPagination || null), 
             baseUrl: '/stock', 
             queryParams: { 
-              category: currentCategory !== 'ALL' ? currentCategory : undefined, 
-              search: search || undefined, 
+              category: typeof currentCategory !== 'undefined' && currentCategory !== 'ALL' ? currentCategory : undefined, 
+              search: (typeof search !== 'undefined' && search) ? search : undefined, 
               page: typeof currentPage !== 'undefined' ? currentPage : undefined,
               officePage: typeof currentOfficePage !== 'undefined' ? currentOfficePage : undefined,
               tab: 'movements'
