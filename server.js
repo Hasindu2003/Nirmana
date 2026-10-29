@@ -218,11 +218,20 @@ async function ensureDbInitialized() {
           const jobsDesc = await qi.describeTable('quick_print_jobs').catch(() => null);
           if (jobsDesc) {
             try {
+              const currentDialect = sequelize && typeof sequelize.getDialect === 'function' ? sequelize.getDialect() : 'sqlite';
               if (jobsDesc.colorMode && jobsDesc.colorMode.type && jobsDesc.colorMode.type.includes('ENUM')) {
-                await sequelize.query("ALTER TABLE `quick_print_jobs` MODIFY COLUMN `colorMode` VARCHAR(20) NOT NULL DEFAULT 'NOT_SPECIFIED'").catch(() => {});
+                if (currentDialect === 'mysql') {
+                  await sequelize.query("ALTER TABLE `quick_print_jobs` MODIFY COLUMN `colorMode` VARCHAR(20) NOT NULL DEFAULT 'NOT_SPECIFIED'").catch(() => {});
+                } else if (currentDialect === 'postgres') {
+                  await sequelize.query('ALTER TABLE "quick_print_jobs" ALTER COLUMN "colorMode" TYPE VARCHAR(20)').catch(() => {});
+                }
               }
               if (jobsDesc.paperSize) {
-                await sequelize.query("ALTER TABLE `quick_print_jobs` MODIFY COLUMN `paperSize` VARCHAR(100) NOT NULL DEFAULT 'A4'").catch(() => {});
+                if (currentDialect === 'mysql') {
+                  await sequelize.query("ALTER TABLE `quick_print_jobs` MODIFY COLUMN `paperSize` VARCHAR(100) NOT NULL DEFAULT 'A4'").catch(() => {});
+                } else if (currentDialect === 'postgres') {
+                  await sequelize.query('ALTER TABLE "quick_print_jobs" ALTER COLUMN "paperSize" TYPE VARCHAR(100)').catch(() => {});
+                }
               }
             } catch (jobColErr) {
               // Ignore if already adjusted

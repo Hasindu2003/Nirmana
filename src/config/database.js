@@ -3,33 +3,49 @@ const path = require('path');
 const fs = require('fs');
 const config = require('./config');
 
-// Statically referenced so @vercel/nft traces and bundles mysql2 & sqlite3
+// Statically referenced so @vercel/nft traces and bundles mysql2, sqlite3 & pg
 try {
   require('mysql2');
 } catch (e) {}
 try {
   require('sqlite3');
 } catch (e) {}
+try {
+  require('pg');
+} catch (e) {}
+try {
+  require('pg-hstore');
+} catch (e) {}
 
 let sequelize;
 let initError = null;
 
-const dbUrl = process.env.DATABASE_URL || process.env.MYSQL_URL;
+const dbUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.MYSQL_URL;
 
 if (dbUrl) {
   try {
-    // Strip query parameters like ?ssl={"rejectUnauthorized":true} or ?sslaccept=strict
-    // mysql2 treats ?ssl=XYZ as a named profile instead of options and fails with:
-    // "Unknown SSL profile '{"rejectUnauthorized":true}'"
-    let cleanUrl = dbUrl;
-    cleanUrl = cleanUrl.replace(/[?&]ssl=[^&]*/gi, '');
-    cleanUrl = cleanUrl.replace(/[?&]sslaccept=[^&]*/gi, '');
-    cleanUrl = cleanUrl.replace(/[?&]sslmode=[^&]*/gi, '');
-    if (cleanUrl.endsWith('?')) {
-      cleanUrl = cleanUrl.slice(0, -1);
+    let dialect = 'mysql';
+    if (dbUrl.startsWith('postgres://') || dbUrl.startsWith('postgresql://') || process.env.DB_DIALECT === 'postgres') {
+      dialect = 'postgres';
+    } else if (dbUrl.startsWith('sqlite:') || process.env.DB_DIALECT === 'sqlite') {
+      dialect = 'sqlite';
+    } else if (dbUrl.startsWith('mysql://') || process.env.DB_DIALECT === 'mysql') {
+      dialect = 'mysql';
     }
-    if (!cleanUrl.includes('?') && cleanUrl.includes('&')) {
-      cleanUrl = cleanUrl.replace('&', '?');
+
+    let cleanUrl = dbUrl;
+    if (dialect === 'mysql') {
+      // Strip query parameters like ?ssl={"rejectUnauthorized":true} or ?sslaccept=strict
+      // mysql2 treats ?ssl=XYZ as a named profile instead of options and fails
+      cleanUrl = cleanUrl.replace(/[?&]ssl=[^&]*/gi, '');
+      cleanUrl = cleanUrl.replace(/[?&]sslaccept=[^&]*/gi, '');
+      cleanUrl = cleanUrl.replace(/[?&]sslmode=[^&]*/gi, '');
+      if (cleanUrl.endsWith('?')) {
+        cleanUrl = cleanUrl.slice(0, -1);
+      }
+      if (!cleanUrl.includes('?') && cleanUrl.includes('&')) {
+        cleanUrl = cleanUrl.replace('&', '?');
+      }
     }
 
     const isCloudDb = !cleanUrl.includes('localhost') && !cleanUrl.includes('127.0.0.1');
@@ -37,13 +53,12 @@ if (dbUrl) {
     if (isCloudDb || process.env.DB_SSL === 'true') {
       dialectOptions.ssl = {
         minVersion: 'TLSv1.2',
-        rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED === 'false' ? false : true,
+        rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED === 'true' ? true : false,
       };
     }
 
-    sequelize = new Sequelize(cleanUrl, {
-      dialect: 'mysql',
-      timezone: '+05:30',
+    const seqOptions = {
+      dialect,
       dialectOptions,
       logging: config.nodeEnv === 'development' ? false : false,
       pool: {
@@ -56,7 +71,13 @@ if (dbUrl) {
         timestamps: true,
         underscored: false,
       },
-    });
+    };
+
+    if (dialect === 'mysql') {
+      seqOptions.timezone = '+05:30';
+    }
+
+    sequelize = new Sequelize(cleanUrl, seqOptions);
   } catch (err) {
     console.warn('Warning: Could not initialize cloud database connection:', err.message);
     initError = err;
@@ -92,20 +113,20 @@ if (dbUrl) {
   }
 } else {
   try {
+    const dialect = config.db.dialect === 'postgres' ? 'postgres' : 'mysql';
     const isCloud = config.db.host !== 'localhost' && config.db.host !== '127.0.0.1';
     const dialectOptions = {};
     if (isCloud || process.env.DB_SSL === 'true') {
       dialectOptions.ssl = {
         minVersion: 'TLSv1.2',
-        rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED === 'false' ? false : true,
+        rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED === 'true' ? true : false,
       };
     }
 
-    sequelize = new Sequelize(config.db.database, config.db.username, config.db.password, {
+    const seqOptions = {
       host: config.db.host,
-      port: config.db.port,
-      dialect: 'mysql',
-      timezone: '+05:30',
+      port: config.db.port || (dialect === 'postgres' ? 5432 : 3306),
+      dialect,
       dialectOptions,
       logging: config.nodeEnv === 'development' ? false : false,
       pool: {
@@ -118,10 +139,16 @@ if (dbUrl) {
         timestamps: true,
         underscored: false,
       },
-    });
-  } catch (mysqlErr) {
-    console.warn('Warning: MySQL driver failed to load:', mysqlErr.message);
-    initError = mysqlErr;
+    };
+
+    if (dialect === 'mysql') {
+      seqOptions.timezone = '+05:30';
+    }
+
+    sequelize = new Sequelize(config.db.database, config.db.username, config.db.password, seqOptions);
+  } catch (driverErr) {
+    console.warn(`Warning: ${config.db.dialect} driver failed to load:`, driverErr.message);
+    initError = driverErr;
   }
 }
 
