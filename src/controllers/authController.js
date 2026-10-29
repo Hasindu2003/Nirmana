@@ -39,6 +39,10 @@ class AuthController {
         });
       }
 
+      if (result.isCustomer || result.user.role === 'CUSTOMER') {
+        return res.redirect('/portal');
+      }
+
       return res.redirect('/dashboard');
     } catch (error) {
       if (req.originalUrl.startsWith('/api/')) {
@@ -48,6 +52,53 @@ class AuthController {
         title: 'Sign In · Nirmana Printing',
         error: error.message,
         username: req.body.username || '',
+      });
+    }
+  }
+
+  async register(req, res, next) {
+    try {
+      const result = await authService.registerCustomer(req.body);
+
+      const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
+      res.cookie('auth_token', result.token, {
+        httpOnly: true,
+        secure: isHttps,
+        sameSite: 'lax',
+        maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+      });
+
+      if (req.session) {
+        req.session.userId = result.user.id;
+        req.session.userRole = result.user.role;
+      }
+
+      await logAudit({
+        userId: result.user.id,
+        action: 'CUSTOMER_REGISTER',
+        entityName: 'User',
+        entityId: result.user.id,
+        details: { username: result.user.username },
+        req,
+      });
+
+      if (req.originalUrl.startsWith('/api/')) {
+        return res.status(201).json({
+          success: true,
+          message: 'Account created successfully.',
+          data: result,
+        });
+      }
+
+      return res.redirect('/portal');
+    } catch (error) {
+      if (req.originalUrl.startsWith('/api/')) {
+        return res.status(400).json({ success: false, message: error.message });
+      }
+      return res.render('auth/register', {
+        title: 'Create Account · Nirmana Printing',
+        error: error.message,
+        formData: req.body,
       });
     }
   }

@@ -4,23 +4,83 @@
 <main class="main-wrapper">
   <div class="content-body">
     <!-- Header -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between mb-4">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
       <div>
-        <h2 class="fs-4 fw-bold mb-1">Customers Directory</h2>
-        <div class="text-muted small">Registered clients and historical printing job counts</div>
+        <h2 class="fs-4 fw-bold mb-1">Customers & Accounts Directory</h2>
+        <div class="text-muted small">Registered client accounts, order transaction histories, given amounts, and outstanding balances yet to give</div>
       </div>
-      <div class="mt-2 mt-sm-0">
+      <div class="d-flex flex-wrap align-items-center gap-2 mt-2 mt-sm-0">
+        <a href="/register" class="btn btn-serene-secondary">
+          <i class="bi bi-person-badge"></i> Client Registration Link
+        </a>
         <button class="btn btn-serene-primary" data-bs-toggle="modal" data-bs-target="#newCustomerModal">
           <i class="bi bi-person-plus"></i> Add Customer
         </button>
       </div>
     </div>
 
-    <!-- Search -->
+    <!-- Accounts Financial KPI Summary Cards -->
+    <% if (typeof accountsSummary !== 'undefined' && accountsSummary) { %>
+      <div class="row g-2 g-md-3 mb-4">
+        <!-- 1. Total Accounts & Portal Logins -->
+        <div class="col-6 col-md-3">
+          <div class="kpi-card h-100">
+            <div class="kpi-title">Total Client Accounts</div>
+            <div class="kpi-value tabular-nums text-dark"><%= accountsSummary.totalAccounts %></div>
+            <div class="kpi-sub text-muted text-truncate">
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-semibold">
+                <i class="bi bi-shield-lock me-1"></i> <%= accountsSummary.registeredUsersCount %> Logins Active
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Total Billed -->
+        <div class="col-6 col-md-3">
+          <div class="kpi-card h-100">
+            <div class="kpi-title">Total Billed Orders</div>
+            <div class="kpi-value tabular-nums text-dark">
+              <%= currencySymbol %> <%= parseFloat(accountsSummary.totalBilled).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+            </div>
+            <div class="kpi-sub text-muted text-truncate">
+              <i class="bi bi-receipt"></i> Cumulative client billing
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Total Given (Paid) -->
+        <div class="col-6 col-md-3">
+          <div class="kpi-card h-100" style="border-left: 4px solid var(--serene-success, #16a34a);">
+            <div class="kpi-title text-success">Total Given (Received)</div>
+            <div class="kpi-value tabular-nums text-success">
+              <%= currencySymbol %> <%= parseFloat(accountsSummary.totalGiven).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+            </div>
+            <div class="kpi-sub text-muted text-truncate">
+              <i class="bi bi-check-circle text-success"></i> Advance payments collected
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Total Yet to Give (Unpaid Balance) -->
+        <div class="col-6 col-md-3">
+          <div class="kpi-card h-100" style="border-left: 4px solid var(--serene-danger, #dc2626);">
+            <div class="kpi-title text-danger fw-bold">Total Yet to Give (Due)</div>
+            <div class="kpi-value tabular-nums text-danger">
+              <%= currencySymbol %> <%= parseFloat(accountsSummary.totalYetToGive).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+            </div>
+            <div class="kpi-sub text-muted text-truncate">
+              <span class="text-danger fw-semibold"><i class="bi bi-exclamation-circle"></i> Outstanding balances</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% } %>
+
+    <!-- Search & Filter Bar -->
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-      <div class="text-muted small">Total: <%= typeof pagination !== 'undefined' ? pagination.totalItems : customers.length %> Customers</div>
-      <form action="/customers" method="GET" class="d-flex align-items-center gap-2 flex-grow-1 flex-sm-grow-0" style="min-width: 220px; max-width: 100%;">
-        <input type="text" name="search" value="<%= search %>" class="form-control form-control-sm flex-grow-1" placeholder="Search name, phone, code...">
+      <div class="text-muted small">Showing: <%= typeof pagination !== 'undefined' ? pagination.totalItems : customers.length %> Customers</div>
+      <form action="/customers" method="GET" class="d-flex align-items-center gap-2 flex-grow-1 flex-sm-grow-0" style="min-width: 260px; max-width: 100%;">
+        <input type="text" name="search" value="<%= search %>" class="form-control form-control-sm flex-grow-1" placeholder="Search name, phone, code, username...">
         <button type="submit" class="btn btn-sm btn-serene-secondary">Search</button>
       </form>
     </div>
@@ -31,43 +91,82 @@
         <table class="serene-table">
           <thead>
             <tr>
-              <th>Customer</th>
-              <th>Company & Email</th>
-              <th>Orders Placed</th>
+              <th>Customer & Account</th>
+              <th>Contact Details</th>
+              <th>Orders</th>
+              <th>Total Billed</th>
+              <th class="text-success">Given (Paid)</th>
+              <th class="text-danger">Yet to Give (Due)</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             <% if (customers && customers.length > 0) { %>
               <% customers.forEach(c => { %>
+                <% const billed = parseFloat(c.dataValues.totalBilled || c.totalBilled || 0); %>
+                <% const given = parseFloat(c.dataValues.givenAmount || c.givenAmount || 0); %>
+                <% const due = parseFloat(c.dataValues.yetToGive || c.yetToGive || 0); %>
                 <tr>
                   <td>
                     <div>
-                      <a href="/customers/<%= c.id %>" class="fw-semibold text-dark text-decoration-none hover-primary"><%= c.name %></a>
+                      <a href="/customers/<%= c.id %>" class="fw-bold text-dark text-decoration-none hover-primary"><%= c.name %></a>
                     </div>
-                    <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
+                    <div class="d-flex flex-wrap align-items-center gap-1 mt-1">
                       <span class="badge bg-light text-muted border font-monospace" style="font-size: 0.72rem;"><%= c.customerCode %></span>
-                      <span class="text-muted small"><i class="bi bi-telephone text-muted me-1"></i><%= c.phone %></span>
+                      <% if (c.dataValues.hasLoginAccount || c.userAccount || c.userId) { %>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size: 0.7rem;">
+                          <i class="bi bi-person-check-fill"></i> Portal: <%= c.userAccount ? c.userAccount.username : 'Active' %>
+                        </span>
+                      <% } else { %>
+                        <span class="badge bg-light text-muted border" style="font-size: 0.68rem;">No Portal User</span>
+                      <% } %>
                     </div>
                   </td>
                   <td>
-                    <div class="fw-medium text-dark"><%= c.companyName || 'Individual' %></div>
+                    <div class="fw-medium text-dark"><i class="bi bi-telephone text-primary me-1"></i><%= c.phone %></div>
+                    <% if (c.companyName) { %>
+                      <div class="text-muted small"><%= c.companyName %></div>
+                    <% } %>
                     <% if (c.email) { %>
-                      <div class="text-muted small"><%= c.email %></div>
+                      <div class="text-muted small" style="font-size: 0.75rem;"><%= c.email %></div>
                     <% } %>
                   </td>
                   <td>
                     <span class="badge rounded-pill bg-light text-dark border">
-                      <%= c.orders ? c.orders.length : 0 %> Orders
+                      <%= c.dataValues.ordersCount !== undefined ? c.dataValues.ordersCount : (c.orders ? c.orders.length : 0) %> Orders
                     </span>
                   </td>
                   <td>
+                    <div class="tabular-nums fw-bold text-dark">
+                      <%= currencySymbol %> <%= billed.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="tabular-nums fw-bold text-success">
+                      <%= currencySymbol %> <%= given.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+                    </div>
+                  </td>
+                  <td>
+                    <% if (due > 0) { %>
+                      <div class="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold tabular-nums">
+                        <%= currencySymbol %> <%= due.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+                      </div>
+                    <% } else { %>
+                      <span class="badge bg-success-subtle text-success border border-success-subtle fw-semibold">
+                        <i class="bi bi-check2"></i> Cleared
+                      </span>
+                    <% } %>
+                  </td>
+                  <td>
                     <div class="d-flex align-items-center gap-1">
-                      <a href="/customers/<%= c.id %>" class="btn btn-sm btn-serene-secondary py-1 px-2" title="View Profile">
+                      <a href="/customers/<%= c.id %>" class="btn btn-sm btn-serene-secondary py-1 px-2" title="View Profile & Ledger">
                         <i class="bi bi-person"></i> Profile
                       </a>
                       <a href="/orders?customerId=<%= c.id %>" class="btn btn-sm btn-serene-secondary py-1 px-2" title="View Orders">
                         <i class="bi bi-receipt"></i> Orders
+                      </a>
+                      <a href="/portal?customerId=<%= c.id %>" class="btn btn-sm btn-outline-primary py-1 px-2" title="Preview Client Portal" target="_blank">
+                        <i class="bi bi-box-arrow-up-right"></i>
                       </a>
                     </div>
                   </td>
@@ -75,8 +174,8 @@
               <% }) %>
             <% } else { %>
               <tr>
-                <td colspan="4" class="text-center py-5 text-muted">
-                  No customers found. Click "+ Add Customer" or create an order with a new customer.
+                <td colspan="7" class="text-center py-5 text-muted">
+                  No customers found. Click "+ Add Customer" or share the client registration link.
                 </td>
               </tr>
             <% } %>

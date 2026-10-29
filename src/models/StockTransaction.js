@@ -19,6 +19,11 @@ const StockTransaction = sequelize.define('StockTransaction', {
     type: DataTypes.ENUM('IN', 'OUT'),
     allowNull: false, // 'IN' = Arrival/Add, 'OUT' = Usage/Deduct
   },
+  category: {
+    type: DataTypes.STRING(50),
+    allowNull: false,
+    defaultValue: 'GENERAL', // 'PURCHASE', 'PRODUCTION', 'OFFICE_USE', 'ADJUSTMENT'
+  },
   quantity: {
     type: DataTypes.DECIMAL(12, 2),
     allowNull: false,

@@ -121,7 +121,10 @@ class OrderService {
       const orderNumber = data.orderNumber || (await this.generateOrderNumber());
 
       const qty = parseInt(data.quantity, 10) || 1;
-      const total = parseFloat(data.totalAmount) || 0.00;
+      const subtotal = parseFloat(data.subtotal) || parseFloat(data.totalAmount) || 0.00;
+      const discount = parseFloat(data.discount) || 0.00;
+      const discountType = data.discountType || 'FIXED';
+      const total = Math.max(0, subtotal - discount);
       const advance = parseFloat(data.advancePaid) || 0.00;
       const balance = Math.max(0, total - advance);
 
@@ -134,6 +137,9 @@ class OrderService {
         paperMaterial: data.paperMaterial || null,
         specifications: data.specifications || null,
         quantity: qty,
+        subtotal: subtotal,
+        discount: discount,
+        discountType: discountType,
         totalAmount: total,
         advancePaid: advance,
         balanceAmount: balance,
@@ -157,15 +163,37 @@ class OrderService {
     return order;
   }
 
-  async recordPayment(id, paymentAmount) {
+  async recordPayment(id, paymentAmount, notes) {
     const order = await Order.findByPk(id);
     if (!order) throw new Error('Order not found.');
 
     const amt = parseFloat(paymentAmount);
     if (isNaN(amt) || amt <= 0) throw new Error('Payment amount must be greater than zero.');
 
-    order.advancePaid = (parseFloat(order.advancePaid) || 0) + amt;
-    order.balanceAmount = Math.max(0, (parseFloat(order.balanceAmount) || 0) - amt);
+    const currentGiven = parseFloat(order.advancePaid) || 0;
+    const currentBalance = parseFloat(order.balanceAmount) || 0;
+
+    order.advancePaid = currentGiven + amt;
+    order.balanceAmount = Math.max(0, currentBalance - amt);
+    if (notes) {
+      order.notes = order.notes ? `${order.notes}\n[Payment +Rs.${amt.toFixed(2)}]: ${notes}` : `[Payment +Rs.${amt.toFixed(2)}]: ${notes}`;
+    }
+    await order.save();
+
+    return order;
+  }
+
+  async updateOrderDiscount(id, manualDiscount) {
+    const order = await Order.findByPk(id);
+    if (!order) throw new Error('Order not found.');
+
+    const disc = Math.max(0, parseFloat(manualDiscount) || 0);
+    const sub = parseFloat(order.subtotal) || parseFloat(order.totalAmount) || 0;
+    const given = parseFloat(order.advancePaid) || 0;
+
+    order.discount = disc;
+    order.totalAmount = Math.max(0, sub - disc);
+    order.balanceAmount = Math.max(0, order.totalAmount - given);
     await order.save();
 
     return order;

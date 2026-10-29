@@ -26,8 +26,57 @@ class StockService {
       order: [['name', 'ASC']],
     };
 
+    // Calculate aggregated usage metrics (In, Out, Office Use) for all items
+    const usageSummaries = await StockTransaction.findAll({
+      attributes: [
+        'stockItemId',
+        'type',
+        'category',
+        [sequelize.fn('SUM', sequelize.col('quantity')), 'sumQty'],
+        [sequelize.fn('SUM', sequelize.col('totalCost')), 'sumCost'],
+      ],
+      group: ['stockItemId', 'type', 'category'],
+      raw: true,
+    }).catch(() => []);
+
+    const usageMap = {};
+    usageSummaries.forEach(row => {
+      const id = row.stockItemId;
+      if (!usageMap[id]) {
+        usageMap[id] = { totalIn: 0, totalOut: 0, officeQty: 0, officeCost: 0, prodQty: 0 };
+      }
+      const qty = parseFloat(row.sumQty) || 0;
+      const cost = parseFloat(row.sumCost) || 0;
+      if (row.type === 'IN') {
+        usageMap[id].totalIn += qty;
+      } else if (row.type === 'OUT') {
+        usageMap[id].totalOut += qty;
+        if (row.category === 'OFFICE_USE') {
+          usageMap[id].officeQty += qty;
+          usageMap[id].officeCost += cost;
+        } else {
+          usageMap[id].prodQty += qty;
+        }
+      }
+    });
+
+    const enrichItem = (item) => {
+      const u = usageMap[item.id] || { totalIn: 0, totalOut: 0, officeQty: 0, officeCost: 0, prodQty: 0 };
+      const curStock = parseFloat(item.currentStock) || 0;
+      const uCost = parseFloat(item.unitCost) || 0;
+      item.dataValues.totalIn = u.totalIn;
+      item.dataValues.totalUsed = u.totalOut;
+      item.dataValues.officeUseQty = u.officeQty;
+      item.dataValues.officeUseCost = u.officeCost;
+      item.dataValues.productionUsedQty = u.prodQty;
+      item.dataValues.remainingStock = curStock;
+      item.dataValues.remainingValuation = parseFloat((curStock * uCost).toFixed(2));
+      return item;
+    };
+
     if (!paginate) {
-      return await StockItem.findAll(queryOptions);
+      const items = await StockItem.findAll(queryOptions);
+      return items.map(enrichItem);
     }
 
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
@@ -37,12 +86,31 @@ class StockService {
     queryOptions.limit = limitNum;
     queryOptions.offset = offset;
 
-    const { count, rows: items } = await StockItem.findAndCountAll(queryOptions);
+    const { count, rows: rawItems } = await StockItem.findAndCountAll(queryOptions);
+    const items = rawItems.map(enrichItem);
     const pagination = buildPagination(count, pageNum, limitNum);
+
+    // Calculate global inventory summary metrics
+    const allActive = await StockItem.findAll({ where: { isActive: true }, attributes: ['currentStock', 'unitCost'] });
+    let totalValuation = 0;
+    allActive.forEach(i => {
+      totalValuation += (parseFloat(i.currentStock) || 0) * (parseFloat(i.unitCost) || 0);
+    });
+    let totalOfficeUseVal = 0;
+    Object.values(usageMap).forEach(u => {
+      totalOfficeUseVal += u.officeCost;
+    });
+
+    const inventorySummary = {
+      totalItems: count,
+      totalRemainingValuation: parseFloat(totalValuation.toFixed(2)),
+      totalOfficeUseValue: parseFloat(totalOfficeUseVal.toFixed(2)),
+    };
 
     return {
       items,
       pagination,
+      inventorySummary,
     };
   }
 
@@ -52,12 +120,55 @@ class StockService {
         {
           model: StockTransaction,
           as: 'transactions',
-          limit: 20,
+          limit: 30,
           order: [['createdAt', 'DESC']],
         },
       ],
     });
     if (!item) throw new Error('Stock item not found.');
+
+    // Calculate item specific usage summary
+    const txSummary = await StockTransaction.findAll({
+      where: { stockItemId: id },
+      attributes: [
+        'type',
+        'category',
+        [sequelize.fn('SUM', sequelize.col('quantity')), 'sumQty'],
+        [sequelize.fn('SUM', sequelize.col('totalCost')), 'sumCost'],
+      ],
+      group: ['type', 'category'],
+      raw: true,
+    }).catch(() => []);
+
+    let totalIn = 0;
+    let totalOut = 0;
+    let officeQty = 0;
+    let officeCost = 0;
+    let prodQty = 0;
+
+    txSummary.forEach(r => {
+      const q = parseFloat(r.sumQty) || 0;
+      const c = parseFloat(r.sumCost) || 0;
+      if (r.type === 'IN') {
+        totalIn += q;
+      } else if (r.type === 'OUT') {
+        totalOut += q;
+        if (r.category === 'OFFICE_USE') {
+          officeQty += q;
+          officeCost += c;
+        } else {
+          prodQty += q;
+        }
+      }
+    });
+
+    item.dataValues.totalIn = totalIn;
+    item.dataValues.totalUsed = totalOut;
+    item.dataValues.officeUseQty = officeQty;
+    item.dataValues.officeUseCost = officeCost;
+    item.dataValues.productionUsedQty = prodQty;
+    item.dataValues.remainingValuation = (parseFloat(item.currentStock) || 0) * (parseFloat(item.unitCost) || 0);
+
     return item;
   }
 
@@ -85,6 +196,11 @@ class StockService {
         ? parseFloat(data.sellingPrice)
         : null;
 
+      const width = data.width !== undefined && data.width !== '' && !isNaN(parseFloat(data.width)) ? parseFloat(data.width) : null;
+      const length = data.length !== undefined && data.length !== '' && !isNaN(parseFloat(data.length)) ? parseFloat(data.length) : null;
+      const dimensionUnit = data.dimensionUnit || 'inches';
+      const sizeLabel = data.sizeLabel || (width && length ? `${width}x${length} ${dimensionUnit}` : null);
+
       const item = await StockItem.create({
         code,
         name: data.name,
@@ -94,6 +210,10 @@ class StockService {
         minStockAlert: parseFloat(data.minStockAlert) || 10,
         unitCost: parseFloat(unitCost.toFixed(2)),
         sellingPrice: sellingPrice !== null ? parseFloat(sellingPrice.toFixed(2)) : null,
+        width,
+        length,
+        dimensionUnit,
+        sizeLabel,
         notes: data.notes || null,
         isActive: true,
       }, { transaction: t });
@@ -102,6 +222,7 @@ class StockService {
         await StockTransaction.create({
           stockItemId: item.id,
           type: 'IN',
+          category: 'INITIAL',
           quantity: initialStock,
           balanceAfter: initialStock,
           unitCost: parseFloat(unitCost.toFixed(2)),
@@ -128,6 +249,10 @@ class StockService {
       minStockAlert: data.minStockAlert !== undefined ? parseFloat(data.minStockAlert) : item.minStockAlert,
       unitCost: data.unitCost !== undefined ? parseFloat(data.unitCost) : item.unitCost,
       sellingPrice: data.sellingPrice !== undefined ? (data.sellingPrice ? parseFloat(data.sellingPrice) : null) : item.sellingPrice,
+      width: data.width !== undefined ? (data.width ? parseFloat(data.width) : null) : item.width,
+      length: data.length !== undefined ? (data.length ? parseFloat(data.length) : null) : item.length,
+      dimensionUnit: data.dimensionUnit !== undefined ? data.dimensionUnit : item.dimensionUnit,
+      sizeLabel: data.sizeLabel !== undefined ? data.sizeLabel : item.sizeLabel,
       notes: data.notes !== undefined ? data.notes : item.notes,
     });
 
@@ -177,6 +302,7 @@ class StockService {
       const transaction = await StockTransaction.create({
         stockItemId: item.id,
         type: 'IN',
+        category: 'PURCHASE',
         quantity: qty,
         balanceAfter: newBalance,
         unitCost: parseFloat(parsedUnitCost.toFixed(2)),
@@ -208,7 +334,7 @@ class StockService {
   }
 
   // Stock Out: When something is taken out to use (Deduct)
-  async recordStockOut({ stockItemId, quantity, reference, notes, date }) {
+  async recordStockOut({ stockItemId, quantity, reference, notes, date, category = 'PRODUCTION' }) {
     return await sequelize.transaction(async (t) => {
       const item = await StockItem.findByPk(stockItemId, { transaction: t });
       if (!item) throw new Error('Stock item not found.');
@@ -227,11 +353,17 @@ class StockService {
       item.currentStock = newBalance;
       await item.save({ transaction: t });
 
+      const uCost = parseFloat(item.unitCost) || 0.00;
+      const totalCost = parseFloat((uCost * qty).toFixed(2));
+
       const transaction = await StockTransaction.create({
         stockItemId: item.id,
         type: 'OUT',
+        category: category || 'PRODUCTION',
         quantity: qty,
         balanceAfter: newBalance,
+        unitCost: uCost,
+        totalCost: totalCost,
         reference: reference || 'Job Usage',
         notes: notes || 'Materials deducted for print production',
         date: date || getSriLankaTodayString(),
@@ -239,6 +371,101 @@ class StockService {
 
       return { item, transaction };
     });
+  }
+
+  // Office Use: Deduct materials for internal shop / office consumption
+  async recordOfficeUse({ stockItemId, quantity, department, notes, date }) {
+    return await sequelize.transaction(async (t) => {
+      const item = await StockItem.findByPk(stockItemId, { transaction: t });
+      if (!item) throw new Error('Stock item not found.');
+
+      const qty = parseFloat(quantity);
+      if (isNaN(qty) || qty <= 0) {
+        throw new Error('Office use quantity must be greater than zero.');
+      }
+
+      const current = parseFloat(item.currentStock) || 0;
+      if (qty > current) {
+        throw new Error(`Cannot take ${qty} ${item.unit} for office use. Only ${current} ${item.unit} remaining in stock!`);
+      }
+
+      const unitCost = parseFloat(item.unitCost) || 0.00;
+      const totalExpense = parseFloat((unitCost * qty).toFixed(2));
+
+      const newBalance = current - qty;
+      item.currentStock = newBalance;
+      await item.save({ transaction: t });
+
+      const deptName = department && department.trim() ? department.trim() : 'Administration';
+      const transaction = await StockTransaction.create({
+        stockItemId: item.id,
+        type: 'OUT',
+        category: 'OFFICE_USE',
+        quantity: qty,
+        balanceAfter: newBalance,
+        unitCost: unitCost,
+        totalCost: totalExpense,
+        reference: `Office Use: ${deptName}`,
+        notes: notes || `Internal office consumption by ${deptName}`,
+        date: date || getSriLankaTodayString(),
+      }, { transaction: t });
+
+      return {
+        item,
+        transaction,
+        officeUseValue: totalExpense,
+        department: deptName,
+      };
+    });
+  }
+
+  async getOfficeUseTransactions(options = {}) {
+    let page = 1;
+    let limit = 10;
+    let paginate = true;
+    let date = null;
+
+    if (typeof options === 'object') {
+      page = options.page || 1;
+      limit = options.limit || 10;
+      paginate = options.paginate !== undefined ? options.paginate : true;
+      date = options.date || null;
+    }
+
+    const where = {
+      type: 'OUT',
+      [Op.or]: [
+        { category: 'OFFICE_USE' },
+        { reference: { [Op.like]: '%Office%' } },
+      ],
+    };
+    if (date) where.date = date;
+
+    const queryOptions = {
+      where,
+      order: [['createdAt', 'DESC']],
+      include: [
+        {
+          model: StockItem,
+          as: 'stockItem',
+          attributes: ['id', 'code', 'name', 'unit', 'category', 'unitCost'],
+        },
+      ],
+    };
+
+    if (!paginate) {
+      return await StockTransaction.findAll(queryOptions);
+    }
+
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, parseInt(limit, 10) || 10);
+    queryOptions.limit = limitNum;
+    queryOptions.offset = (pageNum - 1) * limitNum;
+
+    const { count, rows: transactions } = await StockTransaction.findAndCountAll(queryOptions);
+    const pagination = buildPagination(count, pageNum, limitNum);
+
+    return { transactions, pagination };
   }
 
   async getRecentTransactions(options = {}) {

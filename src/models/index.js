@@ -45,6 +45,11 @@ PosSale.belongsTo(Customer, { foreignKey: 'customerId', as: 'customer' });
 User.hasMany(PosSale, { foreignKey: 'cashierId', as: 'posSales' });
 PosSale.belongsTo(User, { foreignKey: 'cashierId', as: 'cashier' });
 
+// Customer <-> User (Customer Portal Login Account)
+Customer.belongsTo(User, { foreignKey: 'userId', as: 'userAccount' });
+User.hasOne(Customer, { foreignKey: 'userId', as: 'customerProfile' });
+User.belongsTo(Customer, { foreignKey: 'customerId', as: 'linkedCustomer' });
+
 module.exports = {
   sequelize,
   User,

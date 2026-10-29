@@ -65,11 +65,26 @@ class OrderController {
   async recordPayment(req, res, next) {
     try {
       const { id } = req.params;
-      const { amount } = req.body;
-      const order = await orderService.recordPayment(id, amount);
+      const { amount, notes } = req.body;
+      const order = await orderService.recordPayment(id, amount, notes);
       return res.json({
         success: true,
         message: `Payment of Rs. ${amount} recorded. New balance: Rs. ${order.balanceAmount}.`,
+        data: order,
+      });
+    } catch (error) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
+  async updateDiscount(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { discount } = req.body;
+      const order = await orderService.updateOrderDiscount(id, discount);
+      return res.json({
+        success: true,
+        message: `Manual discount updated to Rs. ${order.discount}. Total: Rs. ${order.totalAmount}, Balance: Rs. ${order.balanceAmount}.`,
         data: order,
       });
     } catch (error) {

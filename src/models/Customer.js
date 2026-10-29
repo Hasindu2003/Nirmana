@@ -43,6 +43,14 @@ const Customer = sequelize.define('Customer', {
     type: DataTypes.TEXT,
     allowNull: true,
   },
+  userId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id',
+    },
+  },
   isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: true,

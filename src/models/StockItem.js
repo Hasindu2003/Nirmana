@@ -45,6 +45,23 @@ const StockItem = sequelize.define('StockItem', {
     type: DataTypes.DECIMAL(12, 2),
     allowNull: true,
   },
+  width: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+  },
+  length: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+  },
+  dimensionUnit: {
+    type: DataTypes.STRING(20),
+    allowNull: false,
+    defaultValue: 'inches',
+  },
+  sizeLabel: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+  },
   notes: {
     type: DataTypes.TEXT,
     allowNull: true,

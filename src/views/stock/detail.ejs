@@ -16,6 +16,11 @@
           <h2 class="fs-4 fw-bold mb-0"><%= item.name %></h2>
           <span class="badge bg-light text-muted border font-monospace"><%= item.code %></span>
           <span class="badge bg-light text-dark border"><%= item.category %></span>
+          <% if (item.sizeLabel || (item.width && item.length)) { %>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace">
+              <i class="bi bi-aspect-ratio me-1"></i><%= item.sizeLabel || `${item.width}" x ${item.length}" ${item.dimensionUnit || 'in'}` %>
+            </span>
+          <% } %>
           <span class="status-badge <%= statusObj.badgeClass %>">
             <span class="status-dot"></span> <%= statusObj.label %>
           </span>
@@ -23,7 +28,16 @@
       </div>
 
       <div class="d-flex flex-wrap align-items-center gap-2 mt-2 mt-sm-0">
-        <a href="/stock" class="btn btn-serene-secondary">
+        <button class="btn btn-success btn-sm text-white" onclick="quickStockIn(<%= item.id %>, null, '<%= escape(item.name) %>')">
+          <i class="bi bi-plus-lg"></i> Stock In
+        </button>
+        <button class="btn btn-warning btn-sm text-dark fw-semibold" onclick="quickOfficeUse(<%= item.id %>, null, '<%= escape(item.name) %>')">
+          <i class="bi bi-building me-1"></i> Office Use
+        </button>
+        <button class="btn btn-outline-danger btn-sm" onclick="quickStockOut(<%= item.id %>)">
+          <i class="bi bi-dash-lg"></i> Job Stock Out
+        </button>
+        <a href="/stock" class="btn btn-serene-secondary btn-sm">
           <i class="bi bi-arrow-left"></i> Back to Inventory
         </a>
       </div>
@@ -31,9 +45,9 @@
 
     <!-- Key Metrics Cards -->
     <div class="row g-2 g-md-3 mb-4">
-      <div class="col-6 col-md-4">
+      <div class="col-6 col-lg-3">
         <div class="kpi-card">
-          <div class="kpi-title">Current In-Stock</div>
+          <div class="kpi-title">Current Remaining Stock</div>
           <div class="kpi-value tabular-nums <%= statusObj.status === 'LOW_STOCK' ? 'text-danger' : (statusObj.status === 'OUT_OF_STOCK' ? 'text-danger' : 'text-primary') %>">
             <%= parseFloat(item.currentStock) %> <span class="fs-6 fw-normal text-muted"><%= item.unit %></span>
           </div>
@@ -43,34 +57,38 @@
         </div>
       </div>
 
-      <div class="col-6 col-md-4">
+      <div class="col-6 col-lg-3">
         <div class="kpi-card">
-          <div class="kpi-title">Unit Cost (Buy Price)</div>
+          <div class="kpi-title">Total Usage (All Time)</div>
           <div class="kpi-value tabular-nums text-dark">
-            <%= currencySymbol %> <%= parseFloat(item.unitCost || 0).toFixed(2) %>
+            <%= item.dataValues.totalUsed !== undefined ? item.dataValues.totalUsed : 0 %> <span class="fs-6 fw-normal text-muted"><%= item.unit %></span>
           </div>
           <div class="kpi-sub text-muted text-truncate">
-            Stock Valuation: <%= currencySymbol %> <%= (parseFloat(item.currentStock) * parseFloat(item.unitCost || 0)).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+            Job: <%= item.dataValues.productionUsedQty || 0 %> &bull; Office: <%= item.dataValues.officeUseQty || 0 %> <%= item.unit %>
           </div>
         </div>
       </div>
 
-      <div class="col-12 col-md-4">
+      <div class="col-6 col-lg-3">
+        <div class="kpi-card" style="border-left: 3px solid #f59e0b;">
+          <div class="kpi-title">Office Use Value (Part)</div>
+          <div class="kpi-value tabular-nums text-danger">
+            <%= currencySymbol %> <%= item.dataValues.officeUseCost ? parseFloat(item.dataValues.officeUseCost).toFixed(2) : '0.00' %>
+          </div>
+          <div class="kpi-sub text-warning-emphasis fw-medium text-truncate">
+            <%= item.dataValues.officeUseQty || 0 %> <%= item.unit %> used internally
+          </div>
+        </div>
+      </div>
+
+      <div class="col-6 col-lg-3">
         <div class="kpi-card">
-          <div class="kpi-title">Selling Price & Profit</div>
-          <div class="kpi-value tabular-nums <%= profit && profit.isProfit ? 'text-success' : 'text-dark' %>">
-            <% if (item.sellingPrice) { %>
-              <%= currencySymbol %> <%= parseFloat(item.sellingPrice).toFixed(2) %>
-            <% } else { %>
-              <span class="text-muted fs-5">Not set</span>
-            <% } %>
+          <div class="kpi-title">Unit Cost & Asset Valuation</div>
+          <div class="kpi-value tabular-nums text-dark">
+            <%= currencySymbol %> <%= parseFloat(item.unitCost || 0).toFixed(2) %>
           </div>
           <div class="kpi-sub text-muted text-truncate">
-            <% if (profit) { %>
-              Est. Profit: <strong>+<%= currencySymbol %> <%= profit.unitProfit.toFixed(2) %></strong> (<%= profit.marginPercent %>% margin)
-            <% } else { %>
-              Selling price optional
-            <% } %>
+            Valuation: <%= currencySymbol %> <%= (parseFloat(item.currentStock) * parseFloat(item.unitCost || 0)).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
           </div>
         </div>
       </div>
@@ -107,9 +125,13 @@
                           <span class="badge" style="background:#edf7ed; color:#1e4620; border:1px solid #16a34a;">
                             <i class="bi bi-arrow-down"></i> Stock In
                           </span>
+                        <% } else if (t.category === 'OFFICE_USE') { %>
+                          <span class="badge" style="background:#fffbeb; color:#b45309; border:1px solid #fde68a;">
+                            <i class="bi bi-building"></i> Office Use
+                          </span>
                         <% } else { %>
                           <span class="badge" style="background:#fdf2f2; color:#8a2c2c; border:1px solid #dc2626;">
-                            <i class="bi bi-arrow-up"></i> Stock Out
+                            <i class="bi bi-arrow-up"></i> Job Out
                           </span>
                         <% } %>
                       </td>
@@ -211,6 +233,18 @@
                 <span class="fw-medium text-danger"><%= parseFloat(item.minStockAlert) %> <%= item.unit %></span>
               </div>
             </div>
+            <% if (item.sizeLabel || (item.width && item.length)) { %>
+              <div class="row g-2 mb-3">
+                <div class="col-6">
+                  <span class="text-muted d-block small">Size Dimensions (W x L)</span>
+                  <span class="fw-bold text-primary"><%= item.width ? `${item.width}" x ${item.length}" ${item.dimensionUnit || 'inches'}` : (item.sizeLabel || 'Standard') %></span>
+                </div>
+                <div class="col-6">
+                  <span class="text-muted d-block small">Size Tag</span>
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace"><%= item.sizeLabel || 'Custom' %></span>
+                </div>
+              </div>
+            <% } %>
             <% if (item.notes) { %>
               <div class="pt-2 border-top">
                 <span class="text-muted d-block small mb-1">Internal Notes & Description</span>

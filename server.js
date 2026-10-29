@@ -228,6 +228,90 @@ async function ensureDbInitialized() {
               // Ignore if already adjusted
             }
           }
+
+          // Ensure stock_transactions table has category column
+          const txDesc = await qi.describeTable('stock_transactions').catch(() => null);
+          if (txDesc && !txDesc.category) {
+            await qi.addColumn('stock_transactions', 'category', {
+              type: sequelize.Sequelize.STRING(50),
+              allowNull: false,
+              defaultValue: 'GENERAL',
+            });
+          }
+
+          // Ensure orders table has subtotal, discount, discountType
+          const ordDesc = await qi.describeTable('orders').catch(() => null);
+          if (ordDesc) {
+            if (!ordDesc.subtotal) {
+              await qi.addColumn('orders', 'subtotal', {
+                type: sequelize.Sequelize.DECIMAL(12, 2),
+                allowNull: false,
+                defaultValue: 0.00,
+              });
+            }
+            if (!ordDesc.discount) {
+              await qi.addColumn('orders', 'discount', {
+                type: sequelize.Sequelize.DECIMAL(12, 2),
+                allowNull: false,
+                defaultValue: 0.00,
+              });
+            }
+            if (!ordDesc.discountType) {
+              await qi.addColumn('orders', 'discountType', {
+                type: sequelize.Sequelize.STRING(20),
+                allowNull: false,
+                defaultValue: 'FIXED',
+              });
+            }
+          }
+
+          // Ensure users table has customerId
+          const userDesc = await qi.describeTable('users').catch(() => null);
+          if (userDesc && !userDesc.customerId) {
+            await qi.addColumn('users', 'customerId', {
+              type: sequelize.Sequelize.INTEGER,
+              allowNull: true,
+            });
+          }
+
+          // Ensure customers table has userId
+          const custDesc = await qi.describeTable('customers').catch(() => null);
+          if (custDesc && !custDesc.userId) {
+            await qi.addColumn('customers', 'userId', {
+              type: sequelize.Sequelize.INTEGER,
+              allowNull: true,
+            });
+          }
+
+          // Ensure stock_items table has width, length, dimensionUnit, sizeLabel
+          const stockDesc = await qi.describeTable('stock_items').catch(() => null);
+          if (stockDesc) {
+            if (!stockDesc.width) {
+              await qi.addColumn('stock_items', 'width', {
+                type: sequelize.Sequelize.DECIMAL(10, 2),
+                allowNull: true,
+              });
+            }
+            if (!stockDesc.length) {
+              await qi.addColumn('stock_items', 'length', {
+                type: sequelize.Sequelize.DECIMAL(10, 2),
+                allowNull: true,
+              });
+            }
+            if (!stockDesc.dimensionUnit) {
+              await qi.addColumn('stock_items', 'dimensionUnit', {
+                type: sequelize.Sequelize.STRING(20),
+                allowNull: false,
+                defaultValue: 'inches',
+              });
+            }
+            if (!stockDesc.sizeLabel) {
+              await qi.addColumn('stock_items', 'sizeLabel', {
+                type: sequelize.Sequelize.STRING(50),
+                allowNull: true,
+              });
+            }
+          }
         } catch (migErr) {
           // Non-fatal if table already updated
         }

@@ -37,41 +37,59 @@
       </div>
     </div>
 
+<%
+  const billedSum = typeof customer.totalBilled !== 'undefined' ? customer.totalBilled : totalSpend;
+  const givenSum = typeof customer.totalGiven !== 'undefined' ? customer.totalGiven : ordersList.reduce((acc, o) => acc + (parseFloat(o.advancePaid) || 0), 0);
+  const yetToGiveSum = typeof customer.totalYetToGive !== 'undefined' ? customer.totalYetToGive : totalBalanceDue;
+%>
+
     <!-- Client Metrics Summary -->
     <div class="row g-2 g-md-3 mb-4">
-      <div class="col-6 col-md-4">
-        <div class="kpi-card">
-          <div class="kpi-title">Total Orders Placed</div>
-          <div class="kpi-value tabular-nums text-primary"><%= ordersList.length %></div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-card h-100">
+          <div class="kpi-title">Total Orders</div>
+          <div class="kpi-value tabular-nums text-dark"><%= ordersList.length %></div>
           <div class="kpi-sub text-muted text-truncate">
             <i class="bi bi-clipboard2-check"></i> Lifetime orders
           </div>
         </div>
       </div>
 
-      <div class="col-6 col-md-4">
-        <div class="kpi-card">
+      <div class="col-6 col-md-3">
+        <div class="kpi-card h-100">
           <div class="kpi-title">Total Job Value</div>
           <div class="kpi-value tabular-nums text-dark">
-            <%= currencySymbol %> <%= totalSpend.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+            <%= currencySymbol %> <%= parseFloat(billedSum).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
           </div>
           <div class="kpi-sub text-muted text-truncate">
-            <i class="bi bi-receipt"></i> Cumulative spend
+            <i class="bi bi-receipt"></i> Cumulative billed
           </div>
         </div>
       </div>
 
-      <div class="col-12 col-md-4">
-        <div class="kpi-card">
-          <div class="kpi-title">Pending Balance Due</div>
-          <div class="kpi-value tabular-nums <%= totalBalanceDue > 0 ? 'text-danger' : 'text-success' %>">
-            <%= currencySymbol %> <%= totalBalanceDue.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+      <div class="col-6 col-md-3">
+        <div class="kpi-card h-100" style="border-left: 4px solid var(--serene-success, #16a34a);">
+          <div class="kpi-title text-success">Given Amount (Paid)</div>
+          <div class="kpi-value tabular-nums text-success">
+            <%= currencySymbol %> <%= parseFloat(givenSum).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
           </div>
           <div class="kpi-sub text-muted text-truncate">
-            <% if (totalBalanceDue > 0) { %>
-              <span class="text-danger"><i class="bi bi-exclamation-circle"></i> Unsettled balances</span>
+            <i class="bi bi-check-circle text-success"></i> Advance payments received
+          </div>
+        </div>
+      </div>
+
+      <div class="col-6 col-md-3">
+        <div class="kpi-card h-100" style="border-left: 4px solid <%= yetToGiveSum > 0 ? 'var(--serene-danger, #dc2626)' : 'var(--serene-success, #16a34a)' %>;">
+          <div class="kpi-title <%= yetToGiveSum > 0 ? 'text-danger fw-bold' : 'text-success' %>">Yet to Give (Balance Due)</div>
+          <div class="kpi-value tabular-nums <%= yetToGiveSum > 0 ? 'text-danger' : 'text-success' %>">
+            <%= currencySymbol %> <%= parseFloat(yetToGiveSum).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+          </div>
+          <div class="kpi-sub text-muted text-truncate">
+            <% if (yetToGiveSum > 0) { %>
+              <span class="text-danger fw-semibold"><i class="bi bi-exclamation-circle"></i> Unsettled balance</span>
             <% } else { %>
-              <span class="text-success"><i class="bi bi-check2-circle"></i> Account fully settled</span>
+              <span class="text-success fw-semibold"><i class="bi bi-check2-circle"></i> Account fully cleared</span>
             <% } %>
           </div>
         </div>
@@ -82,9 +100,9 @@
       <!-- Left: Client Order History (7 cols) -->
       <div class="col-lg-7">
         <div class="serene-card mb-4">
-          <div class="serene-card-header d-flex align-items-center justify-content-between">
-            <h3 class="serene-card-title"><i class="bi bi-clock-history me-2 text-muted"></i> Printing Orders History</h3>
-            <span class="small text-muted"><%= ordersList.length %> Total Orders</span>
+          <div class="serene-card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <h3 class="serene-card-title mb-0"><i class="bi bi-clock-history me-2 text-muted"></i> Orders & Financial Transactions</h3>
+            <span class="badge bg-light text-muted border"><%= ordersList.length %> Orders</span>
           </div>
           <div class="table-responsive">
             <table class="serene-table">
@@ -92,34 +110,54 @@
                 <tr>
                   <th>Order #</th>
                   <th>Job Description</th>
-                  <th>Amount & Balance</th>
+                  <th>Total & Discount</th>
+                  <th class="text-success">Given Amount</th>
+                  <th class="text-danger">Yet to Give</th>
                   <th>Status</th>
-                  <th>Action</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 <% if (ordersList.length > 0) { %>
                   <% ordersList.forEach(o => { %>
+                    <% const oTotal = parseFloat(o.totalAmount) || 0; %>
+                    <% const oGiven = parseFloat(o.advancePaid) || 0; %>
+                    <% const oDue = parseFloat(o.balanceAmount) || 0; %>
+                    <% const oDisc = parseFloat(o.discount) || 0; %>
                     <tr>
                       <td>
-                        <a href="/orders/<%= o.id %>" class="fw-semibold text-decoration-none text-dark font-monospace">
+                        <a href="/orders/<%= o.id %>" class="fw-bold text-decoration-none text-dark font-monospace">
                           <%= o.orderNumber %>
                         </a>
                       </td>
                       <td>
-                        <div class="fw-medium text-dark"><%= o.jobTitle %></div>
+                        <div class="fw-semibold text-dark"><%= o.jobTitle %></div>
                         <span class="badge bg-light text-muted border small mt-1"><%= o.quantity %> units</span>
                       </td>
                       <td>
-                        <div class="tabular-nums fw-semibold text-dark">
-                          <%= currencySymbol %> <%= parseFloat(o.totalAmount).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+                        <div class="tabular-nums fw-bold text-dark">
+                          <%= currencySymbol %> <%= oTotal.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
                         </div>
-                        <% if (parseFloat(o.balanceAmount) <= 0) { %>
-                          <span class="badge mt-1" style="background:#edf7ed; color:#1e4620;">Paid</span>
-                        <% } else { %>
-                          <div class="text-danger small fw-semibold mt-1">
-                            Due: <%= currencySymbol %> <%= parseFloat(o.balanceAmount).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+                        <% if (oDisc > 0) { %>
+                          <div class="text-muted small" style="font-size: 0.72rem;">
+                            Disc: -<%= currencySymbol %> <%= oDisc.toFixed(2) %>
                           </div>
+                        <% } %>
+                      </td>
+                      <td>
+                        <div class="tabular-nums fw-bold text-success">
+                          <%= currencySymbol %> <%= oGiven.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+                        </div>
+                      </td>
+                      <td>
+                        <% if (oDue > 0) { %>
+                          <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold tabular-nums">
+                            <%= currencySymbol %> <%= oDue.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+                          </span>
+                        <% } else { %>
+                          <span class="badge bg-success-subtle text-success border border-success-subtle fw-semibold">
+                            Paid
+                          </span>
                         <% } %>
                       </td>
                       <td>
@@ -128,15 +166,25 @@
                         </span>
                       </td>
                       <td>
-                        <a href="/orders/<%= o.id %>" class="btn btn-sm btn-serene-secondary py-1 px-2" title="View Order">
-                          <i class="bi bi-eye"></i> View
-                        </a>
+                        <div class="d-flex align-items-center gap-1">
+                          <a href="/orders/<%= o.id %>" class="btn btn-sm btn-serene-secondary py-1 px-2" title="View Order">
+                            <i class="bi bi-eye"></i>
+                          </a>
+                          <% if (oDue > 0) { %>
+                            <button class="btn btn-sm btn-success py-1 px-2 text-white" onclick="openCustomerPaymentModal(<%= o.id %>, '<%= o.orderNumber %>', <%= oDue %>, <%= oGiven %>)" title="Record Payment (Update Given & Yet to Give)">
+                              <i class="bi bi-cash"></i>
+                            </button>
+                          <% } %>
+                          <button class="btn btn-sm btn-outline-secondary py-1 px-2" onclick="openCustomerDiscountModal(<%= o.id %>, '<%= o.orderNumber %>', <%= oDisc %>, <%= oTotal %>)" title="Manual Discount">
+                            <i class="bi bi-percent"></i>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   <% }) %>
                 <% } else { %>
                   <tr>
-                    <td colspan="5" class="text-center py-5 text-muted">
+                    <td colspan="7" class="text-center py-5 text-muted">
                       No orders placed by this customer yet.
                     </td>
                   </tr>
@@ -194,11 +242,44 @@
             </div>
 
             <% if (customer.notes) { %>
-              <div class="pt-2 border-top">
+              <div class="pt-2 border-top mb-3">
                 <span class="text-muted d-block small mb-1">Account Notes</span>
                 <div class="p-2 rounded bg-light border small text-dark"><%= customer.notes %></div>
               </div>
             <% } %>
+
+            <!-- Client Portal Login Information -->
+            <div class="pt-3 border-top">
+              <span class="text-muted d-block small mb-2 fw-semibold">Web Client Portal Login</span>
+              <% if (customer.userAccount || customer.userId) { %>
+                <% const acc = customer.userAccount; %>
+                <div class="p-3 rounded-2 bg-primary-subtle border border-primary-subtle">
+                  <div class="d-flex align-items-center justify-content-between mb-1">
+                    <span class="fw-bold text-primary"><i class="bi bi-shield-check me-1"></i> Portal Account Active</span>
+                    <span class="badge bg-primary text-white font-monospace"><%= acc ? acc.username : 'User' %></span>
+                  </div>
+                  <% if (acc && acc.email) { %>
+                    <div class="small text-muted"><i class="bi bi-envelope me-1"></i> <%= acc.email %></div>
+                  <% } %>
+                  <% if (acc && acc.lastLoginAt) { %>
+                    <div class="small text-muted mt-1"><i class="bi bi-clock me-1"></i> Last login: <%= formatDate(acc.lastLoginAt) %></div>
+                  <% } %>
+                  <div class="mt-2">
+                    <a href="/portal?customerId=<%= customer.id %>" class="btn btn-sm btn-primary py-1 px-2" target="_blank">
+                      <i class="bi bi-box-arrow-up-right me-1"></i> Open Portal View
+                    </a>
+                  </div>
+                </div>
+              <% } else { %>
+                <div class="p-3 rounded-2 bg-light border text-muted small">
+                  <div class="mb-2"><i class="bi bi-info-circle text-primary me-1"></i> This customer has not registered a web portal login yet.</div>
+                  <div class="mb-2">When they register at <code>/register</code> using phone <strong><%= customer.phone %></strong>, their orders and balance will connect automatically.</div>
+                  <a href="/register" class="btn btn-sm btn-serene-secondary py-1 px-2" target="_blank">
+                    <i class="bi bi-link-45deg"></i> Open Registration Page
+                  </a>
+                </div>
+              <% } %>
+            </div>
           </div>
         </div>
       </div>
@@ -206,4 +287,174 @@
   </div>
 </main>
 
+<!-- Modal: Record Payment on Order (Updates Given Amount and Yet to Give Balance) -->
+<div class="modal fade" id="customerPaymentModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius: var(--serene-radius-lg); border: 1px solid var(--serene-border);">
+      <div class="modal-header border-bottom bg-light">
+        <h5 class="modal-title fs-6 fw-semibold text-dark">
+          <i class="bi bi-cash-stack text-success me-1"></i> Record Payment · <span id="payModalOrderNum"></span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form onsubmit="handleCustomerPaymentSubmit(event)">
+        <input type="hidden" id="payModalOrderId" name="orderId">
+        <div class="modal-body p-4">
+          <div class="p-3 mb-3 rounded-2" style="background: #fafbfc; border: 1px solid var(--serene-border-subtle);">
+            <div class="d-flex justify-content-between mb-1 small text-muted">
+              <span>Current Given (Paid):</span>
+              <span class="fw-semibold text-success tabular-nums" id="payModalCurrentGiven">Rs. 0.00</span>
+            </div>
+            <div class="d-flex justify-content-between small text-danger fw-bold">
+              <span>Remaining Yet to Give (Due):</span>
+              <span class="tabular-nums" id="payModalCurrentDue">Rs. 0.00</span>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Payment Amount to Collect (<%= currencySymbol %>) *</label>
+            <input type="number" name="amount" id="payModalInputAmount" class="form-control fs-5 fw-bold text-success" step="any" min="0.01" required autofocus oninput="updateLivePaymentBalance()">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small text-muted">Payment Notes / Reference (Optional)</label>
+            <input type="text" name="notes" id="payModalNotes" class="form-control" placeholder="e.g. Cash at counter / Bank Slip #1234">
+          </div>
+
+          <div class="p-2 rounded bg-light border small text-muted">
+            <div class="d-flex justify-content-between">
+              <span>New Yet to Give Balance:</span>
+              <span class="fw-bold tabular-nums text-dark" id="payModalNewDue">Rs. 0.00</span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-top bg-light">
+          <button type="button" class="btn btn-serene-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success text-white fw-semibold">
+            <i class="bi bi-check-lg"></i> Confirm & Record Payment
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Update Manual Discount on Order -->
+<div class="modal fade" id="customerDiscountModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius: var(--serene-radius-lg); border: 1px solid var(--serene-border);">
+      <div class="modal-header border-bottom bg-light">
+        <h5 class="modal-title fs-6 fw-semibold text-dark">
+          <i class="bi bi-percent text-primary me-1"></i> Manual Discount · <span id="discModalOrderNum"></span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form onsubmit="handleCustomerDiscountSubmit(event)">
+        <input type="hidden" id="discModalOrderId" name="orderId">
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Manual Discount Amount (<%= currencySymbol %>) *</label>
+            <input type="number" name="discount" id="discModalInputDiscount" class="form-control fs-5 fw-bold" step="any" min="0" required autofocus>
+            <div class="form-text small text-muted">Enter manual discount in rupees. The total amount and balance due will recalculate automatically.</div>
+          </div>
+        </div>
+        <div class="modal-footer border-top bg-light">
+          <button type="button" class="btn btn-serene-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary fw-semibold">
+            <i class="bi bi-check-lg"></i> Apply Discount
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <%- include('../partials/footer') %>
+
+<script>
+let currentModalDue = 0;
+let currentModalGiven = 0;
+
+function openCustomerPaymentModal(orderId, orderNum, dueAmount, givenAmount) {
+  currentModalDue = dueAmount;
+  currentModalGiven = givenAmount;
+  document.getElementById('payModalOrderId').value = orderId;
+  document.getElementById('payModalOrderNum').innerText = orderNum;
+  document.getElementById('payModalCurrentGiven').innerText = 'Rs. ' + Number(givenAmount).toFixed(2);
+  document.getElementById('payModalCurrentDue').innerText = 'Rs. ' + Number(dueAmount).toFixed(2);
+  document.getElementById('payModalInputAmount').value = dueAmount;
+  document.getElementById('payModalInputAmount').max = dueAmount;
+  document.getElementById('payModalNotes').value = '';
+  updateLivePaymentBalance();
+
+  const modal = new bootstrap.Modal(document.getElementById('customerPaymentModal'));
+  modal.show();
+}
+
+function updateLivePaymentBalance() {
+  const entered = parseFloat(document.getElementById('payModalInputAmount').value) || 0;
+  const newDue = Math.max(0, currentModalDue - entered);
+  document.getElementById('payModalNewDue').innerText = 'Rs. ' + newDue.toFixed(2);
+}
+
+async function handleCustomerPaymentSubmit(e) {
+  e.preventDefault();
+  const orderId = document.getElementById('payModalOrderId').value;
+  const amount = parseFloat(document.getElementById('payModalInputAmount').value);
+  const notes = document.getElementById('payModalNotes').value;
+
+  if (isNaN(amount) || amount <= 0) {
+    toast.error('Please enter a valid payment amount.');
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/orders/${orderId}/payment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount, notes }),
+    });
+    const result = await res.json();
+    if (result.success) {
+      setPendingToast(result.message || 'Payment recorded successfully!', 'success');
+      window.location.reload();
+    } else {
+      toast.error('Payment failed: ' + result.message);
+    }
+  } catch (err) {
+    toast.error('Failed to submit payment: ' + err.message);
+  }
+}
+
+function openCustomerDiscountModal(orderId, orderNum, currentDiscount, totalAmount) {
+  document.getElementById('discModalOrderId').value = orderId;
+  document.getElementById('discModalOrderNum').innerText = orderNum;
+  document.getElementById('discModalInputDiscount').value = currentDiscount;
+
+  const modal = new bootstrap.Modal(document.getElementById('customerDiscountModal'));
+  modal.show();
+}
+
+async function handleCustomerDiscountSubmit(e) {
+  e.preventDefault();
+  const orderId = document.getElementById('discModalOrderId').value;
+  const discount = parseFloat(document.getElementById('discModalInputDiscount').value) || 0;
+
+  try {
+    const res = await fetch(`/api/orders/${orderId}/discount`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ discount }),
+    });
+    const result = await res.json();
+    if (result.success) {
+      setPendingToast(result.message || 'Discount updated successfully!', 'success');
+      window.location.reload();
+    } else {
+      toast.error('Failed: ' + result.message);
+    }
+  } catch (err) {
+    toast.error('Failed to update discount: ' + err.message);
+  }
+}
+</script>

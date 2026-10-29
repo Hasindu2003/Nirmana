@@ -104,6 +104,47 @@ class StockController {
     }
   }
 
+  // Office Use: Record stock taken for internal office/business usage
+  async recordOfficeUse(req, res, next) {
+    try {
+      const { stockItemId, quantity, department, notes, date } = req.body;
+      if (!stockItemId || !quantity) {
+        return res.status(400).json({ success: false, message: 'Stock item and quantity are required.' });
+      }
+
+      const result = await stockService.recordOfficeUse({
+        stockItemId,
+        quantity,
+        department,
+        notes,
+        date,
+      });
+
+      return res.json({
+        success: true,
+        message: `Successfully allocated ${quantity} ${result.item.unit} for office use (${result.department}). Remaining balance: ${result.item.currentStock} ${result.item.unit}. Expense value: Rs. ${result.officeUseValue.toFixed(2)}.`,
+        data: result,
+      });
+    } catch (error) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
+  async listOfficeUse(req, res, next) {
+    try {
+      const { page, limit, date } = req.query;
+      const result = await stockService.getOfficeUseTransactions({
+        page: page ? parseInt(page, 10) : 1,
+        limit: limit ? parseInt(limit, 10) : 10,
+        paginate: true,
+        date,
+      });
+      return res.json({ success: true, data: result.transactions, pagination: result.pagination });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async listTransactions(req, res, next) {
     try {
       const { page, limit } = req.query;

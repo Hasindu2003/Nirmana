@@ -1,0 +1,264 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<%
+  const ordersList = customer.orders || [];
+  const billedSum = typeof customer.totalBilled !== 'undefined' ? customer.totalBilled : ordersList.reduce((acc, o) => acc + (parseFloat(o.totalAmount) || 0), 0);
+  const givenSum = typeof customer.totalGiven !== 'undefined' ? customer.totalGiven : ordersList.reduce((acc, o) => acc + (parseFloat(o.advancePaid) || 0), 0);
+  const yetToGiveSum = typeof customer.totalYetToGive !== 'undefined' ? customer.totalYetToGive : ordersList.reduce((acc, o) => acc + (parseFloat(o.balanceAmount) || 0), 0);
+%>
+
+<main class="main-wrapper">
+  <div class="content-body">
+    <!-- Welcome Header -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-semibold px-2 py-1">
+            <i class="bi bi-shield-check me-1"></i> Verified Client Portal
+          </span>
+          <span class="badge bg-light text-muted border font-monospace"><%= customer.customerCode %></span>
+        </div>
+        <h2 class="fs-4 fw-bold mb-1">Hello, <%= customer.name %>!</h2>
+        <div class="text-muted small">
+          Track all your printing orders, given advances, and balances yet to give.
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <a href="/upload" class="btn btn-serene-primary shadow-xs">
+          <i class="bi bi-cloud-arrow-up"></i> Upload New Print Files
+        </a>
+        <a href="/logout" class="btn btn-serene-secondary">
+          <i class="bi bi-box-arrow-right"></i> Sign Out
+        </a>
+      </div>
+    </div>
+
+    <!-- Financial KPI Summary Cards -->
+    <div class="row g-2 g-md-3 mb-4">
+      <!-- 1. Total Orders -->
+      <div class="col-6 col-md-3">
+        <div class="kpi-card h-100">
+          <div class="kpi-title">Total Orders</div>
+          <div class="kpi-value tabular-nums text-dark"><%= ordersList.length %></div>
+          <div class="kpi-sub text-muted text-truncate">
+            <i class="bi bi-receipt"></i> Print orders placed
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Total Billed Value -->
+      <div class="col-6 col-md-3">
+        <div class="kpi-card h-100">
+          <div class="kpi-title">Total Billed</div>
+          <div class="kpi-value tabular-nums text-dark">
+            <%= currencySymbol %> <%= parseFloat(billedSum).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+          </div>
+          <div class="kpi-sub text-muted text-truncate">
+            <i class="bi bi-wallet2"></i> Lifetime jobs total
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Given Amount (Paid) -->
+      <div class="col-6 col-md-3">
+        <div class="kpi-card h-100" style="border-left: 4px solid var(--serene-success, #16a34a);">
+          <div class="kpi-title text-success">Given Amount (Paid)</div>
+          <div class="kpi-value tabular-nums text-success">
+            <%= currencySymbol %> <%= parseFloat(givenSum).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+          </div>
+          <div class="kpi-sub text-muted text-truncate">
+            <i class="bi bi-check-circle text-success"></i> Advance & payments received
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Yet to Give (Unpaid Balance) -->
+      <div class="col-6 col-md-3">
+        <div class="kpi-card h-100" style="border-left: 4px solid <%= yetToGiveSum > 0 ? 'var(--serene-danger, #dc2626)' : 'var(--serene-success, #16a34a)' %>;">
+          <div class="kpi-title <%= yetToGiveSum > 0 ? 'text-danger fw-bold' : 'text-success' %>">Yet to Give (To Pay)</div>
+          <div class="kpi-value tabular-nums <%= yetToGiveSum > 0 ? 'text-danger' : 'text-success' %>">
+            <%= currencySymbol %> <%= parseFloat(yetToGiveSum).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+          </div>
+          <div class="kpi-sub text-muted text-truncate">
+            <% if (yetToGiveSum > 0) { %>
+              <span class="text-danger fw-medium"><i class="bi bi-clock-history"></i> Balance due upon delivery</span>
+            <% } else { %>
+              <span class="text-success fw-medium"><i class="bi bi-check2-all"></i> All orders fully paid!</span>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Balance Notice Banner (if any) -->
+    <% if (yetToGiveSum > 0) { %>
+      <div class="alert alert-warning border-warning-subtle shadow-xs mb-4 p-3 rounded-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="rounded-circle bg-warning text-dark p-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+            <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+          </div>
+          <div>
+            <div class="fw-bold text-dark mb-0">Pending Payment Due: <%= currencySymbol %> <%= parseFloat(yetToGiveSum).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %></div>
+            <div class="text-muted small">You can settle this balance at our store counter or via direct bank transfer when collecting your order.</div>
+          </div>
+        </div>
+        <div class="small text-muted font-monospace">
+          Contact: 077 568 5543 / 034 226 2355
+        </div>
+      </div>
+    <% } %>
+
+    <!-- Orders & Transactions List -->
+    <div class="serene-card mb-4">
+      <div class="serene-card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <h3 class="serene-card-title mb-0">
+          <i class="bi bi-card-checklist me-2 text-primary"></i> My Printing Orders & Transactions
+        </h3>
+        <span class="badge bg-light text-muted border"><%= ordersList.length %> Total Jobs</span>
+      </div>
+
+      <div class="table-responsive">
+        <table class="serene-table">
+          <thead>
+            <tr>
+              <th>Order #</th>
+              <th>Date</th>
+              <th>Job Description</th>
+              <th>Quantity</th>
+              <th>Total Amount</th>
+              <th>Given Amount</th>
+              <th>Yet to Give</th>
+              <th>Job Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (ordersList.length > 0) { %>
+              <% ordersList.forEach(o => { %>
+                <% const orderDue = parseFloat(o.balanceAmount) || 0; %>
+                <% const orderPaid = parseFloat(o.advancePaid) || 0; %>
+                <% const orderTotal = parseFloat(o.totalAmount) || 0; %>
+                <tr>
+                  <td>
+                    <span class="font-monospace fw-bold text-dark"><%= o.orderNumber %></span>
+                  </td>
+                  <td>
+                    <span class="text-muted small"><%= o.orderDate || formatDate(o.createdAt) %></span>
+                  </td>
+                  <td>
+                    <div class="fw-semibold text-dark"><%= o.jobTitle %></div>
+                    <% if (o.paperMaterial) { %>
+                      <div class="text-muted small" style="font-size: 0.75rem;">Material: <%= o.paperMaterial %></div>
+                    <% } %>
+                    <% if (o.specifications) { %>
+                      <div class="text-muted small" style="font-size: 0.73rem;"><%= o.specifications %></div>
+                    <% } %>
+                  </td>
+                  <td>
+                    <span class="badge bg-light text-dark border"><%= o.quantity %> units</span>
+                  </td>
+                  <td>
+                    <div class="tabular-nums fw-bold text-dark">
+                      <%= currencySymbol %> <%= orderTotal.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+                    </div>
+                    <% if (o.discount && parseFloat(o.discount) > 0) { %>
+                      <div class="text-muted small" style="font-size: 0.72rem;">
+                        Discount: -<%= currencySymbol %> <%= parseFloat(o.discount).toFixed(2) %>
+                      </div>
+                    <% } %>
+                  </td>
+                  <td>
+                    <span class="tabular-nums fw-semibold text-success">
+                      <%= currencySymbol %> <%= orderPaid.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+                    </span>
+                  </td>
+                  <td>
+                    <% if (orderDue > 0) { %>
+                      <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold tabular-nums">
+                        <%= currencySymbol %> <%= orderDue.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+                      </span>
+                    <% } else { %>
+                      <span class="badge bg-success-subtle text-success border border-success-subtle fw-semibold">
+                        <i class="bi bi-check2"></i> Fully Settled
+                      </span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <span class="status-badge status-<%= o.status.toLowerCase() %>">
+                      <span class="status-dot"></span> <%= o.status.replace('_', ' ') %>
+                    </span>
+                  </td>
+                </tr>
+              <% }) %>
+            <% } else { %>
+              <tr>
+                <td colspan="8" class="text-center py-5 text-muted">
+                  <div class="mb-2"><i class="bi bi-printer fs-2 text-muted"></i></div>
+                  <div class="fw-semibold text-dark">No orders found yet</div>
+                  <div class="small text-muted mt-1">When you place print jobs at Nirmana, they will be listed here automatically.</div>
+                  <a href="/upload" class="btn btn-sm btn-serene-primary mt-3">Upload Print Artwork</a>
+                </td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Account Details & Bank Transfer Info Card -->
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <div class="serene-card h-100">
+          <div class="serene-card-header">
+            <h3 class="serene-card-title"><i class="bi bi-person-circle me-2 text-muted"></i> My Account Details</h3>
+          </div>
+          <div class="serene-card-body small">
+            <div class="d-flex justify-content-between py-2 border-bottom">
+              <span class="text-muted">Account Name:</span>
+              <span class="fw-bold text-dark"><%= customer.name %></span>
+            </div>
+            <div class="d-flex justify-content-between py-2 border-bottom">
+              <span class="text-muted">Registered Phone:</span>
+              <span class="fw-semibold text-dark"><%= customer.phone %></span>
+            </div>
+            <div class="d-flex justify-content-between py-2 border-bottom">
+              <span class="text-muted">Company / Brand:</span>
+              <span class="text-dark"><%= customer.companyName || 'Individual' %></span>
+            </div>
+            <div class="d-flex justify-content-between py-2 border-bottom">
+              <span class="text-muted">Email Address:</span>
+              <span class="text-dark"><%= customer.email || 'Not provided' %></span>
+            </div>
+            <div class="d-flex justify-content-between py-2">
+              <span class="text-muted">Customer Code:</span>
+              <span class="font-monospace text-primary fw-bold"><%= customer.customerCode %></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="serene-card h-100">
+          <div class="serene-card-header">
+            <h3 class="serene-card-title"><i class="bi bi-bank me-2 text-muted"></i> Payment & Bank Details</h3>
+          </div>
+          <div class="serene-card-body small">
+            <p class="text-muted mb-3">To settle any remaining balances due via direct bank transfer, please use the following bank details:</p>
+            <div class="p-3 rounded-2 bg-light border mb-3">
+              <div class="fw-bold text-dark mb-1">Nirmana Printing (Pvt) Ltd</div>
+              <div class="text-muted mb-1">Bank: <strong>Commercial Bank of Ceylon</strong></div>
+              <div class="text-muted mb-1">Account No: <strong>8000 1234 5678</strong></div>
+              <div class="text-muted">Branch: <strong>Horana Branch</strong></div>
+            </div>
+            <div class="text-muted">
+              <i class="bi bi-info-circle text-primary me-1"></i> Please mention your <strong>Customer Code (<%= customer.customerCode %>)</strong> or <strong>Order #</strong> as the transaction remark and share receipt via WhatsApp (077 568 5543).
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<%- include('../partials/footer') %>

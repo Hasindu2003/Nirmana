@@ -6,199 +6,485 @@
     <!-- Header with Quick Action Buttons -->
     <div class="d-flex flex-wrap align-items-center justify-content-between mb-4">
       <div>
-        <h2 class="fs-4 fw-bold mb-1">Stock & Materials Management</h2>
-        <div class="text-muted small">Real-time inventory levels, stock arrival records, and usage tracking</div>
+        <h2 class="fs-4 fw-bold mb-1 text-dark">Stock & Materials Management</h2>
+        <div class="text-muted small">Live remaining inventory, total used, internal office consumption, and stock arrival records</div>
       </div>
       <div class="d-flex flex-wrap align-items-center gap-2 mt-3 mt-sm-0">
-        <button class="btn btn-serene-primary" data-bs-toggle="modal" data-bs-target="#newStockItemModal">
+        <button class="btn btn-serene-primary shadow-xs" data-bs-toggle="modal" data-bs-target="#newStockItemModal">
           <i class="bi bi-plus-lg"></i> Add New Item
         </button>
-        <button class="btn btn-serene-secondary" data-bs-toggle="modal" data-bs-target="#stockInModal">
-          <i class="bi bi-box-arrow-in-down text-success"></i> Stock In (Arrival)
+        <button class="btn btn-success text-white shadow-xs" data-bs-toggle="modal" data-bs-target="#stockInModal">
+          <i class="bi bi-box-arrow-in-down"></i> Stock In (Arrival)
         </button>
-        <button class="btn btn-serene-secondary" data-bs-toggle="modal" data-bs-target="#stockOutModal">
-          <i class="bi bi-box-arrow-up text-danger"></i> Stock Out (Use)
+        <button class="btn btn-warning text-dark fw-semibold shadow-xs" data-bs-toggle="modal" data-bs-target="#officeUseModal">
+          <i class="bi bi-building-down me-1"></i> Office Use
+        </button>
+        <button class="btn btn-outline-danger shadow-xs" data-bs-toggle="modal" data-bs-target="#stockOutModal">
+          <i class="bi bi-box-arrow-up"></i> Job Stock Out
         </button>
       </div>
     </div>
 
-    <!-- Filters & Search -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-      <div class="d-flex flex-wrap gap-1">
-        <a href="/stock" class="btn btn-sm <%= currentCategory === 'ALL' ? 'btn-serene-primary' : 'btn-serene-secondary' %>">
-          All (<%= items.length %>)
-        </a>
-        <% categories.forEach(cat => { %>
-          <a href="/stock?category=<%= encodeURIComponent(cat) %>" class="btn btn-sm <%= currentCategory === cat ? 'btn-serene-primary' : 'btn-serene-secondary' %>">
-            <%= cat %>
-          </a>
-        <% }) %>
+    <!-- Top 4 Inventory KPI Summary Cards -->
+    <div class="row g-2 g-md-3 mb-4">
+      <!-- 1. Total Registered Materials -->
+      <div class="col-6 col-lg-3">
+        <div class="kpi-card-compact">
+          <div class="kpi-compact-content">
+            <div class="kpi-compact-label">
+              <span>Registered Materials</span>
+            </div>
+            <div class="kpi-compact-num text-dark tabular-nums">
+              <%= inventorySummary ? inventorySummary.totalItems : items.length %>
+            </div>
+            <div class="kpi-compact-sub">
+              <i class="bi bi-boxes text-muted"></i> Active items tracked
+            </div>
+          </div>
+          <div class="kpi-icon-chip" style="background: #f1f5f9; color: #334155;">
+            <i class="bi bi-box-seam"></i>
+          </div>
+        </div>
       </div>
 
-      <form action="/stock" method="GET" class="d-flex align-items-center gap-2 flex-grow-1 flex-sm-grow-0" style="min-width: 200px; max-width: 100%;">
-        <input type="text" name="search" value="<%= search %>" class="form-control form-control-sm flex-grow-1" placeholder="Search stock items...">
-        <button type="submit" class="btn btn-sm btn-serene-secondary">Search</button>
-      </form>
+      <!-- 2. Remaining Stock Valuation -->
+      <div class="col-6 col-lg-3">
+        <div class="kpi-card-compact">
+          <div class="kpi-compact-content">
+            <div class="kpi-compact-label">
+              <span>Remaining Valuation</span>
+            </div>
+            <div class="kpi-compact-num text-success tabular-nums" style="font-size: 1.35rem;">
+              <%= currencySymbol %> <%= inventorySummary ? inventorySummary.totalRemainingValuation.toLocaleString('en-LK', { minimumFractionDigits: 2 }) : '0.00' %>
+            </div>
+            <div class="kpi-compact-sub text-success">
+              <i class="bi bi-shield-check"></i> On-shelf asset value
+            </div>
+          </div>
+          <div class="kpi-icon-chip" style="background: #edf7ed; color: #16a34a;">
+            <i class="bi bi-cash-stack"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Office Use Overhead Value -->
+      <div class="col-6 col-lg-3">
+        <div class="kpi-card-compact border-warning-subtle">
+          <div class="kpi-compact-content">
+            <div class="kpi-compact-label">
+              <span>Office Consumables</span>
+            </div>
+            <div class="kpi-compact-num text-danger tabular-nums" style="font-size: 1.35rem;">
+              <%= currencySymbol %> <%= inventorySummary ? inventorySummary.totalOfficeUseValue.toLocaleString('en-LK', { minimumFractionDigits: 2 }) : '0.00' %>
+            </div>
+            <div class="kpi-compact-sub text-warning-emphasis fw-medium">
+              <i class="bi bi-building"></i> Internal office expenses
+            </div>
+          </div>
+          <div class="kpi-icon-chip" style="background: #fffbeb; color: #b45309;">
+            <i class="bi bi-building-down"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Low Stock Alert Count -->
+      <% const lowCount = items.filter(i => parseFloat(i.currentStock) <= parseFloat(i.minStockAlert)).length; %>
+      <div class="col-6 col-lg-3">
+        <div class="kpi-card-compact <%= lowCount > 0 ? 'border-danger-subtle' : '' %>">
+          <div class="kpi-compact-content">
+            <div class="kpi-compact-label">
+              <span>Low Stock Items</span>
+            </div>
+            <div class="kpi-compact-num <%= lowCount > 0 ? 'text-danger' : 'text-success' %> tabular-nums">
+              <%= lowCount %>
+            </div>
+            <div class="kpi-compact-sub <%= lowCount > 0 ? 'text-danger fw-semibold' : 'text-muted' %>">
+              <% if (lowCount > 0) { %>
+                <i class="bi bi-exclamation-triangle"></i> Needs restocking
+              <% } else { %>
+                <i class="bi bi-check2-circle text-success"></i> Stock adequate
+              <% } %>
+            </div>
+          </div>
+          <div class="kpi-icon-chip <%= lowCount > 0 ? 'bg-danger-subtle text-danger' : 'bg-light text-muted' %>">
+            <i class="bi <%= lowCount > 0 ? 'bi-exclamation-triangle-fill' : 'bi-shield-check' %>"></i>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Live Inventory Table Card -->
-    <div class="serene-card mb-4">
-      <div class="serene-card-header">
-        <h3 class="serene-card-title"><i class="bi bi-boxes me-2 text-muted"></i> Current Stock Levels</h3>
-        <span class="small text-muted"><%= items.length %> Tracked Items</span>
-      </div>
-      <div class="table-responsive">
-        <table class="serene-table">
-          <thead>
-            <tr>
-              <th>Material / Item Name</th>
-              <th>Current Stock</th>
-              <th>Unit Pricing</th>
-              <th>Status</th>
-              <th>Quick Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% if (items && items.length > 0) { %>
-              <% items.forEach(item => { %>
-                <% const statusObj = item.getStockStatus(); %>
-                <tr>
-                  <td>
-                    <div class="fw-semibold text-dark">
-                      <a href="/stock/<%= item.id %>" class="text-dark text-decoration-none hover-primary"><%= item.name %></a>
-                    </div>
-                    <div class="d-flex flex-wrap align-items-center gap-1 mt-1">
-                      <span class="badge bg-light text-muted border font-monospace" style="font-size: 0.72rem;"><%= item.code %></span>
-                      <span class="badge bg-light text-dark border" style="font-size: 0.72rem;"><%= item.category %></span>
-                    </div>
-                  </td>
-                  <td>
-                    <div class="tabular-nums fw-bold fs-6">
-                      <%= parseFloat(item.currentStock) %> <span class="fw-normal text-muted fs-6"><%= item.unit %></span>
-                    </div>
-                  </td>
-                  <td>
-                    <div class="tabular-nums small">
-                      <span class="text-muted">Buy:</span> <%= currencySymbol %> <%= parseFloat(item.unitCost || 0).toFixed(2) %>
-                    </div>
-                    <% if (item.sellingPrice !== null && item.sellingPrice !== undefined && parseFloat(item.sellingPrice) > 0) { %>
-                      <div class="tabular-nums small text-success fw-medium">
-                        <span class="text-muted">Sell:</span> <%= currencySymbol %> <%= parseFloat(item.sellingPrice).toFixed(2) %>
-                      </div>
-                    <% } %>
-                  </td>
-                  <td>
-                    <span class="status-badge <%= statusObj.badgeClass %>">
-                      <span class="status-dot"></span> <%= statusObj.label %>
-                    </span>
-                  </td>
-                  <td>
-                    <div class="d-flex align-items-center gap-1">
-                      <button class="btn btn-sm btn-serene-secondary py-1 px-2 text-success small" onclick="quickStockIn(<%= item.id %>)" title="Record Stock In">
-                        <i class="bi bi-plus-circle"></i> In
-                      </button>
-                      <button class="btn btn-sm btn-serene-secondary py-1 px-2 text-danger small" onclick="quickStockOut(<%= item.id %>)" title="Record Stock Out">
-                        <i class="bi bi-dash-circle"></i> Out
-                      </button>
-                      <a href="/stock/<%= item.id %>" class="btn btn-sm btn-serene-secondary py-1 px-2" title="View Full Details">
-                        <i class="bi bi-eye"></i> Details
-                      </a>
-                    </div>
-                  </td>
-                </tr>
-              <% }) %>
-            <% } else { %>
-              <tr>
-                <td colspan="5" class="text-center py-5 text-muted">
-                  No stock items found. Click "+ Add New Item" to add your raw paper or materials.
-                </td>
-              </tr>
-            <% } %>
-          </tbody>
-        </table>
-      </div>
-      <%- include('../partials/pagination', { 
-        pagination: itemsPagination, 
-        baseUrl: '/stock', 
-        queryParams: { 
-          category: currentCategory !== 'ALL' ? currentCategory : undefined, 
-          search: search || undefined, 
-          txPage: typeof currentTxPage !== 'undefined' ? currentTxPage : undefined 
-        } 
-      }) %>
-    </div>
+    <!-- Navigation Tabs for Stock Management -->
+    <ul class="nav nav-pills mb-3 gap-2" id="stockViewTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link <%= currentTab === 'inventory' ? 'active' : '' %> fw-semibold d-flex align-items-center gap-2 px-3 py-2" id="inventory-tab" data-bs-toggle="tab" data-bs-target="#inventory-pane" type="button" role="tab">
+          <i class="bi bi-boxes"></i> All Materials & Remaining Stock
+          <span class="badge bg-light text-dark border ms-1"><%= items.length %></span>
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link <%= currentTab === 'office' ? 'active' : '' %> fw-semibold d-flex align-items-center gap-2 px-3 py-2" id="office-tab" data-bs-toggle="tab" data-bs-target="#office-pane" type="button" role="tab" style="color: #b45309;">
+          <i class="bi bi-building-down"></i> Office Use Ledger
+          <% if (officeTransactions && officeTransactions.length > 0) { %>
+            <span class="badge bg-warning text-dark ms-1"><%= typeof officePagination !== 'undefined' && officePagination ? officePagination.totalItems : officeTransactions.length %></span>
+          <% } %>
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link <%= currentTab === 'movements' ? 'active' : '' %> fw-semibold d-flex align-items-center gap-2 px-3 py-2" id="movements-tab" data-bs-toggle="tab" data-bs-target="#movements-pane" type="button" role="tab">
+          <i class="bi bi-clock-history"></i> Stock Movements Log
+          <span class="badge bg-light text-dark border ms-1"><%= typeof transactionsPagination !== 'undefined' && transactionsPagination ? transactionsPagination.totalItems : transactions.length %></span>
+        </button>
+      </li>
+    </ul>
 
-    <!-- Stock Movement History (Ledger) -->
-    <div class="serene-card">
-      <div class="serene-card-header">
-        <h3 class="serene-card-title"><i class="bi bi-clock-history me-2 text-muted"></i> Recent Stock Movements (Audit Log)</h3>
-        <span class="small text-muted"><%= typeof transactionsPagination !== 'undefined' ? transactionsPagination.totalItems : transactions.length %> Total Records</span>
-      </div>
-      <div class="table-responsive">
-        <table class="serene-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Material Item</th>
-              <th>Movement</th>
-              <th>Reference & Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% if (transactions && transactions.length > 0) { %>
-              <% transactions.forEach(t => { %>
+    <!-- Tab Content -->
+    <div class="tab-content" id="stockViewTabContent">
+      <!-- 1. All Materials & Remaining Stock Pane -->
+      <div class="tab-pane fade <%= currentTab === 'inventory' ? 'show active' : '' %>" id="inventory-pane" role="tabpanel">
+        <!-- Filters & Search -->
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+          <div class="d-flex flex-wrap gap-1">
+            <a href="/stock?tab=inventory" class="btn btn-sm <%= currentCategory === 'ALL' ? 'btn-serene-primary' : 'btn-serene-secondary' %>">
+              All (<%= items.length %>)
+            </a>
+            <% categories.forEach(cat => { %>
+              <a href="/stock?category=<%= encodeURIComponent(cat) %>&tab=inventory" class="btn btn-sm <%= currentCategory === cat ? 'btn-serene-primary' : 'btn-serene-secondary' %>">
+                <%= cat %>
+              </a>
+            <% }) %>
+          </div>
+
+          <form action="/stock" method="GET" class="d-flex align-items-center gap-2 flex-grow-1 flex-sm-grow-0" style="min-width: 220px;">
+            <input type="hidden" name="tab" value="inventory">
+            <input type="text" name="search" value="<%= search %>" class="form-control form-control-sm flex-grow-1" placeholder="Search materials or SKU...">
+            <button type="submit" class="btn btn-sm btn-serene-secondary">Search</button>
+          </form>
+        </div>
+
+        <!-- Live Inventory Table Card -->
+        <div class="serene-card mb-4">
+          <div class="serene-card-header d-flex align-items-center justify-content-between">
+            <h3 class="serene-card-title mb-0"><i class="bi bi-boxes me-2 text-muted"></i> Live Material Inventory</h3>
+            <span class="small text-muted"><%= items.length %> Tracked Items</span>
+          </div>
+          <div class="table-responsive">
+            <table class="serene-table mb-0">
+              <thead>
                 <tr>
-                  <td class="text-muted small font-monospace"><%= t.date %></td>
-                  <td class="fw-medium text-dark">
-                    <a href="/stock/<%= t.stockItemId %>" class="text-dark text-decoration-none hover-primary">
-                      <%= t.stockItem ? t.stockItem.name : 'Unknown Item' %>
-                    </a>
-                  </td>
-                  <td>
-                    <div class="d-flex align-items-center gap-2">
-                      <% if (t.type === 'IN') { %>
-                        <span class="badge" style="background:#edf7ed; color:#1e4620; border:1px solid #16a34a;">
-                          <i class="bi bi-arrow-down"></i> In
-                        </span>
-                      <% } else { %>
-                        <span class="badge" style="background:#fdf2f2; color:#8a2c2c; border:1px solid #dc2626;">
-                          <i class="bi bi-arrow-up"></i> Out
-                        </span>
-                      <% } %>
-                      <span class="tabular-nums fw-bold <%= t.type === 'IN' ? 'text-success' : 'text-danger' %>">
-                        <%= t.type === 'IN' ? '+' : '-' %><%= parseFloat(t.quantity) %> <%= t.stockItem ? t.stockItem.unit : '' %>
-                      </span>
-                    </div>
-                    <div class="text-muted" style="font-size: 0.75rem;">
-                      Bal: <%= parseFloat(t.balanceAfter) %> <%= t.stockItem ? t.stockItem.unit : '' %>
-                    </div>
-                  </td>
-                  <td>
-                    <div class="fw-medium text-dark small"><%= t.reference || '-' %></div>
-                    <% if (t.notes) { %>
-                      <div class="text-muted small"><%= t.notes %></div>
-                    <% } %>
-                  </td>
+                  <th>Material / Item Name</th>
+                  <th>Remaining Stock</th>
+                  <th>Total Used</th>
+                  <th>Office Use (Part)</th>
+                  <th>Unit Pricing & Value</th>
+                  <th>Status</th>
+                  <th class="text-end">Quick Actions</th>
                 </tr>
-              <% }) %>
-            <% } else { %>
-              <tr>
-                <td colspan="4" class="text-center py-4 text-muted small">No stock transactions recorded yet.</td>
-              </tr>
-            <% } %>
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                <% if (items && items.length > 0) { %>
+                  <% items.forEach(item => { %>
+                    <% const statusObj = item.getStockStatus(); %>
+                    <% const isLow = parseFloat(item.currentStock) <= parseFloat(item.minStockAlert); %>
+                    <tr>
+                      <td>
+                        <div class="fw-bold text-dark">
+                          <a href="/stock/<%= item.id %>" class="text-dark text-decoration-none hover-primary"><%= item.name %></a>
+                        </div>
+                        <div class="d-flex flex-wrap align-items-center gap-1 mt-1">
+                          <span class="badge bg-light text-muted border font-monospace" style="font-size: 0.72rem;"><%= item.code %></span>
+                          <span class="badge bg-light text-dark border" style="font-size: 0.72rem;"><%= item.category %></span>
+                          <% if (item.sizeLabel || (item.width && item.length)) { %>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace" style="font-size: 0.7rem;">
+                              <i class="bi bi-aspect-ratio me-1"></i><%= item.sizeLabel || `${item.width}"x${item.length}" ${item.dimensionUnit || 'in'}` %>
+                            </span>
+                          <% } %>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="tabular-nums fw-bold fs-6 <%= isLow ? 'text-danger' : 'text-dark' %>">
+                          <%= parseFloat(item.currentStock) %> <span class="fw-normal text-muted fs-6"><%= item.unit %></span>
+                        </div>
+                        <div class="text-muted small" style="font-size: 0.75rem;">
+                          Min alert: <%= parseFloat(item.minStockAlert) %> <%= item.unit %>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="tabular-nums fw-semibold text-dark">
+                          <%= item.dataValues.totalUsed !== undefined ? parseFloat(item.dataValues.totalUsed) : 0 %> <span class="text-muted small"><%= item.unit %></span>
+                        </div>
+                        <div class="text-muted small" style="font-size: 0.73rem;">
+                          Job: <%= item.dataValues.productionUsedQty || 0 %> &bull; Office: <%= item.dataValues.officeUseQty || 0 %>
+                        </div>
+                      </td>
+                      <td>
+                        <% const offQty = item.dataValues.officeUseQty || 0; %>
+                        <% const offCost = item.dataValues.officeUseCost || 0; %>
+                        <% if (offQty > 0) { %>
+                          <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-bold tabular-nums">
+                            <%= offQty %> <%= item.unit %>
+                          </span>
+                          <div class="text-danger small fw-semibold tabular-nums mt-1" style="font-size: 0.75rem;">
+                            <%= currencySymbol %> <%= offCost.toFixed(2) %>
+                          </div>
+                        <% } else { %>
+                          <span class="text-muted small">0 <%= item.unit %></span>
+                        <% } %>
+                      </td>
+                      <td>
+                        <div class="tabular-nums small">
+                          <span class="text-muted">Buy:</span> <%= currencySymbol %> <%= parseFloat(item.unitCost || 0).toFixed(2) %>
+                        </div>
+                        <% if (item.sellingPrice !== null && item.sellingPrice !== undefined && parseFloat(item.sellingPrice) > 0) { %>
+                          <div class="tabular-nums small text-success fw-medium">
+                            <span class="text-muted">Sell:</span> <%= currencySymbol %> <%= parseFloat(item.sellingPrice).toFixed(2) %>
+                          </div>
+                        <% } %>
+                        <div class="text-muted small" style="font-size: 0.72rem;">
+                          Total: <%= currencySymbol %> <%= (parseFloat(item.currentStock) * parseFloat(item.unitCost || 0)).toFixed(2) %>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="status-badge <%= statusObj.badgeClass %>">
+                          <span class="status-dot"></span> <%= statusObj.label %>
+                        </span>
+                      </td>
+                      <td class="text-end">
+                        <div class="d-inline-flex align-items-center gap-1">
+                          <button class="btn btn-sm btn-success py-1 px-2 text-white shadow-xs" onclick="quickStockIn(<%= item.id %>, null, '<%= escape(item.name) %>')" title="Add Stock (Stock In)">
+                            <i class="bi bi-plus-lg"></i> In
+                          </button>
+                          <button class="btn btn-sm btn-warning py-1 px-2 text-dark fw-semibold shadow-xs" onclick="quickOfficeUse(<%= item.id %>, null, '<%= escape(item.name) %>')" title="Take for Office Use">
+                            <i class="bi bi-building"></i> Office
+                          </button>
+                          <button class="btn btn-sm btn-outline-danger py-1 px-2" onclick="quickStockOut(<%= item.id %>)" title="Job Stock Out">
+                            <i class="bi bi-dash-lg"></i> Out
+                          </button>
+                          <a href="/stock/<%= item.id %>" class="btn btn-sm btn-serene-secondary py-1 px-2" title="View Full Details">
+                            <i class="bi bi-eye"></i>
+                          </a>
+                        </div>
+                      </td>
+                    </tr>
+                  <% }) %>
+                <% } else { %>
+                  <tr>
+                    <td colspan="7" class="text-center py-5 text-muted">
+                      No stock items found. Click "+ Add New Item" to add your raw paper or materials.
+                    </td>
+                  </tr>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+          <%- include('../partials/pagination', { 
+            pagination: itemsPagination, 
+            baseUrl: '/stock', 
+            queryParams: { 
+              category: currentCategory !== 'ALL' ? currentCategory : undefined, 
+              search: search || undefined, 
+              txPage: typeof currentTxPage !== 'undefined' ? currentTxPage : undefined,
+              officePage: typeof currentOfficePage !== 'undefined' ? currentOfficePage : undefined,
+              tab: 'inventory'
+            } 
+          }) %>
+        </div>
       </div>
-      <%- include('../partials/pagination', { 
-        pagination: transactionsPagination, 
-        baseUrl: '/stock', 
-        queryParams: { 
-          category: currentCategory !== 'ALL' ? currentCategory : undefined, 
-          search: search || undefined, 
-          page: typeof currentPage !== 'undefined' ? currentPage : undefined 
-        }, 
-        pageParam: 'txPage' 
-      }) %>
+
+      <!-- 2. Office Use Ledger Pane (Dedicated Part) -->
+      <div class="tab-pane fade <%= currentTab === 'office' ? 'show active' : '' %>" id="office-pane" role="tabpanel">
+        <div class="serene-card mb-4">
+          <div class="serene-card-header d-flex flex-wrap align-items-center justify-content-between gap-2" style="background: #fffcf5;">
+            <div>
+              <h3 class="serene-card-title mb-0 text-dark">
+                <i class="bi bi-building-down me-2 text-warning"></i> Internal Office Consumable Ledger
+              </h3>
+              <div class="text-muted small mt-1">Audit log of materials taken for administrative, accounts, design, or office operations</div>
+            </div>
+            <button class="btn btn-warning text-dark fw-semibold btn-sm shadow-xs" data-bs-toggle="modal" data-bs-target="#officeUseModal">
+              <i class="bi bi-plus-circle me-1"></i> Take Material for Office Use
+            </button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="serene-table mb-0">
+              <thead>
+                <tr>
+                  <th>Date & Time</th>
+                  <th>Material / Item</th>
+                  <th>Qty Taken</th>
+                  <th>Department / Section</th>
+                  <th>Unit Buying Cost</th>
+                  <th>Office Expense Value</th>
+                  <th>Remaining Balance After</th>
+                  <th>Purpose / Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (officeTransactions && officeTransactions.length > 0) { %>
+                  <% officeTransactions.forEach(t => { %>
+                    <% const expense = parseFloat(t.totalCost) || (parseFloat(t.quantity) * (parseFloat(t.unitCost) || (t.stockItem ? parseFloat(t.stockItem.unitCost || 0) : 0))); %>
+                    <tr>
+                      <td class="text-muted small font-monospace">
+                        <%= formatDate(t.date || t.createdAt) %><br>
+                        <%= formatTime(t.createdAt) %>
+                      </td>
+                      <td>
+                        <span class="fw-bold text-dark">
+                          <a href="/stock/<%= t.stockItemId %>" class="text-dark text-decoration-none hover-primary">
+                            <%= t.stockItem ? t.stockItem.name : 'Unknown Item' %>
+                          </a>
+                        </span>
+                        <% if (t.stockItem && t.stockItem.code) { %>
+                          <span class="badge bg-light text-muted border font-monospace ms-1"><%= t.stockItem.code %></span>
+                        <% } %>
+                      </td>
+                      <td>
+                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-bold fs-6 tabular-nums">
+                          <%= parseFloat(t.quantity) %> <%= t.stockItem ? t.stockItem.unit : '' %>
+                        </span>
+                      </td>
+                      <td>
+                        <span class="badge bg-light text-dark border">
+                          <i class="bi bi-building me-1"></i><%= t.reference ? t.reference.replace('Office Use: ', '') : 'Office' %>
+                        </span>
+                      </td>
+                      <td class="tabular-nums small text-muted">
+                        <%= currencySymbol %> <%= parseFloat(t.unitCost || (t.stockItem ? t.stockItem.unitCost : 0) || 0).toFixed(2) %>
+                      </td>
+                      <td class="tabular-nums fw-bold text-danger">
+                        <%= currencySymbol %> <%= expense.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+                      </td>
+                      <td class="tabular-nums small text-muted">
+                        <%= parseFloat(t.balanceAfter) %> <%= t.stockItem ? t.stockItem.unit : '' %>
+                      </td>
+                      <td class="small text-muted fst-italic">
+                        <%= t.notes || '-' %>
+                      </td>
+                    </tr>
+                  <% }) %>
+                <% } else { %>
+                  <tr>
+                    <td colspan="8" class="text-center py-5 text-muted">
+                      <i class="bi bi-building-check display-6 d-block mb-2 text-warning opacity-75"></i>
+                      <h6 class="fw-bold mb-1">No Office Consumable Deductions Logged</h6>
+                      <p class="small text-muted mb-0">Whenever items like A4 paper bundles or pens are taken for internal office use, click "Take Material for Office Use" to record.</p>
+                    </td>
+                  </tr>
+                <% } %>
+              </tbody>
+              <% if (officeTransactions && officeTransactions.length > 0) { %>
+                <tfoot class="table-light">
+                  <tr>
+                    <th colspan="5" class="text-end">Total Office Consumable Expense:</th>
+                    <th class="tabular-nums fw-bold text-danger fs-6">
+                      <%= currencySymbol %> <%= inventorySummary ? inventorySummary.totalOfficeUseValue.toLocaleString('en-LK', { minimumFractionDigits: 2 }) : '0.00' %>
+                    </th>
+                    <th colspan="2"></th>
+                  </tr>
+                </tfoot>
+              <% } %>
+            </table>
+          </div>
+          <%- include('../partials/pagination', { 
+            pagination: officePagination, 
+            baseUrl: '/stock', 
+            queryParams: { 
+              category: currentCategory !== 'ALL' ? currentCategory : undefined, 
+              search: search || undefined, 
+              page: typeof currentPage !== 'undefined' ? currentPage : undefined,
+              txPage: typeof currentTxPage !== 'undefined' ? currentTxPage : undefined,
+              tab: 'office'
+            }, 
+            pageParam: 'officePage' 
+          }) %>
+        </div>
+      </div>
+
+      <!-- 3. Stock Movements Log Pane -->
+      <div class="tab-pane fade <%= currentTab === 'movements' ? 'show active' : '' %>" id="movements-pane" role="tabpanel">
+        <div class="serene-card mb-4">
+          <div class="serene-card-header d-flex align-items-center justify-content-between">
+            <h3 class="serene-card-title mb-0"><i class="bi bi-clock-history me-2 text-muted"></i> All Inventory Movements (Audit Trail)</h3>
+            <span class="small text-muted"><%= typeof transactionsPagination !== 'undefined' && transactionsPagination ? transactionsPagination.totalItems : transactions.length %> Total Records</span>
+          </div>
+          <div class="table-responsive">
+            <table class="serene-table mb-0">
+              <thead>
+                <tr>
+                  <th>Date & Time</th>
+                  <th>Type</th>
+                  <th>Material Item</th>
+                  <th>Movement Qty</th>
+                  <th>Balance After</th>
+                  <th>Reference & Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (transactions && transactions.length > 0) { %>
+                  <% transactions.forEach(t => { %>
+                    <tr>
+                      <td class="text-muted small font-monospace">
+                        <%= formatDate(t.date || t.createdAt) %><br>
+                        <%= formatTime(t.createdAt) %>
+                      </td>
+                      <td>
+                        <% if (t.type === 'IN') { %>
+                          <span class="badge" style="background:#edf7ed; color:#1e4620; border:1px solid #16a34a;">
+                            <i class="bi bi-box-arrow-in-down me-1"></i> Stock In
+                          </span>
+                        <% } else if (t.category === 'OFFICE_USE') { %>
+                          <span class="badge" style="background:#fffbeb; color:#b45309; border:1px solid #fde68a;">
+                            <i class="bi bi-building me-1"></i> Office Use
+                          </span>
+                        <% } else { %>
+                          <span class="badge" style="background:#fdf2f2; color:#8a2c2c; border:1px solid #dc2626;">
+                            <i class="bi bi-box-arrow-up me-1"></i> Job Out
+                          </span>
+                        <% } %>
+                      </td>
+                      <td class="fw-medium text-dark">
+                        <a href="/stock/<%= t.stockItemId %>" class="text-dark text-decoration-none hover-primary">
+                          <%= t.stockItem ? t.stockItem.name : 'Unknown Item' %>
+                        </a>
+                      </td>
+                      <td>
+                        <span class="tabular-nums fw-bold <%= t.type === 'IN' ? 'text-success' : 'text-danger' %>">
+                          <%= t.type === 'IN' ? '+' : '-' %><%= parseFloat(t.quantity) %> <%= t.stockItem ? t.stockItem.unit : '' %>
+                        </span>
+                      </td>
+                      <td class="tabular-nums text-muted small">
+                        <%= parseFloat(t.balanceAfter) %> <%= t.stockItem ? t.stockItem.unit : '' %>
+                      </td>
+                      <td>
+                        <div class="fw-medium text-dark small"><%= t.reference || '-' %></div>
+                        <% if (t.notes) { %>
+                          <div class="text-muted small"><%= t.notes %></div>
+                        <% } %>
+                      </td>
+                    </tr>
+                  <% }) %>
+                <% } else { %>
+                  <tr>
+                    <td colspan="6" class="text-center py-4 text-muted small">No stock transactions recorded yet.</td>
+                  </tr>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+          <%- include('../partials/pagination', { 
+            pagination: transactionsPagination, 
+            baseUrl: '/stock', 
+            queryParams: { 
+              category: currentCategory !== 'ALL' ? currentCategory : undefined, 
+              search: search || undefined, 
+              page: typeof currentPage !== 'undefined' ? currentPage : undefined,
+              officePage: typeof currentOfficePage !== 'undefined' ? currentOfficePage : undefined,
+              tab: 'movements'
+            }, 
+            pageParam: 'txPage' 
+          }) %>
+        </div>
+      </div>
     </div>
   </div>
 </main>
@@ -215,13 +501,15 @@
         <div class="modal-body p-4">
           <div class="mb-3">
             <label class="form-label">Item / Material Name *</label>
-            <input type="text" name="name" class="form-control" placeholder="e.g. Sappi 300gsm Art Board" required>
+            <input type="text" name="name" class="form-control" placeholder="e.g. Sappi 300gsm Art Board / Double A A4 Bundle" required>
           </div>
           <div class="row g-2 mb-3">
             <div class="col-6">
               <label class="form-label">Category</label>
-              <select name="category" class="form-select">
+              <select name="category" id="newItemCategorySelect" class="form-select" onchange="onNewItemCategoryChange(this)">
                 <option value="Paper / Substrate" selected>Paper / Substrate</option>
+                <option value="Photo Frames">Photo Frames / Framing</option>
+                <option value="Office Stationery">Office Stationery / Supplies</option>
                 <option value="Ink / Toner">Ink / Toner</option>
                 <option value="Vinyl / Film">Vinyl / Film</option>
                 <option value="Finishing / Binding">Finishing / Binding</option>
@@ -230,16 +518,75 @@
             </div>
             <div class="col-6">
               <label class="form-label">Unit of Measure</label>
-              <select name="unit" class="form-select">
+              <select name="unit" id="newItemUnitSelect" class="form-select">
                 <option value="Sheets" selected>Sheets</option>
-                <option value="Rolls">Rolls</option>
-                <option value="Pcs">Pieces (Pcs)</option>
+                <option value="Pcs">Pieces (Pcs) / Frames</option>
+                <option value="Bundles">Bundles</option>
                 <option value="Reams">Reams</option>
+                <option value="Rolls">Rolls</option>
                 <option value="Boxes">Boxes</option>
                 <option value="Bottles">Bottles</option>
               </select>
             </div>
           </div>
+
+          <!-- Photo Frame Dimensions & Size Section -->
+          <div id="photoFrameDimensionsSection" class="p-3 mb-3 rounded-2" style="background: #f0f7ff; border: 1px solid #bfdbfe; display: none;">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <label class="form-label fw-bold text-primary mb-0 small">
+                <i class="bi bi-aspect-ratio me-1"></i> Photo Frame Dimensions (Width & Length)
+              </label>
+              <span class="badge bg-primary text-white" style="font-size: 0.7rem;">Sized Stock Item</span>
+            </div>
+
+            <!-- Preset Size Selection -->
+            <div class="mb-2">
+              <label class="form-label small text-muted">Select Standard Size or Type New Dimensions</label>
+              <select id="presetSizeSelect" class="form-select form-select-sm" onchange="applyPresetFrameSize(this)">
+                <option value="">-- Choose Standard Photo Frame Size --</option>
+                <option value="4x6" data-w="4" data-l="6" data-label="4x6 in">4" x 6" (10 x 15 cm) - Small Portrait</option>
+                <option value="5x7" data-w="5" data-l="7" data-label="5x7 in">5" x 7" (13 x 18 cm) - Standard Desktop</option>
+                <option value="6x8" data-w="6" data-l="8" data-label="6x8 in">6" x 8" (15 x 20 cm) - Medium Desktop</option>
+                <option value="8x10" data-w="8" data-l="10" data-label="8x10 in">8" x 10" (20 x 25 cm) - Certificate / Family</option>
+                <option value="8x12" data-w="8" data-l="12" data-label="8x12 in (A4)">8" x 12" (21 x 30 cm / A4) - Standard Wall</option>
+                <option value="10x12" data-w="10" data-l="12" data-label="10x12 in">10" x 12" (25 x 30 cm) - Portrait Frame</option>
+                <option value="10x15" data-w="10" data-l="15" data-label="10x15 in">10" x 15" (25 x 38 cm) - Medium Wall</option>
+                <option value="12x18" data-w="12" data-l="18" data-label="12x18 in (A3)">12" x 18" (30 x 45 cm / A3) - Large Photo</option>
+                <option value="16x20" data-w="16" data-l="20" data-label="16x20 in">16" x 20" (40 x 50 cm) - Wedding Studio</option>
+                <option value="16x24" data-w="16" data-l="24" data-label="16x24 in">16" x 24" (40 x 60 cm) - Studio Wall</option>
+                <option value="20x30" data-w="20" data-l="30" data-label="20x30 in">20" x 30" (50 x 76 cm) - Large Gallery</option>
+                <option value="24x36" data-w="24" data-l="36" data-label="24x36 in">24" x 36" (60 x 90 cm) - Poster Frame</option>
+                <option value="CUSTOM">Custom Size (Input Width & Length manually)...</option>
+              </select>
+            </div>
+
+            <div class="row g-2 mb-2">
+              <div class="col-4">
+                <label class="form-label small text-muted">Width *</label>
+                <input type="number" name="width" id="frameWidthInput" class="form-control form-control-sm" placeholder="e.g. 8" step="any" min="0.1" oninput="updateFrameSizeLabel()">
+              </div>
+              <div class="col-4">
+                <label class="form-label small text-muted">Length *</label>
+                <input type="number" name="length" id="frameLengthInput" class="form-control form-control-sm" placeholder="e.g. 10" step="any" min="0.1" oninput="updateFrameSizeLabel()">
+              </div>
+              <div class="col-4">
+                <label class="form-label small text-muted">Dimension Unit</label>
+                <select name="dimensionUnit" id="frameDimensionUnit" class="form-select form-select-sm" onchange="updateFrameSizeLabel()">
+                  <option value="inches" selected>inches (")</option>
+                  <option value="cm">cm</option>
+                  <option value="mm">mm</option>
+                  <option value="feet">feet (ft)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="mb-1">
+              <label class="form-label small text-muted">Size Tag / Display Label</label>
+              <input type="text" name="sizeLabel" id="frameSizeLabelInput" class="form-control form-control-sm" placeholder="e.g. 8x10 in">
+              <div class="form-text small" style="font-size: 0.72rem;">Buying and selling prices below will be associated with this specific frame size.</div>
+            </div>
+          </div>
+
           <div class="row g-2 mb-3">
             <div class="col-6">
               <label class="form-label">Initial Stock on Hand</label>
@@ -314,11 +661,17 @@
 <%- include('../partials/footer') %>
 
 <script>
-window._preloadedStockItems = <%- JSON.stringify((allItems || items || []).map(i => ({ id: i.id, name: i.name, code: i.code, unit: i.unit, currentStock: i.currentStock, unitCost: i.unitCost, sellingPrice: i.sellingPrice }))) %>;
+window._preloadedStockItems = <%- JSON.stringify((items || []).map(i => ({ id: i.id, name: i.name, code: i.code, unit: i.unit, currentStock: i.currentStock, unitCost: i.unitCost, sellingPrice: i.sellingPrice }))) %>;
 
-function quickStockIn(itemId) {
+function quickStockIn(itemId, suggestedQty, itemName) {
   if (typeof window.quickStockIn === 'function') {
-    window.quickStockIn(itemId);
+    window.quickStockIn(itemId, suggestedQty, itemName ? unescape(itemName) : null);
+  }
+}
+
+function quickOfficeUse(itemId, suggestedQty, itemName) {
+  if (typeof window.quickOfficeUse === 'function') {
+    window.quickOfficeUse(itemId, suggestedQty, itemName ? unescape(itemName) : null);
   }
 }
 
@@ -382,6 +735,57 @@ function calculateNewItemProfit(trigger) {
   } else {
     profitBox.style.display = 'none';
     profitHint.style.display = 'block';
+  }
+}
+
+function onNewItemCategoryChange(selectEl) {
+  const section = document.getElementById('photoFrameDimensionsSection');
+  const unitSelect = document.getElementById('newItemUnitSelect');
+  if (selectEl.value === 'Photo Frames') {
+    section.style.display = 'block';
+    if (unitSelect) unitSelect.value = 'Pcs';
+  } else {
+    section.style.display = 'none';
+  }
+}
+
+function applyPresetFrameSize(selectEl) {
+  const opt = selectEl.options[selectEl.selectedIndex];
+  if (!opt || !selectEl.value) return;
+
+  if (selectEl.value === 'CUSTOM') {
+    document.getElementById('frameWidthInput').value = '';
+    document.getElementById('frameLengthInput').value = '';
+    document.getElementById('frameSizeLabelInput').value = '';
+    document.getElementById('frameWidthInput').focus();
+    return;
+  }
+
+  const w = opt.dataset.w;
+  const l = opt.dataset.l;
+  const label = opt.dataset.label || `${w}x${l} in`;
+
+  document.getElementById('frameWidthInput').value = w;
+  document.getElementById('frameLengthInput').value = l;
+  document.getElementById('frameSizeLabelInput').value = label;
+
+  const nameInput = document.querySelector('input[name="name"]');
+  if (nameInput && (!nameInput.value || nameInput.value.includes('Photo Frame'))) {
+    nameInput.value = `Photo Frame - ${label}`;
+  }
+}
+
+function updateFrameSizeLabel() {
+  const w = document.getElementById('frameWidthInput').value;
+  const l = document.getElementById('frameLengthInput').value;
+  const unit = document.getElementById('frameDimensionUnit').value;
+  const labelInput = document.getElementById('frameSizeLabelInput');
+  if (w && l) {
+    labelInput.value = `${w}x${l} ${unit}`;
+    const nameInput = document.querySelector('input[name="name"]');
+    if (nameInput && (!nameInput.value || nameInput.value.includes('Photo Frame'))) {
+      nameInput.value = `Photo Frame - ${w}x${l} ${unit}`;
+    }
   }
 }
 

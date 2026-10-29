@@ -70,6 +70,9 @@
         <button class="btn btn-sm btn-serene-secondary" data-bs-toggle="modal" data-bs-target="#stockOutModal">
           <i class="bi bi-box-arrow-up text-danger"></i> Stock Out
         </button>
+        <button class="btn btn-sm btn-warning text-dark fw-semibold" data-bs-toggle="modal" data-bs-target="#officeUseModal">
+          <i class="bi bi-building-down me-1"></i> Office Use
+        </button>
       </div>
     </div>
 
@@ -172,7 +175,471 @@
       </div>
     </div>
 
-    <!-- Row 4: Full-Width Spacious Recent Orders Table -->
+    <!-- Row 4: End-of-Day Business & Financial Summary (Daily Money Values, Prices, & Ledgers) -->
+    <div class="serene-card mb-4" id="dailyBusinessCard" style="border: 1px solid #cbd5e1; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.06);">
+      <div class="serene-card-header d-flex flex-wrap align-items-center justify-content-between gap-3" style="background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%); border-bottom: 1px solid var(--serene-border);">
+        <div>
+          <div class="d-flex align-items-center gap-2">
+            <div class="p-2 rounded-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center">
+              <i class="bi bi-wallet2 fs-5"></i>
+            </div>
+            <div>
+              <div class="d-flex align-items-center gap-2">
+                <h3 class="serene-card-title mb-0 fs-5 fw-bold text-dark">
+                  End-of-Day Business & Financial Ledger
+                </h3>
+                <% if (stats.dailyBusiness.isToday) { %>
+                  <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0" style="font-size: 0.72rem;">Today's Live</span>
+                <% } else { %>
+                  <span class="badge bg-secondary-subtle text-secondary border px-2 py-0" style="font-size: 0.72rem;">Historical Archive</span>
+                <% } %>
+              </div>
+              <div class="text-muted small mt-1">
+                Audit of daily money values, counter collections, customer orders, office consumables, and inventory restocks for <strong><%= stats.dailyBusiness.formattedDate %></strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Date Picker & Print Slip Controls -->
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <div class="input-group input-group-sm" style="max-width: 200px;">
+            <span class="input-group-text bg-white"><i class="bi bi-calendar3"></i></span>
+            <input type="date" class="form-control" value="<%= stats.dailyBusiness.date %>" onchange="window.location.href='/dashboard?date=' + this.value" title="Select audit date">
+          </div>
+          <% if (!stats.dailyBusiness.isToday) { %>
+            <a href="/dashboard" class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-arrow-counterclockwise"></i> Jump to Today
+            </a>
+          <% } %>
+          <button type="button" class="btn btn-sm btn-serene-secondary d-inline-flex align-items-center gap-1 shadow-xs" onclick="window.printDayEndSlip()">
+            <i class="bi bi-printer text-muted"></i> Print Day Slip
+          </button>
+        </div>
+      </div>
+
+      <!-- Financial Metric Cards Ribbon -->
+      <div class="p-3 border-bottom" style="background: #ffffff;">
+        <div class="row g-2 g-md-3">
+          <!-- Metric 1: Total Cash/Money Collected Today -->
+          <div class="col-6 col-lg-3">
+            <div class="p-3 rounded-3 border h-100" style="background: #f0fdf4; border-color: #bbf7d0 !important;">
+              <div class="d-flex justify-content-between align-items-start mb-1">
+                <span class="small fw-semibold text-success">Total Money Collected</span>
+                <span class="badge bg-success text-white" style="font-size: 0.68rem;">Cash Inflow</span>
+              </div>
+              <div class="fs-4 fw-bold text-success tabular-nums">
+                <%= currencySymbol %> <%= stats.dailyBusiness.totalCollectedToday.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+              </div>
+              <div class="small text-muted mt-1" style="font-size: 0.75rem;">
+                POS Sales: <%= currencySymbol %> <%= stats.dailyBusiness.posTotalRevenue.toFixed(2) %><br>
+                Order Advances: <%= currencySymbol %> <%= stats.dailyBusiness.ordersAdvanceCollected.toFixed(2) %>
+              </div>
+            </div>
+          </div>
+
+          <!-- Metric 2: Total Business Booked -->
+          <div class="col-6 col-lg-3">
+            <div class="p-3 rounded-3 border h-100" style="background: #f8fafc; border-color: #e2e8f0 !important;">
+              <div class="d-flex justify-content-between align-items-start mb-1">
+                <span class="small fw-semibold text-dark">Total Business Booked</span>
+                <span class="badge bg-light text-dark border" style="font-size: 0.68rem;">Gross Value</span>
+              </div>
+              <div class="fs-4 fw-bold text-dark tabular-nums">
+                <%= currencySymbol %> <%= stats.dailyBusiness.totalBusinessBookedToday.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+              </div>
+              <div class="small text-muted mt-1" style="font-size: 0.75rem;">
+                POS: <%= currencySymbol %> <%= stats.dailyBusiness.posTotalRevenue.toFixed(2) %> (<%= stats.dailyBusiness.posSalesCount %>)<br>
+                Orders: <%= currencySymbol %> <%= stats.dailyBusiness.ordersTotalValue.toFixed(2) %> (<%= stats.dailyBusiness.ordersCount %>)
+              </div>
+            </div>
+          </div>
+
+          <!-- Metric 3: Office Consumable Overhead Expense -->
+          <div class="col-6 col-lg-3">
+            <div class="p-3 rounded-3 border h-100" style="background: #fffbeb; border-color: #fde68a !important;">
+              <div class="d-flex justify-content-between align-items-start mb-1">
+                <span class="small fw-semibold text-warning-emphasis">Office Consumables</span>
+                <span class="badge bg-warning text-dark" style="font-size: 0.68rem;">Internal Used</span>
+              </div>
+              <div class="fs-4 fw-bold text-danger tabular-nums">
+                <%= currencySymbol %> <%= stats.dailyBusiness.officeUseTotalCost.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+              </div>
+              <div class="small text-muted mt-1" style="font-size: 0.75rem;">
+                <%= stats.dailyBusiness.officeUseTotalQty %> units deducted<br>
+                Across <%= stats.dailyBusiness.officeUseCount %> office usage records
+              </div>
+            </div>
+          </div>
+
+          <!-- Metric 4: Net Operating Cash Balance -->
+          <div class="col-6 col-lg-3">
+            <div class="p-3 rounded-3 border h-100" style="background: #faf5ff; border-color: #e9d5ff !important;">
+              <div class="d-flex justify-content-between align-items-start mb-1">
+                <span class="small fw-semibold" style="color: #6b21a8;">Net Operating Balance</span>
+                <span class="badge" style="background: #f3e8ff; color: #6b21a8; font-size: 0.68rem;">Cash - Office</span>
+              </div>
+              <div class="fs-4 fw-bold tabular-nums" style="color: #6b21a8;">
+                <%= currencySymbol %> <%= stats.dailyBusiness.netOperatingBalance.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+              </div>
+              <div class="small text-muted mt-1" style="font-size: 0.75rem;">
+                Restocked: <%= currencySymbol %> <%= stats.dailyBusiness.stockInTotalCost.toFixed(2) %> (<%= stats.dailyBusiness.stockInCount %> in)<br>
+                Orders Balance Due: <%= currencySymbol %> <%= stats.dailyBusiness.ordersBalanceDue.toFixed(2) %>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs for Detailed Day-End Lists -->
+      <div class="px-3 pt-2 border-bottom bg-light">
+        <ul class="nav nav-tabs border-0" id="dailyLedgerTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-semibold small" id="daily-pos-tab" data-bs-toggle="tab" data-bs-target="#daily-pos-pane" type="button" role="tab">
+              <i class="bi bi-cart-check me-1 text-primary"></i> POS Sales (<%= stats.dailyBusiness.posSalesCount %>)
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link fw-semibold small" id="daily-orders-tab" data-bs-toggle="tab" data-bs-target="#daily-orders-pane" type="button" role="tab">
+              <i class="bi bi-printer me-1 text-success"></i> Orders Booked (<%= stats.dailyBusiness.ordersCount %>)
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link fw-semibold small" id="daily-office-tab" data-bs-toggle="tab" data-bs-target="#daily-office-pane" type="button" role="tab">
+              <i class="bi bi-building-down me-1 text-warning"></i> Office Use Taken (<%= stats.dailyBusiness.officeUseCount %>)
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link fw-semibold small" id="daily-stock-tab" data-bs-toggle="tab" data-bs-target="#daily-stock-pane" type="button" role="tab">
+              <i class="bi bi-box-arrow-in-down me-1 text-info"></i> Stock In Arrivals (<%= stats.dailyBusiness.stockInCount %>)
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link fw-semibold small" id="daily-slip-tab" data-bs-toggle="tab" data-bs-target="#daily-slip-pane" type="button" role="tab">
+              <i class="bi bi-file-earmark-spreadsheet me-1 text-secondary"></i> Day-End Balance Sheet Slip
+            </button>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Tab Panes Content -->
+      <div class="tab-content" id="dailyLedgerTabContent">
+        <!-- 1. POS Sales Pane -->
+        <div class="tab-pane fade show active p-0" id="daily-pos-pane" role="tabpanel">
+          <% if (stats.dailyBusiness.todayPosSales && stats.dailyBusiness.todayPosSales.length > 0) { %>
+            <div class="table-responsive">
+              <table class="serene-table mb-0">
+                <thead>
+                  <tr>
+                    <th>Receipt #</th>
+                    <th>Time</th>
+                    <th>Customer</th>
+                    <th>Payment Method</th>
+                    <th>Subtotal</th>
+                    <th>Discount</th>
+                    <th>Total Paid</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% stats.dailyBusiness.todayPosSales.forEach(s => { %>
+                    <tr>
+                      <td class="font-monospace fw-bold text-dark"><%= s.receiptNumber %></td>
+                      <td class="text-muted small"><%= formatTime(s.createdAt) %></td>
+                      <td>
+                        <span class="text-dark fw-medium"><%= s.customerName %></span>
+                        <% if (s.customerPhone) { %><div class="text-muted small"><%= s.customerPhone %></div><% } %>
+                      </td>
+                      <td>
+                        <span class="badge bg-light text-dark border">
+                          <i class="bi <%= s.paymentMethod === 'CASH' ? 'bi-cash' : (s.paymentMethod === 'CARD' ? 'bi-credit-card' : 'bi-bank') %> me-1"></i>
+                          <%= s.paymentMethod %>
+                        </span>
+                      </td>
+                      <td class="tabular-nums small"><%= currencySymbol %> <%= parseFloat(s.subtotal).toFixed(2) %></td>
+                      <td class="tabular-nums small text-muted"><%= parseFloat(s.discount) > 0 ? '-' + currencySymbol + ' ' + parseFloat(s.discount).toFixed(2) : '-' %></td>
+                      <td class="tabular-nums fw-bold text-success"><%= currencySymbol %> <%= parseFloat(s.totalAmount).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+                <tfoot class="table-light">
+                  <tr>
+                    <th colspan="3" class="text-end">Payment Breakdown:</th>
+                    <th colspan="3">
+                      <span class="badge bg-success-subtle text-success me-2">Cash: <%= currencySymbol %> <%= stats.dailyBusiness.posCashTotal.toFixed(2) %></span>
+                      <span class="badge bg-primary-subtle text-primary me-2">Card: <%= currencySymbol %> <%= stats.dailyBusiness.posCardTotal.toFixed(2) %></span>
+                      <span class="badge bg-info-subtle text-info">Bank: <%= currencySymbol %> <%= stats.dailyBusiness.posBankTransferTotal.toFixed(2) %></span>
+                    </th>
+                    <th class="tabular-nums fw-bold text-success fs-6"><%= currencySymbol %> <%= stats.dailyBusiness.posTotalRevenue.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %></th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          <% } else { %>
+            <div class="text-center py-4 text-muted small">No POS counter sales recorded on <%= stats.dailyBusiness.formattedDate %>.</div>
+          <% } %>
+        </div>
+
+        <!-- 2. Orders Pane -->
+        <div class="tab-pane fade p-0" id="daily-orders-pane" role="tabpanel">
+          <% if (stats.dailyBusiness.todayOrders && stats.dailyBusiness.todayOrders.length > 0) { %>
+            <div class="table-responsive">
+              <table class="serene-table mb-0">
+                <thead>
+                  <tr>
+                    <th>Order #</th>
+                    <th>Time</th>
+                    <th>Customer</th>
+                    <th>Job Title</th>
+                    <th>Total Price</th>
+                    <th>Advance Collected</th>
+                    <th>Balance Due</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% stats.dailyBusiness.todayOrders.forEach(o => { %>
+                    <tr>
+                      <td class="font-monospace fw-bold">
+                        <a href="/orders/<%= o.id %>" class="text-dark text-decoration-none hover-primary"><%= o.orderNumber %></a>
+                      </td>
+                      <td class="text-muted small"><%= formatTime(o.createdAt) %></td>
+                      <td>
+                        <span class="text-dark fw-medium"><%= o.customer ? o.customer.name : 'Unknown' %></span>
+                      </td>
+                      <td>
+                        <div class="text-truncate text-dark fw-medium" style="max-width: 240px;"><%= o.jobTitle %> (<%= o.quantity %> qty)</div>
+                      </td>
+                      <td class="tabular-nums fw-semibold text-dark"><%= currencySymbol %> <%= parseFloat(o.totalAmount).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %></td>
+                      <td class="tabular-nums fw-bold text-success"><%= currencySymbol %> <%= parseFloat(o.advancePaid).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %></td>
+                      <td class="tabular-nums <%= parseFloat(o.balanceAmount) > 0 ? 'text-danger fw-semibold' : 'text-muted' %>">
+                        <%= parseFloat(o.balanceAmount) > 0 ? currencySymbol + ' ' + parseFloat(o.balanceAmount).toLocaleString('en-LK', { minimumFractionDigits: 2 }) : 'Fully Paid' %>
+                      </td>
+                      <td>
+                        <span class="status-badge status-<%= o.status.toLowerCase() %>">
+                          <span class="status-dot"></span> <%= o.status.replace('_', ' ') %>
+                        </span>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+                <tfoot class="table-light">
+                  <tr>
+                    <th colspan="4" class="text-end">Orders Booked Totals:</th>
+                    <th class="tabular-nums fw-bold text-dark"><%= currencySymbol %> <%= stats.dailyBusiness.ordersTotalValue.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %></th>
+                    <th class="tabular-nums fw-bold text-success"><%= currencySymbol %> <%= stats.dailyBusiness.ordersAdvanceCollected.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %></th>
+                    <th class="tabular-nums fw-bold text-danger"><%= currencySymbol %> <%= stats.dailyBusiness.ordersBalanceDue.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %></th>
+                    <th></th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          <% } else { %>
+            <div class="text-center py-4 text-muted small">No print orders received or registered on <%= stats.dailyBusiness.formattedDate %>.</div>
+          <% } %>
+        </div>
+
+        <!-- 3. Office Use Pane -->
+        <div class="tab-pane fade p-0" id="daily-office-pane" role="tabpanel">
+          <% if (stats.dailyBusiness.todayOfficeUseTransactions && stats.dailyBusiness.todayOfficeUseTransactions.length > 0) { %>
+            <div class="table-responsive">
+              <table class="serene-table mb-0">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Material Consumed</th>
+                    <th>Qty Taken</th>
+                    <th>Department / Section</th>
+                    <th>Unit Buying Cost</th>
+                    <th>Total Office Expense</th>
+                    <th>Purpose / Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% stats.dailyBusiness.todayOfficeUseTransactions.forEach(tx => { %>
+                    <% const txCost = parseFloat(tx.totalCost) || (parseFloat(tx.quantity) * (parseFloat(tx.unitCost) || 0)); %>
+                    <tr>
+                      <td class="text-muted small"><%= formatTime(tx.createdAt) %></td>
+                      <td>
+                        <span class="fw-bold text-dark"><%= tx.stockItem ? tx.stockItem.name : 'Unknown Item' %></span>
+                        <% if (tx.stockItem && tx.stockItem.code) { %>
+                          <span class="badge bg-light text-muted border font-monospace ms-1"><%= tx.stockItem.code %></span>
+                        <% } %>
+                      </td>
+                      <td>
+                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-bold fs-6 tabular-nums">
+                          <%= parseFloat(tx.quantity) %> <%= tx.stockItem ? tx.stockItem.unit : '' %>
+                        </span>
+                      </td>
+                      <td>
+                        <span class="badge bg-light text-dark border">
+                          <i class="bi bi-building me-1"></i><%= tx.reference.replace('Office Use: ', '') %>
+                        </span>
+                      </td>
+                      <td class="tabular-nums small text-muted"><%= currencySymbol %> <%= parseFloat(tx.unitCost || 0).toFixed(2) %></td>
+                      <td class="tabular-nums fw-bold text-danger"><%= currencySymbol %> <%= txCost.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %></td>
+                      <td class="small text-muted fst-italic"><%= tx.notes || '-' %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+                <tfoot class="table-light">
+                  <tr>
+                    <th colspan="2" class="text-end">Total Office Consumable Deductions:</th>
+                    <th><span class="badge bg-warning text-dark"><%= stats.dailyBusiness.officeUseTotalQty %> Units</span></th>
+                    <th colspan="2"></th>
+                    <th class="tabular-nums fw-bold text-danger fs-6"><%= currencySymbol %> <%= stats.dailyBusiness.officeUseTotalCost.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %></th>
+                    <th></th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          <% } else { %>
+            <div class="text-center py-4 text-muted small">No materials were deducted for internal office use on <%= stats.dailyBusiness.formattedDate %>.</div>
+          <% } %>
+        </div>
+
+        <!-- 4. Stock In Pane -->
+        <div class="tab-pane fade p-0" id="daily-stock-pane" role="tabpanel">
+          <% if (stats.dailyBusiness.todayStockInTransactions && stats.dailyBusiness.todayStockInTransactions.length > 0) { %>
+            <div class="table-responsive">
+              <table class="serene-table mb-0">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Material Arrived</th>
+                    <th>Quantity Added</th>
+                    <th>Buying Unit Cost</th>
+                    <th>Total Restock Value</th>
+                    <th>Supplier / Invoice Ref</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% stats.dailyBusiness.todayStockInTransactions.forEach(tx => { %>
+                    <% const inCost = parseFloat(tx.totalCost) || (parseFloat(tx.quantity) * (parseFloat(tx.unitCost) || 0)); %>
+                    <tr>
+                      <td class="text-muted small"><%= formatTime(tx.createdAt) %></td>
+                      <td>
+                        <span class="fw-bold text-dark"><%= tx.stockItem ? tx.stockItem.name : 'Unknown Item' %></span>
+                      </td>
+                      <td>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle fw-bold fs-6 tabular-nums">
+                          +<%= parseFloat(tx.quantity) %> <%= tx.stockItem ? tx.stockItem.unit : '' %>
+                        </span>
+                      </td>
+                      <td class="tabular-nums small text-muted"><%= currencySymbol %> <%= parseFloat(tx.unitCost || 0).toFixed(2) %></td>
+                      <td class="tabular-nums fw-bold text-dark"><%= currencySymbol %> <%= inCost.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %></td>
+                      <td class="small text-muted"><%= tx.reference || '-' %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+                <tfoot class="table-light">
+                  <tr>
+                    <th colspan="2" class="text-end">Total Restock Cost:</th>
+                    <th><span class="badge bg-success text-white"><%= stats.dailyBusiness.stockInTotalQty %> Units</span></th>
+                    <th></th>
+                    <th class="tabular-nums fw-bold text-dark fs-6"><%= currencySymbol %> <%= stats.dailyBusiness.stockInTotalCost.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %></th>
+                    <th></th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          <% } else { %>
+            <div class="text-center py-4 text-muted small">No new stock arrivals recorded on <%= stats.dailyBusiness.formattedDate %>.</div>
+          <% } %>
+        </div>
+
+        <!-- 5. Day-End Balance Sheet Slip Pane -->
+        <div class="tab-pane fade p-4" id="daily-slip-pane" role="tabpanel">
+          <div class="mx-auto p-4 rounded-3 border bg-white shadow-xs" id="dayEndSlipPrintArea" style="max-width: 650px;">
+            <div class="text-center border-bottom pb-3 mb-3">
+              <h5 class="fw-bold mb-1 text-dark">NIRMANA PRINTING & ADVERTISING</h5>
+              <div class="text-muted small">Daily End-of-Day Business & Financial Reconciliation Slip</div>
+              <div class="badge bg-light text-dark border font-monospace mt-1">Audit Date: <%= stats.dailyBusiness.formattedDate %></div>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-6">
+                <div class="small text-muted">Generated By:</div>
+                <div class="fw-bold text-dark"><%= user ? user.name : 'Administrator' %> (<%= user ? user.role : 'ADMIN' %>)</div>
+              </div>
+              <div class="col-6 text-end">
+                <div class="small text-muted">Slip Timestamp:</div>
+                <div class="fw-medium text-dark font-monospace"><%= formatDateTime(new Date()) %></div>
+              </div>
+            </div>
+
+            <table class="table table-sm table-bordered align-middle mb-3" style="font-size: 0.88rem;">
+              <thead class="table-light">
+                <tr>
+                  <th>Financial Ledger Account</th>
+                  <th class="text-center">Count / Qty</th>
+                  <th class="text-end">Amount (<%= currencySymbol %>)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><i class="bi bi-cart me-2 text-primary"></i> POS Counter Sales (Gross)</td>
+                  <td class="text-center font-monospace"><%= stats.dailyBusiness.posSalesCount %></td>
+                  <td class="text-end fw-semibold tabular-nums"><%= stats.dailyBusiness.posTotalRevenue.toFixed(2) %></td>
+                </tr>
+                <tr>
+                  <td class="ps-4 text-muted small">&bull; Cash Collected</td>
+                  <td class="text-center text-muted small">-</td>
+                  <td class="text-end tabular-nums small"><%= stats.dailyBusiness.posCashTotal.toFixed(2) %></td>
+                </tr>
+                <tr>
+                  <td class="ps-4 text-muted small">&bull; Card / Digital Payments</td>
+                  <td class="text-center text-muted small">-</td>
+                  <td class="text-end tabular-nums small"><%= stats.dailyBusiness.posCardTotal.toFixed(2) %></td>
+                </tr>
+                <tr>
+                  <td class="ps-4 text-muted small">&bull; Bank Transfers</td>
+                  <td class="text-center text-muted small">-</td>
+                  <td class="text-end tabular-nums small"><%= stats.dailyBusiness.posBankTransferTotal.toFixed(2) %></td>
+                </tr>
+                <tr>
+                  <td><i class="bi bi-printer me-2 text-success"></i> Print Order Advance Collections</td>
+                  <td class="text-center font-monospace"><%= stats.dailyBusiness.ordersCount %></td>
+                  <td class="text-end fw-semibold tabular-nums"><%= stats.dailyBusiness.ordersAdvanceCollected.toFixed(2) %></td>
+                </tr>
+                <tr class="table-success fw-bold">
+                  <td>TOTAL MONEY & REVENUE COLLECTED</td>
+                  <td class="text-center font-monospace"><%= stats.dailyBusiness.posSalesCount + stats.dailyBusiness.ordersCount %></td>
+                  <td class="text-end tabular-nums fs-6"><%= currencySymbol %> <%= stats.dailyBusiness.totalCollectedToday.toFixed(2) %></td>
+                </tr>
+                <tr>
+                  <td><i class="bi bi-building-down me-2 text-warning"></i> Internal Office Consumables Expense</td>
+                  <td class="text-center font-monospace"><%= stats.dailyBusiness.officeUseTotalQty %> units</td>
+                  <td class="text-end fw-semibold text-danger tabular-nums">- <%= stats.dailyBusiness.officeUseTotalCost.toFixed(2) %></td>
+                </tr>
+                <tr class="table-light">
+                  <td><i class="bi bi-box-arrow-in-down me-2 text-info"></i> Inventory Stock Restock Purchases</td>
+                  <td class="text-center font-monospace"><%= stats.dailyBusiness.stockInTotalQty %> units</td>
+                  <td class="text-end fw-semibold text-dark tabular-nums"><%= stats.dailyBusiness.stockInTotalCost.toFixed(2) %></td>
+                </tr>
+                <tr style="background: #faf5ff; font-weight: 700;">
+                  <td style="color: #6b21a8;">NET DAILY OPERATING CASH BALANCE</td>
+                  <td class="text-center">-</td>
+                  <td class="text-end tabular-nums fs-6" style="color: #6b21a8;"><%= currencySymbol %> <%= stats.dailyBusiness.netOperatingBalance.toFixed(2) %></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="d-flex justify-content-between pt-4 mt-3 border-top text-center text-muted small">
+              <div style="width: 160px; border-top: 1px dashed #94a3b8; padding-top: 4px;">Cashier / Staff Signature</div>
+              <div style="width: 160px; border-top: 1px dashed #94a3b8; padding-top: 4px;">Owner / Manager Approval</div>
+            </div>
+
+            <div class="text-center mt-3 pt-2">
+              <button class="btn btn-sm btn-serene-primary" onclick="window.printDayEndSlip()">
+                <i class="bi bi-printer me-1"></i> Print This Daily Summary Slip
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 5: Full-Width Spacious Recent Orders Table -->
     <div class="row g-4">
       <div class="col-12">
         <div class="serene-card">
@@ -333,7 +800,7 @@
                     <td class="text-end">
                       <% const deficit = diff < 0 ? Math.abs(diff) : 0; %>
                       <button class="btn btn-sm btn-success py-1 px-3 d-inline-flex align-items-center gap-1 shadow-xs" 
-                              onclick="triggerQuickStockInFromModal(<%= item.id %>, <%= deficit %>)">
+                              onclick="triggerQuickStockInFromModal(<%= item.id %>, <%= deficit %>, '<%= escape(item.name) %>')">
                         <i class="bi bi-plus-circle"></i> Add Stock
                       </button>
                     </td>
@@ -466,8 +933,9 @@
 <script>
   window._preloadedStockItems = <%- JSON.stringify((stats.allStockItems || []).map(i => ({ id: i.id, name: i.name, code: i.code, unit: i.unit, currentStock: i.currentStock, unitCost: i.unitCost, sellingPrice: i.sellingPrice }))) %>;
 
-  function triggerQuickStockInFromModal(itemId, suggestedQty) {
+  function triggerQuickStockInFromModal(itemId, suggestedQty, itemName) {
     const stockAttentionModalEl = document.getElementById('stockAttentionModal');
+    const realItemName = itemName ? unescape(itemName) : null;
     if (stockAttentionModalEl) {
       const stockAttentionModal = bootstrap.Modal.getInstance(stockAttentionModalEl) || bootstrap.Modal.getOrCreateInstance(stockAttentionModalEl);
       let triggered = false;
@@ -476,7 +944,7 @@
         triggered = true;
         stockAttentionModalEl.removeEventListener('hidden.bs.modal', doQuickStockIn);
         if (typeof window.quickStockIn === 'function') {
-          window.quickStockIn(itemId, suggestedQty);
+          window.quickStockIn(itemId, suggestedQty, realItemName);
         }
       };
       stockAttentionModalEl.addEventListener('hidden.bs.modal', doQuickStockIn, { once: true });
@@ -484,10 +952,45 @@
       setTimeout(doQuickStockIn, 250);
     } else {
       if (typeof window.quickStockIn === 'function') {
-        window.quickStockIn(itemId, suggestedQty);
+        window.quickStockIn(itemId, suggestedQty, realItemName);
       }
     }
   }
+
+  window.printDayEndSlip = function() {
+    const printArea = document.getElementById('dayEndSlipPrintArea');
+    if (!printArea) {
+      window.print();
+      return;
+    }
+    const win = window.open('', '_blank', 'width=750,height=900');
+    win.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Day-End Financial Slip - Nirmana Printing</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 24px; background: #fff; }
+          .tabular-nums { font-variant-numeric: tabular-nums; }
+          @media print {
+            .btn { display: none !important; }
+          }
+        </style>
+      </head>
+      <body>
+        ${printArea.outerHTML}
+        <script>
+          window.onload = function() {
+            window.print();
+          };
+        <\/script>
+      </body>
+      </html>
+    `);
+    win.document.close();
+  };
 </script>
 
 <%- include('../partials/footer') %>

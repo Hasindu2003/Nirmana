@@ -47,3 +47,5 @@ tmp/
 dist/
 build/
 .vercel/
+devspace/
+devspace-php/

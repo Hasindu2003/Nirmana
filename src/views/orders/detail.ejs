@@ -103,30 +103,51 @@
       <div class="col-lg-5">
         <!-- Financial Card -->
         <div class="serene-card mb-4">
-          <div class="serene-card-header">
-            <h3 class="serene-card-title">Financials & Balance</h3>
-            <% if (parseFloat(order.balanceAmount) > 0) { %>
-              <button class="btn btn-serene-primary py-1 px-2 small" onclick="openPaymentModal(<%= order.id %>, <%= order.balanceAmount %>)">
-                + Record Payment
+          <div class="serene-card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <h3 class="serene-card-title mb-0">Financials, Payments & Discounts</h3>
+            <div class="d-flex align-items-center gap-1">
+              <button class="btn btn-sm btn-outline-secondary py-1 px-2" onclick="openOrderDiscountModal(<%= order.id %>, <%= order.discount || 0 %>)">
+                <i class="bi bi-percent"></i> Manual Discount
               </button>
-            <% } %>
+              <% if (parseFloat(order.balanceAmount) > 0) { %>
+                <button class="btn btn-serene-primary py-1 px-2 small" onclick="openPaymentModal(<%= order.id %>, <%= order.balanceAmount %>)">
+                  + Record Payment
+                </button>
+              <% } %>
+            </div>
           </div>
           <div class="serene-card-body">
+            <% const oSubtotal = parseFloat(order.subtotal) || parseFloat(order.totalAmount) || 0; %>
+            <% const oDiscount = parseFloat(order.discount) || 0; %>
             <div class="d-flex justify-content-between py-1 text-muted small">
-              <span>Total Job Price:</span>
+              <span>Subtotal Amount:</span>
+              <span class="fw-semibold text-dark tabular-nums">
+                <%= currencySymbol %> <%= oSubtotal.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+              </span>
+            </div>
+            <% if (oDiscount > 0) { %>
+              <div class="d-flex justify-content-between py-1 text-primary small">
+                <span>Manual Discount:</span>
+                <span class="fw-semibold tabular-nums">
+                  -<%= currencySymbol %> <%= oDiscount.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+                </span>
+              </div>
+            <% } %>
+            <div class="d-flex justify-content-between py-1 text-muted small">
+              <span>Net Total Job Price:</span>
               <span class="fs-6 fw-bold text-dark tabular-nums">
                 <%= currencySymbol %> <%= parseFloat(order.totalAmount).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
               </span>
             </div>
             <div class="d-flex justify-content-between py-1 text-success small">
-              <span>Advance / Amount Paid:</span>
-              <span class="fw-semibold tabular-nums">
+              <span>Given Amount (Paid):</span>
+              <span class="fw-bold tabular-nums">
                 <%= currencySymbol %> <%= parseFloat(order.advancePaid).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
               </span>
             </div>
             <hr class="my-2">
             <div class="d-flex justify-content-between py-1">
-              <span class="fw-bold">Remaining Balance:</span>
+              <span class="fw-bold <%= parseFloat(order.balanceAmount) > 0 ? 'text-danger' : 'text-success' %>">Yet to Give (Balance Due):</span>
               <span class="fs-5 fw-bold tabular-nums <%= parseFloat(order.balanceAmount) > 0 ? 'text-danger' : 'text-success' %>">
                 <%= currencySymbol %> <%= parseFloat(order.balanceAmount).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
               </span>
@@ -210,13 +231,13 @@ async function setOrderStatus(orderId, newStatus) {
 
 async function openPaymentModal(orderId, balance) {
   const amount = await window.serenePrompt({
-    title: 'Record Payment',
-    message: `Enter the payment amount received for this order.<br><span class="text-muted small">Current Balance Due: <strong>Rs. ${parseFloat(balance).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</strong></span>`,
-    label: 'Payment Amount (Rs.) *',
+    title: 'Record Payment (Update Given & Balance)',
+    message: `Enter the payment amount collected for this order.<br><span class="text-danger fw-bold small">Current Yet to Give (Due): Rs. ${parseFloat(balance).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>`,
+    label: 'Payment Amount Collected (Rs.) *',
     defaultValue: balance,
     placeholder: 'Enter amount',
     type: 'number',
-    min: 1,
+    min: 0.01,
     max: balance,
     step: 'any',
     confirmText: 'Record Payment',
@@ -228,7 +249,7 @@ async function openPaymentModal(orderId, balance) {
     const res = await fetch(`/api/orders/${orderId}/payment`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount }),
+      body: JSON.stringify({ amount: parseFloat(amount) }),
     });
     const result = await res.json();
     if (result.success) {
@@ -236,6 +257,39 @@ async function openPaymentModal(orderId, balance) {
       window.location.reload();
     } else {
       toast.error('Payment failed: ' + result.message);
+    }
+  } catch (err) {
+    toast.error('Request failed: ' + err.message);
+  }
+}
+
+async function openOrderDiscountModal(orderId, currentDiscount) {
+  const discount = await window.serenePrompt({
+    title: 'Update Manual Discount',
+    message: 'Enter manual discount in rupees. The net total job price and yet to give balance will recalculate automatically.',
+    label: 'Manual Discount Amount (Rs.) *',
+    defaultValue: currentDiscount || 0,
+    placeholder: '0.00',
+    type: 'number',
+    min: 0,
+    step: 'any',
+    confirmText: 'Apply Discount',
+    cancelText: 'Cancel',
+  });
+  if (discount === null || discount === undefined || discount === '') return;
+
+  try {
+    const res = await fetch(`/api/orders/${orderId}/discount`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ discount: parseFloat(discount) || 0 }),
+    });
+    const result = await res.json();
+    if (result.success) {
+      setPendingToast(result.message, 'success');
+      window.location.reload();
+    } else {
+      toast.error('Failed to update discount: ' + result.message);
     }
   } catch (err) {
     toast.error('Request failed: ' + err.message);

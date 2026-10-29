@@ -128,28 +128,89 @@
             <div class="serene-card-body">
               <div class="mb-3">
                 <label class="form-label">Job Title / Item Description *</label>
-                <input type="text" name="jobTitle" class="form-control" placeholder="e.g. 500x Business Cards, 2x Vinyl Banners (10x4ft)" required>
+                <input type="text" name="jobTitle" id="jobTitleInput" class="form-control" placeholder="e.g. 500x Business Cards, 8x10 Photo Frame with Print" required>
               </div>
 
-              <div class="row g-3 mb-3">
-                <div class="col-md-6">
-                  <label class="form-label">Paper Substrate / Material</label>
-                  <input type="text" name="paperMaterial" list="stockPaperList" class="form-control" placeholder="e.g. 350gsm Ivory Art Card, Gloss Vinyl">
-                  <datalist id="stockPaperList">
-                    <% stockItems.forEach(item => { %>
-                      <option value="<%= item.name %> (<%= item.currentStock %> <%= item.unit %> in stock)">
-                    <% }) %>
-                  </datalist>
+              <!-- Material / Photo Frame Size Selector -->
+              <div class="mb-3 p-3 rounded-2" style="background:#fafbfc; border: 1px solid var(--serene-border-subtle);">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <label class="form-label fw-semibold mb-0 small text-dark">
+                    <i class="bi bi-aspect-ratio me-1 text-primary"></i> Stock Material / Photo Frame Size
+                  </label>
+                  <span class="badge bg-light text-muted border small" style="font-size: 0.7rem;">Sizes & Live Prices</span>
                 </div>
-                <div class="col-md-6">
-                  <label class="form-label">Print Quantity *</label>
-                  <input type="number" name="quantity" id="orderQuantity" class="form-control" value="100" min="1" required>
+
+                <select id="stockItemSelector" class="form-select form-select-sm mb-2" onchange="onStockItemSelect(this)">
+                  <option value="">-- Choose Stock Material or Photo Frame Size --</option>
+                  
+                  <!-- Sized Items & Photo Frames -->
+                  <optgroup label="Photo Frames (Sized Dimensions)">
+                    <% stockItems.filter(i => i.category === 'Photo Frames' || i.width || i.sizeLabel).forEach(item => { %>
+                      <option value="<%= item.id %>" 
+                        data-name="<%= item.name %>"
+                        data-category="<%= item.category %>"
+                        data-width="<%= item.width || '' %>"
+                        data-length="<%= item.length || '' %>"
+                        data-unit="<%= item.dimensionUnit || 'inches' %>"
+                        data-sizelabel="<%= item.sizeLabel || '' %>"
+                        data-price="<%= item.sellingPrice || item.unitCost || 0 %>"
+                        data-stock="<%= item.currentStock %>">
+                        <%= item.name %> &bull; Size: <%= item.sizeLabel || (item.width && item.length ? `${item.width}" x ${item.length}"` : 'Standard') %> &bull; Rs. <%= parseFloat(item.sellingPrice || item.unitCost || 0).toFixed(2) %> (<%= item.currentStock %> in stock)
+                      </option>
+                    <% }) %>
+                  </optgroup>
+
+                  <!-- Other Paper Substrates & Materials -->
+                  <optgroup label="Paper / Substrates & Other Materials">
+                    <% stockItems.filter(i => i.category !== 'Photo Frames' && !i.width && !i.sizeLabel).forEach(item => { %>
+                      <option value="<%= item.id %>"
+                        data-name="<%= item.name %>"
+                        data-category="<%= item.category %>"
+                        data-price="<%= item.sellingPrice || item.unitCost || 0 %>"
+                        data-stock="<%= item.currentStock %>">
+                        <%= item.name %> &bull; Rs. <%= parseFloat(item.sellingPrice || item.unitCost || 0).toFixed(2) %> (<%= item.currentStock %> <%= item.unit %>)
+                      </option>
+                    <% }) %>
+                  </optgroup>
+                  <option value="CUSTOM_FRAME">+ Custom Frame Size (Enter Width x Length)...</option>
+                </select>
+
+                <!-- Custom Photo Frame Dimensions (conditionally shown or inline) -->
+                <div id="customFrameDimsRow" class="row g-2 mt-1 mb-2 d-none">
+                  <div class="col-4">
+                    <label class="form-label small text-muted">Width (in)</label>
+                    <input type="number" id="customFrameWidth" class="form-control form-control-sm" placeholder="e.g. 12" step="any" min="1" oninput="onCustomDimensionsChange()">
+                  </div>
+                  <div class="col-4">
+                    <label class="form-label small text-muted">Length (in)</label>
+                    <input type="number" id="customFrameLength" class="form-control form-control-sm" placeholder="e.g. 18" step="any" min="1" oninput="onCustomDimensionsChange()">
+                  </div>
+                  <div class="col-4">
+                    <label class="form-label small text-muted">Frame Price / Unit</label>
+                    <input type="number" id="customFramePrice" class="form-control form-control-sm" placeholder="Rs. 0.00" step="any" min="0" oninput="onCustomDimensionsChange()">
+                  </div>
+                </div>
+
+                <div class="row g-2">
+                  <div class="col-md-7">
+                    <label class="form-label small text-muted">Paper Substrate / Material Name</label>
+                    <input type="text" name="paperMaterial" id="paperMaterialField" list="stockPaperList" class="form-control form-control-sm" placeholder="e.g. 8x10 Black Photo Frame with Gloss Print">
+                    <datalist id="stockPaperList">
+                      <% stockItems.forEach(item => { %>
+                        <option value="<%= item.name %> <%= item.sizeLabel ? `(${item.sizeLabel})` : '' %>">
+                      <% }) %>
+                    </datalist>
+                  </div>
+                  <div class="col-md-5">
+                    <label class="form-label small text-muted">Print / Frame Quantity *</label>
+                    <input type="number" name="quantity" id="orderQuantity" class="form-control form-control-sm" value="1" min="1" oninput="onQuantityChange()" required>
+                  </div>
                 </div>
               </div>
 
               <div class="mb-3">
-                <label class="form-label">Specifications (Sides, Colors, Finishing)</label>
-                <textarea name="specifications" class="form-control" rows="3" style="resize: none;" placeholder="e.g. Double-sided Full Color, Matte Lamination, Corner Rounding"></textarea>
+                <label class="form-label">Specifications (Sides, Colors, Frame Finish)</label>
+                <textarea name="specifications" id="specificationsField" class="form-control" rows="3" style="resize: none;" placeholder="e.g. 8x10 inch Wooden Photo Frame with Glass & Matte Photo Print"></textarea>
               </div>
 
               <div class="row g-3">
@@ -175,31 +236,62 @@
         <div class="col-lg-5">
           <div class="serene-card sticky-lg-top" style="top: 80px;">
             <div class="serene-card-header">
-              <h3 class="serene-card-title">Billing & Payment</h3>
+              <h3 class="serene-card-title">Billing, Discount & Balance</h3>
             </div>
             <div class="serene-card-body">
+              <!-- Subtotal -->
               <div class="mb-3">
-                <label class="form-label fw-semibold">Total Job Amount (<%= currencySymbol %>) *</label>
-                <input type="number" name="totalAmount" id="totalAmountInput" class="form-control fs-5 fw-bold" placeholder="0.00" step="any" min="0" onfocus="clearIfZero(this)" onclick="clearIfZero(this)" oninput="updateBalanceCalc()" required>
+                <label class="form-label fw-semibold">Subtotal Amount (<%= currencySymbol %>) *</label>
+                <input type="number" name="subtotal" id="subtotalInput" class="form-control fs-5 fw-bold" placeholder="0.00" step="any" min="0" onfocus="clearIfZero(this)" onclick="clearIfZero(this)" oninput="updateBalanceCalc()" required>
               </div>
 
+              <!-- Manual Discount Input -->
               <div class="mb-3">
-                <label class="form-label fw-semibold">Advance Payment Paid (<%= currencySymbol %>)</label>
-                <input type="number" name="advancePaid" id="advancePaidInput" class="form-control text-success fw-semibold" placeholder="0.00" step="any" min="0" onfocus="clearIfZero(this)" onclick="clearIfZero(this)" oninput="updateBalanceCalc()">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <label class="form-label fw-semibold mb-0 text-primary">
+                    <i class="bi bi-tag-fill me-1"></i> Manual Discount (<%= currencySymbol %>)
+                  </label>
+                  <span class="badge bg-light text-muted border small" style="font-size: 0.7rem;">Input Manual</span>
+                </div>
+                <input type="number" name="discount" id="discountInput" class="form-control" placeholder="0.00" step="any" min="0" value="0.00" onfocus="clearIfZero(this)" onclick="clearIfZero(this)" oninput="updateBalanceCalc()">
+                <div class="form-text small text-muted" style="font-size: 0.72rem;">Type manual discount to subtract from subtotal.</div>
               </div>
 
+              <!-- Total Net Amount -->
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Net Total Job Price (<%= currencySymbol %>) *</label>
+                <input type="number" name="totalAmount" id="totalAmountInput" class="form-control fs-5 fw-bold bg-light" placeholder="0.00" step="any" min="0" readonly required>
+              </div>
+
+              <!-- Given Amount / Advance Paid -->
+              <div class="mb-3">
+                <label class="form-label fw-semibold text-success">
+                  <i class="bi bi-cash-stack me-1"></i> Given Amount / Advance Paid (<%= currencySymbol %>)
+                </label>
+                <input type="number" name="advancePaid" id="advancePaidInput" class="form-control text-success fw-bold fs-6" placeholder="0.00" step="any" min="0" onfocus="clearIfZero(this)" onclick="clearIfZero(this)" oninput="updateBalanceCalc()">
+              </div>
+
+              <!-- Live Balance Slip Card -->
               <div class="p-3 mb-4 rounded-2" style="background:#fafbfc; border:1px solid var(--serene-border-subtle);">
                 <div class="d-flex justify-content-between align-items-center mb-1">
-                  <span class="text-muted small">Total:</span>
-                  <span class="fw-semibold tabular-nums text-dark" id="calcTotal">Rs. 0.00</span>
+                  <span class="text-muted small">Subtotal:</span>
+                  <span class="fw-semibold tabular-nums text-dark" id="calcSubtotal">Rs. 0.00</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-1 text-primary">
+                  <span class="small">Manual Discount:</span>
+                  <span class="fw-semibold tabular-nums" id="calcDiscount">-Rs. 0.00</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <span class="text-muted small">Net Total:</span>
+                  <span class="fw-bold tabular-nums text-dark" id="calcTotal">Rs. 0.00</span>
                 </div>
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                  <span class="text-muted small">Advance Paid:</span>
+                  <span class="text-success small">Given Amount:</span>
                   <span class="fw-semibold tabular-nums text-success" id="calcAdvance">Rs. 0.00</span>
                 </div>
                 <hr class="my-2">
                 <div class="d-flex justify-content-between align-items-center">
-                  <span class="fw-bold">Remaining Balance:</span>
+                  <span class="fw-bold text-danger">Yet to Give (Balance Due):</span>
                   <span class="fs-5 fw-bold tabular-nums text-danger" id="calcBalance">Rs. 0.00</span>
                 </div>
               </div>
@@ -209,11 +301,11 @@
                 <select name="status" class="form-select">
                   <option value="RECEIVED" selected>Received (Pending Design / Pre-press)</option>
                   <option value="PRINTING">Printing (Direct to Press)</option>
-                  <option value="READY">Ready</option>
+                  <option value="READY">Ready for Collection</option>
                 </select>
               </div>
 
-              <button type="submit" class="btn btn-serene-primary w-100 py-2 justify-content-center">
+              <button type="submit" class="btn btn-serene-primary w-100 py-2 justify-content-center shadow-xs">
                 <i class="bi bi-check2-circle"></i> Save & Record Order
               </button>
             </div>
@@ -266,13 +358,98 @@ function toggleCustomerMode(mode) {
   }
 }
 
+window.selectedStockUnitPrice = 0;
+
+function onStockItemSelect(selectEl) {
+  const customRow = document.getElementById('customFrameDimsRow');
+  const selectedOpt = selectEl.options[selectEl.selectedIndex];
+  if (!selectedOpt || !selectEl.value) {
+    if (customRow) customRow.classList.add('d-none');
+    return;
+  }
+
+  if (selectEl.value === 'CUSTOM_FRAME') {
+    if (customRow) customRow.classList.remove('d-none');
+    document.getElementById('customFrameWidth').focus();
+    return;
+  }
+
+  if (customRow) customRow.classList.add('d-none');
+
+  const name = selectedOpt.dataset.name || '';
+  const price = parseFloat(selectedOpt.dataset.price) || 0;
+  const width = selectedOpt.dataset.width || '';
+  const length = selectedOpt.dataset.length || '';
+  const unit = selectedOpt.dataset.unit || 'inches';
+  const sizeLabel = selectedOpt.dataset.sizelabel || (width && length ? `${width}" x ${length}"` : '');
+
+  const paperField = document.getElementById('paperMaterialField');
+  if (paperField) {
+    paperField.value = name + (sizeLabel ? ` (${sizeLabel})` : '');
+  }
+
+  const jobInput = document.getElementById('jobTitleInput');
+  if (jobInput && (!jobInput.value || jobInput.value.includes('Photo Frame') || jobInput.value.includes('Business Cards'))) {
+    jobInput.value = name + (sizeLabel ? ` - ${sizeLabel}` : '');
+  }
+
+  const specField = document.getElementById('specificationsField');
+  if (specField && sizeLabel) {
+    specField.value = `Size: ${sizeLabel} (${width ? width + 'x' + length + ' ' + unit : ''})\nFrame Selling Price: Rs. ${price.toFixed(2)}`;
+  }
+
+  window.selectedStockUnitPrice = price;
+  const qty = parseInt(document.getElementById('orderQuantity').value, 10) || 1;
+  if (price > 0) {
+    const sub = price * qty;
+    document.getElementById('subtotalInput').value = sub.toFixed(2);
+  }
+  updateBalanceCalc();
+}
+
+function onCustomDimensionsChange() {
+  const w = document.getElementById('customFrameWidth').value;
+  const l = document.getElementById('customFrameLength').value;
+  const p = parseFloat(document.getElementById('customFramePrice').value) || 0;
+  window.selectedStockUnitPrice = p;
+
+  if (w && l) {
+    const dimText = `${w}" x ${l}"`;
+    document.getElementById('paperMaterialField').value = `Custom Photo Frame (${dimText})`;
+    const jobInput = document.getElementById('jobTitleInput');
+    if (jobInput) jobInput.value = `Custom Photo Frame - ${dimText}`;
+    document.getElementById('specificationsField').value = `Custom Photo Frame: Width ${w} in x Length ${l} in\nRate: Rs. ${p.toFixed(2)}`;
+  }
+
+  const qty = parseInt(document.getElementById('orderQuantity').value, 10) || 1;
+  if (p > 0) {
+    document.getElementById('subtotalInput').value = (p * qty).toFixed(2);
+  }
+  updateBalanceCalc();
+}
+
+function onQuantityChange() {
+  if (window.selectedStockUnitPrice > 0) {
+    const qty = parseInt(document.getElementById('orderQuantity').value, 10) || 1;
+    document.getElementById('subtotalInput').value = (window.selectedStockUnitPrice * qty).toFixed(2);
+  }
+  updateBalanceCalc();
+}
+
 function updateBalanceCalc() {
-  const totalVal = document.getElementById('totalAmountInput').value;
+  const subtotalVal = document.getElementById('subtotalInput').value;
+  const discountVal = document.getElementById('discountInput').value;
   const advanceVal = document.getElementById('advancePaidInput').value;
-  const total = totalVal !== '' ? (parseFloat(totalVal) || 0) : 0;
+
+  const subtotal = subtotalVal !== '' ? (parseFloat(subtotalVal) || 0) : 0;
+  const discount = discountVal !== '' ? Math.max(0, parseFloat(discountVal) || 0) : 0;
+  const total = Math.max(0, subtotal - discount);
   const advance = advanceVal !== '' ? (parseFloat(advanceVal) || 0) : 0;
   const balance = Math.max(0, total - advance);
 
+  document.getElementById('totalAmountInput').value = total.toFixed(2);
+  document.getElementById('calcSubtotal').innerText = formatCurrency(subtotal);
+  document.getElementById('calcDiscount').innerText = (discount > 0 ? '-' : '') + formatCurrency(discount);
   document.getElementById('calcTotal').innerText = formatCurrency(total);
   document.getElementById('calcAdvance').innerText = formatCurrency(advance);
   document.getElementById('calcBalance').innerText = formatCurrency(balance);

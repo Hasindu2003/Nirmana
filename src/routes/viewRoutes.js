@@ -16,17 +16,20 @@ const { authenticate } = require('../middleware/auth');
 const { getUploadUrl, getAvailableLanIps } = require('../utils/network');
 
 // Helper to check if visitor is already authenticated (cookie or session)
-function isAuthenticated(req) {
+function getDecodedUser(req) {
   const token = req.cookies && req.cookies.auth_token;
   if (token) {
     try {
       const decoded = jwt.verify(token, config.jwtSecret);
-      if (decoded && decoded.id) return true;
+      if (decoded && decoded.id) return decoded;
     } catch (e) {}
   }
-  if (req.session && req.session.userId) {
-    return true;
-  }
+  return null;
+}
+
+function isAuthenticated(req) {
+  if (getDecodedUser(req)) return true;
+  if (req.session && req.session.userId) return true;
   return false;
 }
 
@@ -34,17 +37,29 @@ function isAuthenticated(req) {
 // 1. PUBLIC ROUTES (No Login Required)
 // =========================================================================
 
-// Root redirect: Logged in -> Dashboard | Visitors -> Login
+// Root redirect: Logged in -> Dashboard / Portal | Visitors -> Login
 router.get('/', (req, res) => {
-  if (isAuthenticated(req)) {
+  const decoded = getDecodedUser(req);
+  if (decoded) {
+    if (decoded.role === 'CUSTOMER') return res.redirect('/portal');
+    return res.redirect('/dashboard');
+  }
+  if (req.session && req.session.userId) {
+    if (req.session.userRole === 'CUSTOMER') return res.redirect('/portal');
     return res.redirect('/dashboard');
   }
   return res.redirect('/login');
 });
 
-// Staff Login
+// Staff / Customer Login
 router.get('/login', (req, res) => {
-  if (isAuthenticated(req)) {
+  const decoded = getDecodedUser(req);
+  if (decoded) {
+    if (decoded.role === 'CUSTOMER') return res.redirect('/portal');
+    return res.redirect('/dashboard');
+  }
+  if (req.session && req.session.userId) {
+    if (req.session.userRole === 'CUSTOMER') return res.redirect('/portal');
     return res.redirect('/dashboard');
   }
   res.render('auth/login', {
@@ -55,6 +70,22 @@ router.get('/login', (req, res) => {
   });
 });
 
+// Customer Account Registration
+router.get('/register', (req, res) => {
+  const decoded = getDecodedUser(req);
+  if (decoded) {
+    if (decoded.role === 'CUSTOMER') return res.redirect('/portal');
+    return res.redirect('/dashboard');
+  }
+  res.render('auth/register', {
+    title: 'Create Account · Nirmana Printing',
+    error: null,
+    formData: {},
+    activePage: 'register',
+  });
+});
+
+router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.get('/logout', authController.logout);
 
@@ -195,11 +226,47 @@ router.use(authenticate);
 // 1. Dashboard
 router.get('/dashboard', async (req, res, next) => {
   try {
-    const stats = await dashboardService.getDashboardStats();
+    if (req.user && req.user.role === 'CUSTOMER') {
+      return res.redirect('/portal');
+    }
+    const selectedDate = req.query.date || null;
+    const stats = await dashboardService.getDashboardStats(selectedDate);
     res.render('dashboard/index', {
       title: 'Dashboard · Nirmana Printing',
       activePage: 'dashboard',
       stats,
+      selectedDate: stats.dailyBusiness.date,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 1b. Customer Portal (Personal Orders, Bills, Advance Paid & Yet to Give Balance)
+router.get('/portal', async (req, res, next) => {
+  try {
+    let customerId = req.user.customerId;
+    if (!customerId && (req.user.role === 'ADMIN' || req.user.role === 'STAFF')) {
+      if (req.query.customerId) {
+        customerId = parseInt(req.query.customerId, 10);
+      } else {
+        const anyCust = await customerService.getAllCustomers({ paginate: false });
+        if (anyCust && anyCust.length > 0) {
+          customerId = anyCust[0].id;
+        }
+      }
+    }
+
+    if (!customerId) {
+      return res.redirect('/dashboard');
+    }
+
+    const customer = await customerService.getCustomerById(customerId);
+    res.render('customerPortal/index', {
+      title: `${customer.name} · Client Portal · Nirmana Printing`,
+      activePage: 'portal',
+      customer,
+      orders: customer.orders || [],
     });
   } catch (err) {
     next(err);
@@ -265,13 +332,14 @@ router.get('/orders/:id', async (req, res, next) => {
   }
 });
 
-// 5. Stock Management (Live Inventory, Stock In/Out, History)
+// 5. Stock Management (Live Inventory, Stock In/Out, Office Use, History)
 router.get('/stock', async (req, res, next) => {
   try {
-    const { search, category, page, txPage } = req.query;
+    const { search, category, page, txPage, officePage, tab } = req.query;
     const [
-      { items, pagination: itemsPagination },
+      stockResult,
       { transactions, pagination: transactionsPagination },
+      officeResult,
       allItems
     ] = await Promise.all([
       stockService.getAllStockItems({
@@ -286,8 +354,23 @@ router.get('/stock', async (req, res, next) => {
         limit: 10,
         paginate: true,
       }),
+      stockService.getOfficeUseTransactions({
+        page: parseInt(officePage, 10) || 1,
+        limit: 10,
+        paginate: true,
+      }),
       stockService.getAllStockItems({ paginate: false }),
     ]);
+
+    const items = stockResult.items || [];
+    const itemsPagination = stockResult.pagination || null;
+    const inventorySummary = stockResult.inventorySummary || {
+      totalItems: items.length,
+      totalRemainingValuation: 0,
+      totalOfficeUseValue: 0,
+    };
+    const officeTransactions = officeResult.transactions || [];
+    const officePagination = officeResult.pagination || null;
 
     // Extract unique categories for filter
     const categories = [...new Set(allItems.map(i => i.category))];
@@ -297,13 +380,18 @@ router.get('/stock', async (req, res, next) => {
       activePage: 'stock',
       items,
       itemsPagination,
+      inventorySummary,
       transactions,
       transactionsPagination,
+      officeTransactions,
+      officePagination,
       categories,
       currentCategory: category || 'ALL',
       search: search || '',
       currentPage: parseInt(page, 10) || 1,
       currentTxPage: parseInt(txPage, 10) || 1,
+      currentOfficePage: parseInt(officePage, 10) || 1,
+      currentTab: tab || 'inventory',
     });
   } catch (err) {
     next(err);
@@ -332,7 +420,7 @@ router.get('/stock/:id', async (req, res, next) => {
 router.get('/customers', async (req, res, next) => {
   try {
     const { search, page, limit } = req.query;
-    const { customers, pagination } = await customerService.getAllCustomers({
+    const { customers, pagination, accountsSummary } = await customerService.getAllCustomers({
       search,
       page: parseInt(page, 10) || 1,
       limit: parseInt(limit, 10) || 10,
@@ -343,6 +431,7 @@ router.get('/customers', async (req, res, next) => {
       activePage: 'customers',
       customers,
       pagination,
+      accountsSummary,
       search: search || '',
     });
   } catch (err) {

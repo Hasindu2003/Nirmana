@@ -25,39 +25,52 @@
   </div>
 
   <div class="sidebar-nav">
-    <div class="nav-section-title">Navigation</div>
-    <a href="/dashboard" class="nav-item-link <%= activePage === 'dashboard' ? 'active' : '' %>">
-      <i class="bi bi-grid-1x2"></i>
-      <span>Dashboard</span>
-    </a>
+    <% if (currentUser && currentUser.role === 'CUSTOMER') { %>
+      <div class="nav-section-title">Client Portal</div>
+      <a href="/portal" class="nav-item-link <%= activePage === 'portal' ? 'active' : '' %>">
+        <i class="bi bi-wallet2"></i>
+        <span>My Orders & Balance</span>
+      </a>
 
-    <a href="/orders" class="nav-item-link <%= activePage === 'orders' ? 'active' : '' %>">
-      <i class="bi bi-clipboard2-check"></i>
-      <span>Printing Orders</span>
-    </a>
+      <a href="/upload" class="nav-item-link <%= activePage === 'guest-upload' ? 'active' : '' %>">
+        <i class="bi bi-cloud-arrow-up"></i>
+        <span>Upload Print Files</span>
+      </a>
+    <% } else { %>
+      <div class="nav-section-title">Navigation</div>
+      <a href="/dashboard" class="nav-item-link <%= activePage === 'dashboard' ? 'active' : '' %>">
+        <i class="bi bi-grid-1x2"></i>
+        <span>Dashboard</span>
+      </a>
 
-    <a href="/quick-print" class="nav-item-link <%= activePage === 'quick-print' ? 'active' : '' %>">
-      <i class="bi bi-qr-code-scan"></i>
-      <span class="d-flex align-items-center justify-content-between flex-grow-1">
-        <span>Quick Print (QR)</span>
-        <span class="badge bg-danger rounded-pill px-1 py-0 small" id="sidebarQuickBadge" style="display: none; font-size: 0.65rem;">NEW</span>
-      </span>
-    </a>
+      <a href="/orders" class="nav-item-link <%= activePage === 'orders' ? 'active' : '' %>">
+        <i class="bi bi-clipboard2-check"></i>
+        <span>Printing Orders</span>
+      </a>
 
-    <a href="/pos" class="nav-item-link <%= activePage === 'pos' ? 'active' : '' %>">
-      <i class="bi bi-cart3"></i>
-      <span>Point of Sale (POS)</span>
-    </a>
+      <a href="/quick-print" class="nav-item-link <%= activePage === 'quick-print' ? 'active' : '' %>">
+        <i class="bi bi-qr-code-scan"></i>
+        <span class="d-flex align-items-center justify-content-between flex-grow-1">
+          <span>Quick Print (QR)</span>
+          <span class="badge bg-danger rounded-pill px-1 py-0 small" id="sidebarQuickBadge" style="display: none; font-size: 0.65rem;">NEW</span>
+        </span>
+      </a>
 
-    <a href="/stock" class="nav-item-link <%= activePage === 'stock' ? 'active' : '' %>">
-      <i class="bi bi-box-seam"></i>
-      <span>Stock Management</span>
-    </a>
+      <a href="/pos" class="nav-item-link <%= activePage === 'pos' ? 'active' : '' %>">
+        <i class="bi bi-cart3"></i>
+        <span>Point of Sale (POS)</span>
+      </a>
 
-    <a href="/customers" class="nav-item-link <%= activePage === 'customers' ? 'active' : '' %>">
-      <i class="bi bi-people"></i>
-      <span>Customers</span>
-    </a>
+      <a href="/stock" class="nav-item-link <%= activePage === 'stock' ? 'active' : '' %>">
+        <i class="bi bi-box-seam"></i>
+        <span>Stock Management</span>
+      </a>
+
+      <a href="/customers" class="nav-item-link <%= activePage === 'customers' ? 'active' : '' %>">
+        <i class="bi bi-people"></i>
+        <span>Customers & Accounts</span>
+      </a>
+    <% } %>
   </div>
 
   <div class="sidebar-footer">

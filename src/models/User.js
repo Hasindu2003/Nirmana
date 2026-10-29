@@ -37,10 +37,19 @@ const User = sequelize.define('User', {
       'SALES',        // Sales Staff / Cashier
       'PRODUCTION',   // Pre-press & Machine Operators
       'INVENTORY',    // Stock & Warehouse Staff
-      'ACCOUNTANT'    // Billing & Receivables
+      'ACCOUNTANT',   // Billing & Receivables
+      'CUSTOMER'      // Client / Customer Portal User
     ),
     allowNull: false,
     defaultValue: 'SALES',
+  },
+  customerId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'customers',
+      key: 'id',
+    },
   },
   phone: {
     type: DataTypes.STRING(20),

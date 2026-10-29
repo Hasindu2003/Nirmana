@@ -17,6 +17,7 @@ const { requireRole } = require('../middleware/rbac');
 // 1. PUBLIC ROUTES (Accessible by customers and pre-login staff)
 // =========================================================================
 router.post('/auth/login', authController.login);
+router.post('/auth/register', authController.register);
 
 // Customer walk-in upload & token tracking
 router.post('/quick-print/upload', uploadQuickPrint, quickPrintController.submitUpload);
@@ -41,6 +42,8 @@ router.get('/stock', authenticate, stockController.listItems);
 router.post('/stock', authenticate, stockController.createItem);
 router.post('/stock/in', authenticate, stockController.recordStockIn);
 router.post('/stock/out', authenticate, stockController.recordStockOut);
+router.post('/stock/office-use', authenticate, stockController.recordOfficeUse);
+router.get('/stock/office-use', authenticate, stockController.listOfficeUse);
 router.get('/stock/transactions', authenticate, stockController.listTransactions);
 
 // Printing Orders
@@ -49,6 +52,7 @@ router.post('/orders', authenticate, orderController.createOrder);
 router.get('/orders/:id', authenticate, orderController.getOrder);
 router.put('/orders/:id/status', authenticate, orderController.updateStatus);
 router.post('/orders/:id/payment', authenticate, orderController.recordPayment);
+router.put('/orders/:id/discount', authenticate, orderController.updateDiscount);
 
 // Customers
 router.get('/customers', authenticate, customerController.listCustomers);
