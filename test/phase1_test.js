@@ -1,3 +1,8 @@
+/**
+ * ARCHIVED / LEGACY TEST: Phase 1 Prototype Specification
+ * Note: The active production test suite is test/streamlined_test.js (invoked by "npm test").
+ * This file is preserved for reference to earlier multi-role / separate Product-catalog specs.
+ */
 const assert = require('assert');
 const {
   sequelize,

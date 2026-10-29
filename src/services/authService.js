@@ -97,7 +97,12 @@ class AuthService {
 
       if (!customer) {
         const custCount = await Customer.count({ transaction: t });
-        const customerCode = `CUST-${(custCount + 1).toString().padStart(4, '0')}`;
+        let custSeq = custCount + 1;
+        let customerCode = `CUST-${custSeq.toString().padStart(4, '0')}`;
+        while (await Customer.findOne({ where: { customerCode }, transaction: t })) {
+          custSeq++;
+          customerCode = `CUST-${custSeq.toString().padStart(4, '0')}`;
+        }
         customer = await Customer.create({
           customerCode,
           name: fullName,

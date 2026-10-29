@@ -70,6 +70,13 @@
         <i class="bi bi-people"></i>
         <span>Customers & Accounts</span>
       </a>
+
+      <% if (currentUser && currentUser.role === 'ADMIN') { %>
+        <a href="/users" class="nav-item-link <%= activePage === 'users' ? 'active' : '' %>">
+          <i class="bi bi-shield-lock"></i>
+          <span>User Administration</span>
+        </a>
+      <% } %>
     <% } %>
   </div>
 

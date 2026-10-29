@@ -518,4 +518,27 @@ router.get('/pos', async (req, res, next) => {
   }
 });
 
+// 9. User Administration (Admin Only)
+router.get('/users', async (req, res, next) => {
+  try {
+    if (req.user && req.user.role !== 'ADMIN') {
+      return res.status(403).render('error', {
+        title: 'Access Restricted',
+        message: 'Administrator privileges are required to access user administration.',
+        statusCode: 403,
+        activePage: 'users',
+      });
+    }
+    const { User } = require('../models');
+    const users = await User.findAll({ order: [['fullName', 'ASC']] });
+    res.render('users/index', {
+      title: 'User Administration · Nirmana Printing',
+      activePage: 'users',
+      users,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;
