@@ -123,13 +123,10 @@ class OrderService {
         customerId = newCustomer.id;
       }
 
-      if (!customerId) {
-        throw new Error('Please select an existing customer or enter new customer details.');
+      let customer = null;
+      if (customerId) {
+        customer = await Customer.findByPk(customerId, { transaction: t });
       }
-
-      // Verify customer exists
-      const customer = await Customer.findByPk(customerId, { transaction: t });
-      if (!customer) throw new Error('Customer not found.');
 
       const orderNumber = data.orderNumber || (await this.generateOrderNumber(t));
 
@@ -143,7 +140,7 @@ class OrderService {
 
       const order = await Order.create({
         orderNumber,
-        customerId: customer.id,
+        customerId: customer ? customer.id : null,
         orderDate: data.orderDate || getSriLankaTodayString(),
         dueDate: data.dueDate || null,
         jobTitle: data.jobTitle || 'Print Job Order',

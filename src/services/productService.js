@@ -1,96 +1,214 @@
 const { Op } = require('sequelize');
-const { Product, ProductCategory } = require('../models');
+const { StockItem, Product, ProductCategory } = require('../models');
 
+/**
+ * Product & Printing Service Catalog Service
+ * Follows SOLID principles:
+ * - Single Responsibility: Manages product/goods catalog and specifications viewing.
+ * - Open/Closed: Extensible to support both physical stock inventory and printing service items.
+ */
 class ProductService {
-  async getAllCategories() {
-    return await ProductCategory.findAll({
-      where: { isActive: true },
-      order: [['name', 'ASC']],
-      include: [{ model: Product, as: 'products', attributes: ['id', 'name', 'code'] }],
-    });
-  }
+  /**
+   * Get all products, print materials, goods, and services for catalog display
+   */
+  async getAllCatalogProducts({ search = '', category = 'ALL', type = 'ALL' } = {}) {
+    const stockWhere = { isActive: true };
 
-  async createCategory(data) {
-    return await ProductCategory.create(data);
-  }
-
-  async getAllProducts({ categoryId, type, search, isActive }) {
-    const where = {};
-
-    if (categoryId) {
-      where.categoryId = categoryId;
-    }
-
-    if (type) {
-      where.type = type;
-    }
-
-    if (typeof isActive === 'boolean') {
-      where.isActive = isActive;
+    if (category && category !== 'ALL') {
+      stockWhere.category = category;
     }
 
     if (search && search.trim()) {
       const q = `%${search.trim()}%`;
-      where[Op.or] = [
+      stockWhere[Op.or] = [
         { name: { [Op.like]: q } },
         { code: { [Op.like]: q } },
-        { description: { [Op.like]: q } },
+        { category: { [Op.like]: q } },
+        { notes: { [Op.like]: q } },
       ];
     }
 
-    return await Product.findAll({
-      where,
-      order: [['name', 'ASC']],
-      include: [{ model: ProductCategory, as: 'category' }],
+    // 1. Fetch physical goods, frames, substrates, and materials from StockItem
+    const stockItems = await StockItem.findAll({
+      where: stockWhere,
+      order: [['category', 'ASC'], ['name', 'ASC']],
     });
-  }
 
-  async getProductById(id) {
-    const product = await Product.findByPk(id, {
-      include: [{ model: ProductCategory, as: 'category' }],
+    // Transform StockItems into unified Product Catalog view models
+    const products = stockItems.map(item => {
+      let isFrame = item.category === 'Photo Frames' || (item.width && item.length);
+      let pType = isFrame ? 'PHOTO_FRAME' : (item.category === 'Paper / Substrate' ? 'SUBSTRATE' : 'MERCHANDISE');
+      if (item.category === 'Finishing / Binding') pType = 'FINISHING';
+
+      return {
+        id: item.id,
+        code: item.code,
+        name: item.name,
+        category: item.category,
+        type: pType,
+        unit: item.unit,
+        unitPrice: parseFloat(item.sellingPrice || 0),
+        unitCost: parseFloat(item.unitCost || 0),
+        currentStock: parseFloat(item.currentStock || 0),
+        inStock: parseFloat(item.currentStock || 0) > 0,
+        description: item.notes || `High quality ${item.category} ready for printing & custom framing.`,
+        dimensions: (item.width && item.length) ? `${item.width} x ${item.length} ${item.dimensionUnit || 'in'}` : null,
+        sizeLabel: item.sizeLabel || null,
+        isCustomizable: true,
+        source: 'STOCK',
+      };
     });
-    if (!product) throw new Error('Product or print service not found.');
-    return product;
+
+    // 2. Also include standard print services catalog items
+    const standardServices = [
+      {
+        id: 'SRV-01',
+        code: 'SRV-BC',
+        name: 'Executive Business Cards Printing',
+        category: 'Printing Services',
+        type: 'SERVICE',
+        unit: 'Box (100 Pcs)',
+        unitPrice: 1500.00,
+        inStock: true,
+        description: 'Single or double-sided full-color printing on 300gsm/350gsm art board with matte, velvet, or gloss lamination.',
+        dimensions: '3.5 x 2.0 in',
+        sizeLabel: 'Standard Card',
+        isCustomizable: true,
+        source: 'SERVICE',
+      },
+      {
+        id: 'SRV-02',
+        code: 'SRV-FLY',
+        name: 'Full Color Promotional Flyers & Leaflets',
+        category: 'Printing Services',
+        type: 'SERVICE',
+        unit: '100 Sheets',
+        unitPrice: 2800.00,
+        inStock: true,
+        description: 'Vibrant offset/digital color print on 150gsm gloss art paper. Ideal for marketing handouts, events, and menus.',
+        dimensions: 'A4 / A5',
+        sizeLabel: 'A4 / A5',
+        isCustomizable: true,
+        source: 'SERVICE',
+      },
+      {
+        id: 'SRV-03',
+        code: 'SRV-BAN',
+        name: 'Large Format Outdoor Vinyl Banner Print',
+        category: 'Printing Services',
+        type: 'SERVICE',
+        unit: 'Sq. Ft',
+        unitPrice: 120.00,
+        inStock: true,
+        description: 'High-density weatherproof eco-solvent print with eyelets and hemmed edges for signs, hoarding, and displays.',
+        dimensions: 'Custom Size',
+        sizeLabel: 'Per Sq. Ft',
+        isCustomizable: true,
+        source: 'SERVICE',
+      },
+      {
+        id: 'SRV-04',
+        code: 'SRV-MUG',
+        name: 'Custom Sublimation Ceramic Photo Mug',
+        category: 'Merchandise',
+        type: 'MERCHANDISE',
+        unit: 'Pcs',
+        unitPrice: 850.00,
+        inStock: true,
+        description: '11oz Grade A white ceramic mug with high-gloss heat-press photo print and gift packaging box.',
+        dimensions: '11 oz',
+        sizeLabel: 'Standard 11oz',
+        isCustomizable: true,
+        source: 'SERVICE',
+      },
+      {
+        id: 'SRV-05',
+        code: 'SRV-DOC',
+        name: 'Express Document Printing & Spiral Binding',
+        category: 'Document Services',
+        type: 'SERVICE',
+        unit: 'Per Page',
+        unitPrice: 25.00,
+        inStock: true,
+        description: 'Instant counter laser printing (Color or B&W) on 80gsm bond paper with clear plastic cover and plastic comb/wire binding.',
+        dimensions: 'A4 / Legal',
+        sizeLabel: 'A4',
+        isCustomizable: true,
+        source: 'SERVICE',
+      },
+    ];
+
+    let combined = [...products];
+
+    // Filter services if category filter matches
+    if (category === 'ALL' || category === 'Printing Services' || category === 'Document Services' || category === 'Merchandise') {
+      const filteredServices = standardServices.filter(s => {
+        if (category !== 'ALL' && s.category !== category) return false;
+        if (search && search.trim()) {
+          const q = search.trim().toLowerCase();
+          return s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q) || s.category.toLowerCase().includes(q);
+        }
+        return true;
+      });
+      combined = [...combined, ...filteredServices];
+    }
+
+    if (type && type !== 'ALL') {
+      combined = combined.filter(p => p.type === type);
+    }
+
+    // Extract unique categories
+    const allCategories = [
+      'Photo Frames',
+      'Printing Services',
+      'Paper / Substrate',
+      'Merchandise',
+      'Vinyl / Film',
+      'Finishing / Binding',
+      'Document Services',
+    ];
+
+    return {
+      products: combined,
+      categories: allCategories,
+    };
   }
 
-  async createProduct(data) {
-    // Generate code if not provided
-    if (!data.code) {
-      const prefix = data.type === 'PHYSICAL' ? 'RAW' : 'PRD';
-      const count = await Product.count();
-      data.code = `${prefix}-${(count + 1).toString().padStart(4, '0')}`;
+  /**
+   * Get full specifications and details for a single product
+   */
+  async getProductDetails(id) {
+    // If it's a numeric ID, search StockItem
+    if (!isNaN(parseInt(id, 10))) {
+      const item = await StockItem.findByPk(id);
+      if (item) {
+        return {
+          id: item.id,
+          code: item.code,
+          name: item.name,
+          category: item.category,
+          unit: item.unit,
+          unitPrice: parseFloat(item.sellingPrice || 0),
+          unitCost: parseFloat(item.unitCost || 0),
+          currentStock: parseFloat(item.currentStock || 0),
+          inStock: parseFloat(item.currentStock || 0) > 0,
+          description: item.notes || `Authentic ${item.category} prepared for custom commercial printing and framing.`,
+          dimensions: (item.width && item.length) ? `${item.width} x ${item.length} ${item.dimensionUnit || 'in'}` : null,
+          sizeLabel: item.sizeLabel || null,
+          width: item.width,
+          length: item.length,
+          dimensionUnit: item.dimensionUnit,
+          source: 'STOCK',
+        };
+      }
     }
 
-    if (data.defaultSpecs && typeof data.defaultSpecs === 'object') {
-      data.defaultSpecs = JSON.stringify(data.defaultSpecs);
-    }
+    // Check standard catalog
+    const { products } = await this.getAllCatalogProducts();
+    const found = products.find(p => String(p.id) === String(id) || p.code === String(id));
+    if (found) return found;
 
-    if (data.requiredMaterials && typeof data.requiredMaterials === 'object') {
-      data.requiredMaterials = JSON.stringify(data.requiredMaterials);
-    }
-
-    return await Product.create(data);
-  }
-
-  async updateProduct(id, data) {
-    const product = await Product.findByPk(id);
-    if (!product) throw new Error('Product not found.');
-
-    const fieldsToUpdate = { ...data };
-    if (data.defaultSpecs && typeof data.defaultSpecs === 'object') {
-      fieldsToUpdate.defaultSpecs = JSON.stringify(data.defaultSpecs);
-    }
-
-    await product.update(fieldsToUpdate);
-    return product;
-  }
-
-  async deleteProduct(id) {
-    const product = await Product.findByPk(id);
-    if (!product) throw new Error('Product not found.');
-    product.isActive = false;
-    await product.save();
-    return { success: true, message: 'Product deactivated.' };
+    throw new Error('Product not found.');
   }
 }
 

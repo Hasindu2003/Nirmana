@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { Order, Customer, StockItem, StockTransaction, PosSale } = require('../models');
+const { Order, Customer, StockItem, StockTransaction, PosSale, PosSaleItem, User } = require('../models');
 const { getSriLankaTodayString, getSriLankaDayBounds, formatSriLankaDate } = require('../utils/dateUtils');
 
 class DashboardService {
@@ -58,7 +58,7 @@ class DashboardService {
           },
         ],
       }),
-      // POS Sales for the day
+      // POS Sales & Counter Transactions for the day
       PosSale.findAll({
         where: {
           createdAt: { [Op.gte]: startOfDay, [Op.lte]: endOfDay },
@@ -70,6 +70,16 @@ class DashboardService {
             model: Customer,
             as: 'customer',
             attributes: ['id', 'name', 'phone'],
+          },
+          {
+            model: PosSaleItem,
+            as: 'items',
+            attributes: ['id', 'itemName', 'quantity', 'unitPrice', 'totalPrice', 'unit'],
+          },
+          {
+            model: User,
+            as: 'cashier',
+            attributes: ['id', 'fullName', 'username', 'role'],
           },
         ],
       }),

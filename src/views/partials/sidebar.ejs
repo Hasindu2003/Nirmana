@@ -32,6 +32,11 @@
         <span>My Orders & Balance</span>
       </a>
 
+      <a href="/products" class="nav-item-link <%= activePage === 'products' ? 'active' : '' %>">
+        <i class="bi bi-tags"></i>
+        <span>Products & Rates</span>
+      </a>
+
       <a href="/upload" class="nav-item-link <%= activePage === 'guest-upload' ? 'active' : '' %>">
         <i class="bi bi-cloud-arrow-up"></i>
         <span>Upload Print Files</span>
@@ -66,12 +71,17 @@
         <span>Stock Management</span>
       </a>
 
+      <a href="/products" class="nav-item-link <%= activePage === 'products' ? 'active' : '' %>">
+        <i class="bi bi-tags"></i>
+        <span>Products & Catalog</span>
+      </a>
+
       <a href="/customers" class="nav-item-link <%= activePage === 'customers' ? 'active' : '' %>">
         <i class="bi bi-people"></i>
         <span>Customers & Accounts</span>
       </a>
 
-      <% if (currentUser && currentUser.role === 'ADMIN') { %>
+      <% if (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'OWNER')) { %>
         <a href="/users" class="nav-item-link <%= activePage === 'users' ? 'active' : '' %>">
           <i class="bi bi-shield-lock"></i>
           <span>User Administration</span>
@@ -88,7 +98,7 @@
         </div>
         <div class="flex-grow-1 text-truncate">
           <div class="small fw-semibold text-truncate"><%= currentUser ? (currentUser.fullName || currentUser.username) : 'Nirmana Staff' %></div>
-          <div class="text-muted" style="font-size: 0.72rem;"><%= currentUser ? currentUser.role : 'Operations Desk' %></div>
+          <div class="text-muted" style="font-size: 0.72rem;"><%= currentUser ? (currentUser.role === 'ADMIN' || currentUser.role === 'OWNER' ? 'Owner / Admin' : (currentUser.role === 'CUSTOMER' ? 'Regular Customer' : 'Store Worker')) : 'Operations Desk' %></div>
         </div>
       </div>
       <a href="/logout" class="btn btn-sm btn-serene-ghost text-muted p-1 ms-1" title="Sign Out" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px;">

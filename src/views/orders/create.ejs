@@ -67,6 +67,33 @@
                   </div>
                   <div class="mode-radio-dot"></div>
                 </button>
+
+                <button type="button" 
+                        class="customer-mode-card" 
+                        id="btnModeWalkin" 
+                        onclick="toggleCustomerMode('walkin')">
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="mode-icon-box" style="background:#f1f5f9; color:#475569;">
+                      <i class="bi bi-person-dash"></i>
+                    </div>
+                    <div>
+                      <div class="mode-title">Walk-in Order</div>
+                      <div class="mode-sub">No profile required</div>
+                    </div>
+                  </div>
+                  <div class="mode-radio-dot"></div>
+                </button>
+              </div>
+
+              <!-- Mode 0: Walk-in Customer Info Banner -->
+              <div id="walkinCustomerSection" class="d-none">
+                <div class="alert alert-light border small text-muted mb-0 d-flex align-items-center gap-2 p-3 rounded-3" style="background:#f8fafc;">
+                  <i class="bi bi-check-circle-fill text-success fs-5"></i>
+                  <div>
+                    <strong class="text-dark d-block">Direct Walk-in Order</strong>
+                    <span>Order will be recorded directly without linking or requiring a customer profile.</span>
+                  </div>
+                </div>
               </div>
               <!-- Mode 1: Existing Customer Dropdown -->
               <div id="existingCustomerSection" class="<%= customers.length === 0 ? 'd-none' : '' %>">
@@ -331,16 +358,30 @@ function toggleCustomerMode(mode) {
   currentMode = mode;
   const existingSec = document.getElementById('existingCustomerSection');
   const newSec = document.getElementById('newCustomerSection');
+  const walkinSec = document.getElementById('walkinCustomerSection');
   const existingSelect = document.getElementById('existingCustomerSelect');
   const newName = document.getElementById('newCustomerName');
   const newPhone = document.getElementById('newCustomerPhone');
   const btnExisting = document.getElementById('btnModeExisting');
   const btnNew = document.getElementById('btnModeNew');
+  const btnWalkin = document.getElementById('btnModeWalkin');
 
-  if (mode === 'new') {
+  if (mode === 'walkin') {
     if (btnExisting) btnExisting.classList.remove('active');
+    if (btnNew) btnNew.classList.remove('active');
+    if (btnWalkin) btnWalkin.classList.add('active');
+    existingSec.classList.add('d-none');
+    newSec.classList.add('d-none');
+    walkinSec.classList.remove('d-none');
+    existingSelect.removeAttribute('required');
+    newName.removeAttribute('required');
+    newPhone.removeAttribute('required');
+  } else if (mode === 'new') {
+    if (btnExisting) btnExisting.classList.remove('active');
+    if (btnWalkin) btnWalkin.classList.remove('active');
     if (btnNew) btnNew.classList.add('active');
     existingSec.classList.add('d-none');
+    walkinSec.classList.add('d-none');
     newSec.classList.remove('d-none');
     existingSelect.removeAttribute('required');
     newName.setAttribute('required', 'required');
@@ -348,8 +389,10 @@ function toggleCustomerMode(mode) {
     newName.focus();
   } else {
     if (btnNew) btnNew.classList.remove('active');
+    if (btnWalkin) btnWalkin.classList.remove('active');
     if (btnExisting) btnExisting.classList.add('active');
     newSec.classList.add('d-none');
+    walkinSec.classList.add('d-none');
     existingSec.classList.remove('d-none');
     existingSelect.setAttribute('required', 'required');
     newName.removeAttribute('required');
@@ -474,12 +517,20 @@ async function handleOrderSubmit(e) {
   const formData = new FormData(form);
   const payload = Object.fromEntries(formData.entries());
 
-  if (currentMode === 'existing' && !payload.customerId) {
-    toast.warning('Please select an existing customer or switch to "+ New Customer".');
-    return;
-  }
-
-  if (currentMode === 'new') {
+  if (currentMode === 'walkin') {
+    delete payload.customerId;
+    delete payload.newCustomerName;
+    delete payload.newCustomerPhone;
+    delete payload.newCustomerEmail;
+    delete payload.newCustomerCompany;
+    delete payload.newCustomerAddress;
+    payload.isWalkIn = true;
+  } else if (currentMode === 'existing') {
+    if (!payload.customerId) {
+      toast.warning('Please select an existing customer or switch to "+ New Customer" or "Walk-in".');
+      return;
+    }
+  } else if (currentMode === 'new') {
     delete payload.customerId; // Ensure customerId is empty so backend creates new customer
     const phone = (payload.newCustomerPhone || '').trim();
     if (!phone) {

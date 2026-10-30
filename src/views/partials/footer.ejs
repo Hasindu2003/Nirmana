@@ -248,6 +248,100 @@
   </div>
 </div>
 
+<!-- Modal: Record Direct Quick Transaction (No Customer Profile Required) -->
+<div class="modal fade" id="quickTransactionModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius: var(--serene-radius-lg); border: 1px solid var(--serene-border);">
+      <div class="modal-header border-bottom" style="background:#f0fdf4;">
+        <div class="d-flex align-items-center gap-2">
+          <div class="p-2 rounded-2 bg-success text-white d-flex align-items-center justify-content-center">
+            <i class="bi bi-lightning-charge-fill fs-5"></i>
+          </div>
+          <div>
+            <h5 class="modal-title fs-6 fw-semibold text-dark mb-0">Direct Quick Transaction</h5>
+            <div class="text-muted small">Record counter sale without customer profile &bull; Auto-logs to Daily Ledger</div>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="quickTransactionForm" onsubmit="handleQuickTransactionSubmit(event)">
+        <div class="modal-body p-4">
+          <!-- Item / Stock Selection -->
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-dark">Select From Store Stock (Optional)</label>
+            <select id="quickTxStockSelect" class="form-select form-select-sm" onchange="onQuickTxStockSelect(this)">
+              <option value="">-- Choose from inventory or enter custom good below --</option>
+            </select>
+            <div class="form-text small text-muted">Selecting an inventory item auto-populates the good name, unit price, and deducts inventory on sale.</div>
+          </div>
+
+          <!-- Good Name -->
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-dark">Name of the Good / Item *</label>
+            <input type="text" name="goodName" id="quickTxGoodName" class="form-control" placeholder="e.g. 8x10 Wooden Photo Frame, Gloss Photo Print, Lamination Sheet" required>
+            <input type="hidden" name="stockItemId" id="quickTxStockItemId" value="">
+          </div>
+
+          <div class="row g-2 mb-3">
+            <!-- Price -->
+            <div class="col-6">
+              <label class="form-label small fw-semibold text-dark">Price per Unit (<%= currencySymbol %>) *</label>
+              <input type="number" name="price" id="quickTxPrice" class="form-control" placeholder="0.00" min="0" step="any" oninput="calculateQuickTxTotal()" required>
+            </div>
+            <!-- Amount / Quantity -->
+            <div class="col-6">
+              <label class="form-label small fw-semibold text-dark">Amount (Quantity) *</label>
+              <input type="number" name="amount" id="quickTxAmount" class="form-control" placeholder="1" value="1" min="1" step="any" oninput="calculateQuickTxTotal()" required>
+            </div>
+          </div>
+
+          <!-- Total Calculation Banner -->
+          <div class="p-3 mb-3 rounded-2" style="background:#fafbfc; border: 1px solid var(--serene-border-subtle);">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <span class="small text-muted fw-semibold"><i class="bi bi-calculator me-1"></i> Transaction Total</span>
+              <span class="badge bg-success-subtle text-success border border-success-subtle">Instant Walk-in</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+              <span class="text-muted small">Total Payable:</span>
+              <span class="fs-4 fw-bold text-success tabular-nums" id="quickTxTotalDisplay"><%= currencySymbol %> 0.00</span>
+            </div>
+          </div>
+
+          <!-- Payment Method -->
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-dark">Payment Method *</label>
+            <div class="d-flex gap-2">
+              <div class="form-check form-check-inline border rounded p-2 px-3 flex-fill text-center">
+                <input class="form-check-input" type="radio" name="paymentMethod" id="quickPayCash" value="CASH" checked>
+                <label class="form-check-label fw-semibold small" for="quickPayCash"><i class="bi bi-cash me-1 text-success"></i> Cash</label>
+              </div>
+              <div class="form-check form-check-inline border rounded p-2 px-3 flex-fill text-center">
+                <input class="form-check-input" type="radio" name="paymentMethod" id="quickPayCard" value="CARD">
+                <label class="form-check-label fw-semibold small" for="quickPayCard"><i class="bi bi-credit-card me-1 text-primary"></i> Card</label>
+              </div>
+              <div class="form-check form-check-inline border rounded p-2 px-3 flex-fill text-center">
+                <input class="form-check-input" type="radio" name="paymentMethod" id="quickPayBank" value="BANK_TRANSFER">
+                <label class="form-check-label fw-semibold small" for="quickPayBank"><i class="bi bi-bank me-1 text-info"></i> Bank</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label small text-muted">Counter Notes / Remarks (Optional)</label>
+            <input type="text" name="notes" class="form-control form-control-sm" placeholder="e.g. Quick counter purchase, cash payment">
+          </div>
+        </div>
+        <div class="modal-footer border-top bg-light">
+          <button type="button" class="btn btn-serene-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success fw-semibold">
+            <i class="bi bi-check2-circle me-1"></i> Record & Update Logger
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <!-- Serene Dynamic Dialog Modal (Prompt & Confirm) -->
 <div class="modal fade" id="sereneDialogModal" tabindex="-1" aria-hidden="true" style="z-index: 10600;">
   <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
@@ -316,7 +410,8 @@ function populateStockDropdowns(items, preselectInId = null, preselectOutId = nu
   const inSelect = document.getElementById('stockInSelect');
   const outSelect = document.getElementById('stockOutSelect');
   const officeSelect = document.getElementById('officeUseSelect');
-  if (!inSelect && !outSelect && !officeSelect) return;
+  const quickSelect = document.getElementById('quickTxStockSelect');
+  if (!inSelect && !outSelect && !officeSelect && !quickSelect) return;
 
   const targetInVal = (preselectInId !== null && preselectInId !== undefined && String(preselectInId) !== '')
     ? String(preselectInId)
@@ -334,6 +429,7 @@ function populateStockDropdowns(items, preselectInId = null, preselectOutId = nu
     if (inSelect) inSelect.innerHTML = '<option value="">-- No materials registered yet --</option>';
     if (outSelect) outSelect.innerHTML = '<option value="">-- No materials in stock yet --</option>';
     if (officeSelect) officeSelect.innerHTML = '<option value="">-- No materials in stock yet --</option>';
+    if (quickSelect) quickSelect.innerHTML = '<option value="">-- No store inventory registered yet --</option>';
   } else {
     if (inSelect) {
       inSelect.innerHTML = '<option value="">-- Choose Stock Item --</option>' +
@@ -366,6 +462,10 @@ function populateStockDropdowns(items, preselectInId = null, preselectOutId = nu
         delete officeSelect.dataset.pendingSelectedId;
         onOfficeUseItemChange(officeSelect);
       }
+    }
+    if (quickSelect) {
+      quickSelect.innerHTML = '<option value="">-- Choose from inventory or enter custom good below --</option>' +
+        items.map(i => `<option value="${i.id}" data-name="${encodeURIComponent(i.name)}" data-code="${i.code || ''}" data-category="${i.category || ''}" data-current="${i.currentStock}" data-unitcost="${i.unitCost || 0}" data-sellingprice="${i.sellingPrice || ''}" data-unit="${i.unit}">${i.name} (${i.currentStock} ${i.unit} in stock &bull; Rs. ${parseFloat(i.sellingPrice || i.unitCost || 0).toFixed(2)})</option>`).join('');
     }
   }
 }
@@ -512,9 +612,9 @@ window.quickOfficeUse = async function(itemId, suggestedQty = null, itemName = n
   }, 350);
 };
 
-// Lazy load when user opens Stock modals from toolbar without preselection
+// Lazy load when user opens Stock or Quick Transaction modals from toolbar without preselection
 document.addEventListener('show.bs.modal', function (e) {
-  if (e.target && (e.target.id === 'stockInModal' || e.target.id === 'stockOutModal' || e.target.id === 'officeUseModal')) {
+  if (e.target && (e.target.id === 'stockInModal' || e.target.id === 'stockOutModal' || e.target.id === 'officeUseModal' || e.target.id === 'quickTransactionModal')) {
     const inSelect = document.getElementById('stockInSelect');
     const outSelect = document.getElementById('stockOutSelect');
     const officeSelect = document.getElementById('officeUseSelect');
@@ -761,6 +861,100 @@ async function handleStockOutSubmit(e) {
     toast.error('Failed to deduct stock: ' + err.message);
   }
 }
+
+// ============================================================================
+// QUICK COUNTER TRANSACTION FUNCTIONS (No Customer Profile Required)
+// ============================================================================
+function onQuickTxStockSelect(selectEl) {
+  const opt = selectEl.options[selectEl.selectedIndex];
+  const nameInput = document.getElementById('quickTxGoodName');
+  const priceInput = document.getElementById('quickTxPrice');
+  const stockIdInput = document.getElementById('quickTxStockItemId');
+
+  if (opt && opt.value) {
+    const rawName = opt.dataset.name ? decodeURIComponent(opt.dataset.name) : opt.text.split('(')[0].trim();
+    const sellPrice = parseFloat(opt.dataset.sellingprice) || parseFloat(opt.dataset.unitcost) || 0;
+    nameInput.value = rawName;
+    priceInput.value = sellPrice > 0 ? sellPrice.toFixed(2) : '';
+    stockIdInput.value = opt.value;
+  } else {
+    stockIdInput.value = '';
+  }
+  calculateQuickTxTotal();
+}
+
+function calculateQuickTxTotal() {
+  const price = parseFloat(document.getElementById('quickTxPrice').value) || 0;
+  const amount = parseFloat(document.getElementById('quickTxAmount').value) || 0;
+  const total = Math.max(0, price * amount);
+  const disp = document.getElementById('quickTxTotalDisplay');
+  if (disp) {
+    disp.textContent = 'Rs. ' + total.toLocaleString('en-LK', { minimumFractionDigits: 2 });
+  }
+}
+
+async function handleQuickTransactionSubmit(e) {
+  e.preventDefault();
+  const form = e.target;
+  const formData = new FormData(form);
+  const payload = Object.fromEntries(formData.entries());
+
+  if (!payload.goodName || !payload.goodName.trim()) {
+    toast.warning('Please enter the name of the good/item.');
+    return;
+  }
+  const price = parseFloat(payload.price);
+  if (isNaN(price) || price < 0) {
+    toast.warning('Please enter a valid price.');
+    return;
+  }
+  const amount = parseFloat(payload.amount);
+  if (isNaN(amount) || amount <= 0) {
+    toast.warning('Please enter a valid amount (quantity).');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/pos/quick-transaction', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (result.success) {
+      setPendingToast(result.message, 'success');
+      window.location.reload();
+    } else {
+      toast.error(result.message || 'Transaction could not be recorded.');
+    }
+  } catch (err) {
+    toast.error('Network error recording transaction: ' + err.message);
+  }
+}
+
+// Global helper to open quick transaction from anywhere (e.g. Products catalog, shortcuts)
+window.openQuickTransaction = function(stockItemId = null, goodName = null, price = null) {
+  const modalEl = document.getElementById('quickTransactionModal');
+  if (!modalEl) return;
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+  if (stockItemId) {
+    const select = document.getElementById('quickTxStockSelect');
+    if (select) select.value = String(stockItemId);
+    const stockIdInput = document.getElementById('quickTxStockItemId');
+    if (stockIdInput) stockIdInput.value = String(stockItemId);
+  }
+  if (goodName) {
+    const nameInput = document.getElementById('quickTxGoodName');
+    if (nameInput) nameInput.value = goodName;
+  }
+  if (price !== null && price !== undefined) {
+    const priceInput = document.getElementById('quickTxPrice');
+    if (priceInput) priceInput.value = parseFloat(price).toFixed(2);
+  }
+  calculateQuickTxTotal();
+  modal.show();
+};
 
 function initFooterScripts() {
   // Update Quick Print pending badge in sidebar after initial page render

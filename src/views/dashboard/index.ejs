@@ -53,6 +53,11 @@
 
       <!-- Right: Primary Actions & Shortcuts -->
       <div class="d-flex flex-wrap align-items-center gap-2">
+        <!-- Direct Quick Transaction (No customer profile required) -->
+        <button class="btn btn-sm btn-success text-white fw-semibold shadow-xs" data-bs-toggle="modal" data-bs-target="#quickTransactionModal">
+          <i class="bi bi-lightning-charge-fill me-1"></i> Quick Transaction
+        </button>
+
         <!-- Express Quick Print -->
         <a href="/quick-print" class="btn btn-sm btn-serene-secondary">
           <i class="bi bi-qr-code-scan text-serene-primary me-1"></i> Quick Print
@@ -332,39 +337,74 @@
                 <thead>
                   <tr>
                     <th>Receipt #</th>
-                    <th>Time</th>
-                    <th>Customer</th>
+                    <th>Operator / Staff</th>
+                    <th>Goods / Items Sold</th>
+                    <th>Customer Profile</th>
                     <th>Payment Method</th>
-                    <th>Subtotal</th>
-                    <th>Discount</th>
                     <th>Total Paid</th>
                   </tr>
                 </thead>
                 <tbody>
                   <% stats.dailyBusiness.todayPosSales.forEach(s => { %>
                     <tr>
-                      <td class="font-monospace fw-bold text-dark"><%= s.receiptNumber %></td>
-                      <td class="text-muted small"><%= formatTime(s.createdAt) %></td>
                       <td>
-                        <span class="text-dark fw-medium"><%= s.customerName %></span>
-                        <% if (s.customerPhone) { %><div class="text-muted small"><%= s.customerPhone %></div><% } %>
+                        <span class="font-monospace fw-bold text-dark"><%= s.receiptNumber %></span>
+                        <div class="text-muted small"><%= formatTime(s.createdAt) %></div>
+                      </td>
+                      <td>
+                        <% if (s.cashier) { %>
+                          <span class="fw-medium text-dark"><%= s.cashier.fullName || s.cashier.name || s.cashier.username %></span>
+                          <div>
+                            <% if (s.cashier.role === 'ADMIN') { %>
+                              <span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size: 0.68rem;">Owner/Admin</span>
+                            <% } else { %>
+                              <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle" style="font-size: 0.68rem;">Store Worker</span>
+                            <% } %>
+                          </div>
+                        <% } else { %>
+                          <span class="text-muted small">Store Staff</span>
+                        <% } %>
+                      </td>
+                      <td>
+                        <% if (s.items && s.items.length > 0) { %>
+                          <% s.items.forEach(it => { %>
+                            <div class="d-flex align-items-center gap-1 mb-1">
+                              <span class="fw-semibold text-dark"><%= it.itemName %></span>
+                              <span class="badge bg-light text-dark border font-monospace" style="font-size: 0.72rem;">
+                                <%= parseFloat(it.quantity) %> &times; <%= currencySymbol %> <%= parseFloat(it.unitPrice).toFixed(2) %>
+                              </span>
+                            </div>
+                          <% }) %>
+                        <% } else { %>
+                          <span class="text-muted small"><%= s.notes || 'Counter Sale Item' %></span>
+                        <% } %>
+                      </td>
+                      <td>
+                        <% if (!s.customerId || (s.customerName && s.customerName.includes('Walk-in'))) { %>
+                          <span class="badge bg-light text-secondary border" style="font-size: 0.75rem;">
+                            <i class="bi bi-person-slash me-1"></i> Walk-in (No Profile)
+                          </span>
+                        <% } else { %>
+                          <span class="text-dark fw-medium"><%= s.customerName %></span>
+                          <% if (s.customerPhone) { %><div class="text-muted small"><%= s.customerPhone %></div><% } %>
+                        <% } %>
                       </td>
                       <td>
                         <span class="badge bg-light text-dark border">
-                          <i class="bi <%= s.paymentMethod === 'CASH' ? 'bi-cash' : (s.paymentMethod === 'CARD' ? 'bi-credit-card' : 'bi-bank') %> me-1"></i>
+                          <i class="bi <%= s.paymentMethod === 'CASH' ? 'bi-cash text-success' : (s.paymentMethod === 'CARD' ? 'bi-credit-card text-primary' : 'bi-bank text-info') %> me-1"></i>
                           <%= s.paymentMethod %>
                         </span>
                       </td>
-                      <td class="tabular-nums small"><%= currencySymbol %> <%= parseFloat(s.subtotal).toFixed(2) %></td>
-                      <td class="tabular-nums small text-muted"><%= parseFloat(s.discount) > 0 ? '-' + currencySymbol + ' ' + parseFloat(s.discount).toFixed(2) : '-' %></td>
-                      <td class="tabular-nums fw-bold text-success"><%= currencySymbol %> <%= parseFloat(s.totalAmount).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %></td>
+                      <td class="tabular-nums fw-bold text-success fs-6">
+                        <%= currencySymbol %> <%= parseFloat(s.totalAmount).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+                      </td>
                     </tr>
                   <% }) %>
                 </tbody>
                 <tfoot class="table-light">
                   <tr>
                     <th colspan="3" class="text-end">Payment Breakdown:</th>
-                    <th colspan="3">
+                    <th colspan="2">
                       <span class="badge bg-success-subtle text-success me-2">Cash: <%= currencySymbol %> <%= stats.dailyBusiness.posCashTotal.toFixed(2) %></span>
                       <span class="badge bg-primary-subtle text-primary me-2">Card: <%= currencySymbol %> <%= stats.dailyBusiness.posCardTotal.toFixed(2) %></span>
                       <span class="badge bg-info-subtle text-info">Bank: <%= currencySymbol %> <%= stats.dailyBusiness.posBankTransferTotal.toFixed(2) %></span>

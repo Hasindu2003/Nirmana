@@ -14,7 +14,7 @@ const Order = sequelize.define('Order', {
   },
   customerId: {
     type: DataTypes.INTEGER,
-    allowNull: false,
+    allowNull: true,
     references: {
       model: 'customers',
       key: 'id',

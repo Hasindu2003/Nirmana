@@ -448,7 +448,7 @@ async function runAudit() {
     { file: 'quickPrint/upload.ejs', data: { title: 'Upload', uploadUrl: 'http://localhost:3000/upload' } },
     { file: 'error.ejs', data: { title: 'Notice', message: 'Test Error', statusCode: 500 } },
     { file: 'users/index.ejs', data: { title: 'Users', users: [] } },
-    { file: 'products/index.ejs', data: { title: 'Products', products: [], categories: [], currentType: 'ALL', search: '' } },
+    { file: 'products/index.ejs', data: { title: 'Products', products: [], categories: [], currentCategory: 'ALL', currentType: 'ALL', search: '' } },
   ];
 
   for (const v of viewsToTest) {

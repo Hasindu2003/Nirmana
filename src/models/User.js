@@ -32,16 +32,19 @@ const User = sequelize.define('User', {
   },
   role: {
     type: DataTypes.ENUM(
-      'ADMIN',        // Owner / Admin
-      'MANAGER',      // Shop / Operations Manager
-      'SALES',        // Sales Staff / Cashier
-      'PRODUCTION',   // Pre-press & Machine Operators
-      'INVENTORY',    // Stock & Warehouse Staff
-      'ACCOUNTANT',   // Billing & Receivables
-      'CUSTOMER'      // Client / Customer Portal User
+      'ADMIN',        // 1. Owner / Admin
+      'WORKER',       // 2. Store Worker
+      'CUSTOMER',     // 3. Regular Registered Customer
+      // Backward compatibility for existing records:
+      'STAFF',
+      'MANAGER',
+      'SALES',
+      'PRODUCTION',
+      'INVENTORY',
+      'ACCOUNTANT'
     ),
     allowNull: false,
-    defaultValue: 'SALES',
+    defaultValue: 'WORKER',
   },
   customerId: {
     type: DataTypes.INTEGER,

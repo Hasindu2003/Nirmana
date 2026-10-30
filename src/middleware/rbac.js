@@ -1,4 +1,6 @@
-// Role-based access control middleware
+const { normalizeRole, isAdmin, isStaff, ROLES } = require('../constants/roles');
+
+// Role-based access control middleware following SOLID principles
 const requireRole = (...allowedRoles) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -8,12 +10,25 @@ const requireRole = (...allowedRoles) => {
       return res.redirect('/login');
     }
 
-    // ADMIN has full access across all operations
-    if (req.user.role === 'ADMIN') {
+    const userRole = normalizeRole(req.user.role);
+
+    // ADMIN (Owner) has full access across all operational resources
+    if (isAdmin(userRole)) {
       return next();
     }
 
-    if (allowedRoles.includes(req.user.role)) {
+    // Check if worker/staff is permitted
+    const allowsWorker = allowedRoles.some(r => {
+      const n = normalizeRole(r);
+      return n === ROLES.WORKER || r === 'STAFF';
+    });
+
+    if (allowsWorker && isStaff(userRole)) {
+      return next();
+    }
+
+    const normalizedAllowed = allowedRoles.map(r => normalizeRole(r));
+    if (normalizedAllowed.includes(userRole) || allowedRoles.includes(req.user.role)) {
       return next();
     }
 

@@ -9,6 +9,7 @@ const stockService = require('../services/stockService');
 const customerService = require('../services/customerService');
 const quickPrintService = require('../services/quickPrintService');
 const posService = require('../services/posService');
+const productService = require('../services/productService');
 const googleDriveService = require('../services/googleDriveService');
 const jwt = require('jsonwebtoken');
 const config = require('../config/config');
@@ -97,6 +98,49 @@ router.get(['/upload', '/quick-print/upload'], (req, res) => {
     activePage: 'guest-upload',
     uploadUrl: defaultUploadUrl,
   });
+});
+
+// Public Products & Print Services Catalog (Accessible by unregistered guests, regular customers & staff)
+router.get('/products', async (req, res, next) => {
+  try {
+    const { category, search, type } = req.query;
+    const { products, categories } = await productService.getAllCatalogProducts({
+      category: category || 'ALL',
+      search: search || '',
+      type: type || 'ALL',
+    });
+
+    res.render('products/index', {
+      title: 'Products & Services Catalog · Nirmana Printing',
+      activePage: 'products',
+      products,
+      categories,
+      currentCategory: category || 'ALL',
+      currentType: type || 'ALL',
+      search: search || '',
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/products/:id', async (req, res, next) => {
+  try {
+    const product = await productService.getProductDetails(req.params.id);
+    const { products, categories } = await productService.getAllCatalogProducts();
+    res.render('products/index', {
+      title: `${product.name} · Product Details`,
+      activePage: 'products',
+      products,
+      categories,
+      currentCategory: product.category,
+      currentType: 'ALL',
+      search: '',
+      selectedProduct: product,
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // Helper to get matching redirectUri based on current incoming request host

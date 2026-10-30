@@ -1,6 +1,7 @@
 const { User } = require('../models');
 const authService = require('../services/authService');
 const { logAudit } = require('../middleware/audit');
+const { normalizeRole, ROLES } = require('../constants/roles');
 
 class UserController {
   async listUsers(req, res, next) {
@@ -18,12 +19,14 @@ class UserController {
     try {
       const { username, email, password, fullName, role, phone } = req.body;
 
-      if (!username || !email || !password || !fullName || !role) {
+      if (!username || !email || !password || !fullName) {
         return res.status(400).json({
           success: false,
-          message: 'Username, email, password, full name, and role are required.',
+          message: 'Username, email, password, and full name are required.',
         });
       }
+
+      const assignedRole = role ? normalizeRole(role) : ROLES.WORKER;
 
       const existingUser = await User.findOne({ where: { username } });
       if (existingUser) {
@@ -40,7 +43,7 @@ class UserController {
         email,
         password,
         fullName,
-        role,
+        role: assignedRole,
         phone,
       });
 
@@ -55,7 +58,7 @@ class UserController {
 
       return res.status(201).json({
         success: true,
-        message: 'User created successfully.',
+        message: 'Staff user created successfully.',
         data: user,
       });
     } catch (error) {
@@ -71,7 +74,12 @@ class UserController {
       const user = await User.findByPk(id);
       if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
 
-      await user.update({ fullName, role, phone, isActive });
+      const updatedFields = { fullName, phone, isActive };
+      if (role) {
+        updatedFields.role = normalizeRole(role);
+      }
+
+      await user.update(updatedFields);
 
       await logAudit({
         userId: req.user.id,

@@ -9,6 +9,7 @@ const customerController = require('../controllers/customerController');
 const dashboardController = require('../controllers/dashboardController');
 const quickPrintController = require('../controllers/quickPrintController');
 const posController = require('../controllers/posController');
+const productController = require('../controllers/productController');
 const { uploadQuickPrint } = require('../middleware/upload');
 const { authenticate } = require('../middleware/auth');
 const { requireRole } = require('../middleware/rbac');
@@ -27,6 +28,10 @@ router.put('/quick-print/upload-chunk', quickPrintController.proxyUploadChunk);
 router.get('/quick-print/status/:id', quickPrintController.getJobStatus);
 router.get('/quick-print/qr', quickPrintController.generateQrCode);
 router.get('/quick-print/storage-status', quickPrintController.getStorageStatus);
+
+// Public Products & Services Catalog
+router.get('/products', productController.listProducts);
+router.get('/products/:id', productController.getProduct);
 
 // =========================================================================
 // 2. PROTECTED STAFF ROUTES (Require active session or Bearer token)
@@ -72,6 +77,7 @@ router.get('/quick-print/files/:fileId/download', authenticate, quickPrintContro
 // Point of Sale (POS) Counter Operations
 router.get('/pos/sales', authenticate, posController.listSales);
 router.post('/pos/sales', authenticate, posController.createSale);
+router.post('/pos/quick-transaction', authenticate, posController.createQuickTransaction);
 router.get('/pos/sales/:id', authenticate, posController.getSale);
 router.post('/pos/sales/:id/void', authenticate, posController.voidSale);
 router.get('/pos/stats', authenticate, posController.getStats);

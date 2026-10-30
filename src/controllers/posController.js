@@ -18,6 +18,62 @@ class PosController {
     }
   }
 
+  /**
+   * Fast walk-in transaction without customer profile
+   * Accepts: goodName, price, amount (quantity), paymentMethod, stockItemId (optional)
+   */
+  async createQuickTransaction(req, res, next) {
+    try {
+      const cashierId = req.user ? req.user.id : null;
+      const { goodName, itemName, price, unitPrice, amount, quantity, paymentMethod, stockItemId, notes } = req.body;
+
+      const nameOfGood = (goodName || itemName || '').trim();
+      const unitPriceVal = parseFloat(price !== undefined ? price : unitPrice);
+      const amountQty = parseFloat(amount !== undefined ? amount : quantity) || 1;
+
+      if (!nameOfGood) {
+        return res.status(400).json({ success: false, message: 'Name of the good/item is required.' });
+      }
+      if (isNaN(unitPriceVal) || unitPriceVal < 0) {
+        return res.status(400).json({ success: false, message: 'Valid price is required.' });
+      }
+      if (isNaN(amountQty) || amountQty <= 0) {
+        return res.status(400).json({ success: false, message: 'Valid amount (quantity) is required.' });
+      }
+
+      const totalVal = parseFloat((unitPriceVal * amountQty).toFixed(2));
+
+      const sale = await posService.createSale({
+        customerName: 'Walk-in Customer (No Profile)',
+        customerId: null,
+        customerPhone: null,
+        items: [
+          {
+            stockItemId: stockItemId ? parseInt(stockItemId, 10) : null,
+            name: nameOfGood,
+            unitPrice: unitPriceVal,
+            quantity: amountQty,
+            totalPrice: totalVal,
+          }
+        ],
+        subtotal: totalVal,
+        discount: 0,
+        totalAmount: totalVal,
+        amountTendered: totalVal,
+        paymentMethod: paymentMethod || 'CASH',
+        notes: notes || 'Direct transaction without customer profile',
+      }, cashierId);
+
+      return res.status(201).json({
+        success: true,
+        message: `Transaction recorded: "${nameOfGood}" (${amountQty} @ Rs. ${unitPriceVal.toFixed(2)}) = Rs. ${totalVal.toFixed(2)}. Receipt #${sale.receiptNumber}.`,
+        data: sale,
+      });
+    } catch (error) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
   async listSales(req, res, next) {
     try {
       const { search, dateFrom, dateTo, paymentMethod, status, page, limit } = req.query;

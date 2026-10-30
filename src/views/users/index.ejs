@@ -42,7 +42,13 @@
                   <td class="font-monospace small"><%= u.username %></td>
                   <td class="text-muted small"><%= u.email %></td>
                   <td>
-                    <span class="badge bg-light text-dark border"><%= u.role %></span>
+                    <% if (u.role === 'ADMIN' || u.role === 'OWNER') { %>
+                      <span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="bi bi-shield-check me-1"></i>Owner / Admin</span>
+                    <% } else if (u.role === 'CUSTOMER') { %>
+                      <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-person me-1"></i>Regular Customer</span>
+                    <% } else { %>
+                      <span class="badge bg-primary-subtle text-primary border border-primary-subtle"><i class="bi bi-person-badge me-1"></i>Store Worker</span>
+                    <% } %>
                   </td>
                   <td>
                     <% if (u.isActive) { %>
@@ -102,12 +108,8 @@
             <div class="col-6">
               <label class="form-label">System Role *</label>
               <select name="role" class="form-select" required>
-                <option value="SALES">Sales Staff</option>
-                <option value="PRODUCTION">Production Staff</option>
-                <option value="INVENTORY">Inventory Staff</option>
-                <option value="ACCOUNTANT">Accountant</option>
-                <option value="MANAGER">Operations Manager</option>
-                <option value="ADMIN">Owner / Admin</option>
+                <option value="WORKER" selected>Store Worker (Counter, POS, Orders & Stock)</option>
+                <option value="ADMIN">Owner / Admin (Full Access & User Management)</option>
               </select>
             </div>
           </div>
