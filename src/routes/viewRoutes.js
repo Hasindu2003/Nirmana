@@ -16,6 +16,7 @@ const config = require('../config/config');
 const { authenticate } = require('../middleware/auth');
 const { requireStaff, requireRole } = require('../middleware/rbac');
 const { getUploadUrl, getAvailableLanIps } = require('../utils/network');
+const QRCode = require('qrcode');
 
 // Helper to check if visitor is already authenticated (cookie or session)
 function getDecodedUser(req) {
@@ -549,6 +550,21 @@ router.get('/quick-print', requireStaff, async (req, res, next) => {
     const defaultUploadUrl = getUploadUrl(req);
     const availableIps = getAvailableLanIps();
 
+    let defaultQrDataUrl = '';
+    try {
+      defaultQrDataUrl = await QRCode.toDataURL(defaultUploadUrl, {
+        width: 480,
+        margin: 2,
+        color: {
+          dark: '#1e293b',
+          light: '#ffffff',
+        },
+        errorCorrectionLevel: 'H',
+      });
+    } catch (qrErr) {
+      console.error('Failed to pre-render QR code in viewRoutes:', qrErr.message);
+    }
+
     res.render('quickPrint/index', {
       title: 'Quick Print Counter Queue · Nirmana Printing',
       activePage: 'quick-print',
@@ -557,6 +573,7 @@ router.get('/quick-print', requireStaff, async (req, res, next) => {
       currentStatus: status,
       search,
       defaultUploadUrl,
+      defaultQrDataUrl,
       availableIps,
     });
   } catch (err) {

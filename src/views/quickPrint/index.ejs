@@ -609,7 +609,11 @@
           <div class="col-md-5 text-center">
             <div class="p-3 bg-white border rounded-3 shadow-sm d-inline-block">
               <div id="qrCanvasContainer" style="min-width: 240px; min-height: 240px;" class="d-flex align-items-center justify-content-center">
-                <div class="spinner-border text-serene-primary" role="status"></div>
+                <% if (typeof defaultQrDataUrl !== 'undefined' && defaultQrDataUrl) { %>
+                  <img id="mainQrImage" src="<%= defaultQrDataUrl %>" alt="Counter QR Code" style="width: 240px; height: 240px; border-radius: 8px;">
+                <% } else { %>
+                  <div class="spinner-border text-serene-primary" role="status"></div>
+                <% } %>
               </div>
             </div>
             <div class="mt-2 text-muted small">
@@ -761,11 +765,11 @@
     </p>
 
     <div style="background: #ffffff; padding: 20px; border: 2px solid #e2e8f0; border-radius: 16px; display: inline-block; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
-      <img id="flyerQrImage" src="" alt="Scan QR Code" style="width: 260px; height: 260px; display: block;">
+      <img id="flyerQrImage" src="<%= typeof defaultQrDataUrl !== 'undefined' && defaultQrDataUrl ? defaultQrDataUrl : '' %>" alt="Scan QR Code" style="width: 260px; height: 260px; display: block;">
       <div style="font-size: 13px; font-weight: 700; color: #64748b; margin-top: 10px; letter-spacing: 0.05em; text-transform: uppercase;">
         Scan with Phone Camera
       </div>
-      <div id="flyerUrlText" style="font-size: 14px; font-weight: 700; color: #2d6a68; margin-top: 6px; font-family: monospace;"></div>
+      <div id="flyerUrlText" style="font-size: 14px; font-weight: 700; color: #2d6a68; margin-top: 6px; font-family: monospace;"><%= defaultUploadUrl %></div>
     </div>
 
     <div style="text-align: left; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
@@ -800,7 +804,7 @@
   var currentViewStatus = '<%= currentStatus %>';
   var knownJobIds = new Set([<%= jobs.map(j => j.id).join(',') %>]);
   var soundEnabled = true;
-  var currentQrDataUrl = '';
+  var currentQrDataUrl = '<%= typeof defaultQrDataUrl !== "undefined" && defaultQrDataUrl ? defaultQrDataUrl : "" %>';
 
   // Client-side cache of jobs for immediate document preview
   var quickPrintJobsData = [];
@@ -2162,34 +2166,84 @@
   }
 
   const initialUrl = getCleanUploadUrl();
-  qrUrlInput.value = initialUrl;
+  if (qrUrlInput) qrUrlInput.value = initialUrl;
   const previewUploadLink = document.getElementById('previewCustomerUploadLink');
   if (previewUploadLink) previewUploadLink.href = initialUrl;
 
+  let qrDebounceTimer = null;
+
   async function loadQrCode(targetUrl) {
     const cleanUrl = (targetUrl || '').trim();
-    try {
+    if (!cleanUrl || !qrContainer) return;
+
+    // Only show spinner if an image isn't already present
+    if (!qrContainer.querySelector('img')) {
       qrContainer.innerHTML = '<div class="spinner-border text-serene-primary" role="status"></div>';
-      const res = await fetch(`/api/quick-print/qr?url=${encodeURIComponent(cleanUrl)}`);
+    }
+
+    try {
+      const res = await fetch(`/api/quick-print/qr?url=${encodeURIComponent(cleanUrl)}&_t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+
+      if (!res.ok) {
+        throw new Error('HTTP error ' + res.status);
+      }
+
       const data = await res.json();
       if (data.success && data.qrDataUrl) {
         currentQrDataUrl = data.qrDataUrl;
-        qrContainer.innerHTML = `<img src="${data.qrDataUrl}" alt="Counter QR Code" style="width: 240px; height: 240px; border-radius: 8px;">`;
+        qrContainer.innerHTML = `<img id="mainQrImage" src="${data.qrDataUrl}" alt="Counter QR Code" style="width: 240px; height: 240px; border-radius: 8px;">`;
         if (flyerQrImage) flyerQrImage.src = data.qrDataUrl;
         if (flyerUrlText) flyerUrlText.textContent = cleanUrl;
+      } else {
+        throw new Error(data.message || 'QR code generation failed on server');
       }
     } catch (e) {
-      qrContainer.innerHTML = '<span class="text-danger">Failed to generate QR</span>';
+      console.error('Error generating QR code:', e);
+      if (!qrContainer.querySelector('img')) {
+        qrContainer.innerHTML = `
+          <div class="text-center p-3">
+            <i class="bi bi-exclamation-triangle-fill text-warning fs-3 mb-2 d-block"></i>
+            <span class="text-danger small fw-semibold d-block">QR Code Generation Failed</span>
+            <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="loadQrCode(document.getElementById('customQrUrlInput').value)">
+              <i class="bi bi-arrow-clockwise me-1"></i> Retry
+            </button>
+          </div>`;
+      }
     }
   }
 
-  // Initial QR load
-  loadQrCode(qrUrlInput.value);
+  // Load QR code on startup if not already pre-rendered by server
+  if (qrUrlInput && (!qrContainer || !qrContainer.querySelector('img'))) {
+    loadQrCode(qrUrlInput.value);
+  }
 
-  // Dynamic QR update on input change
-  qrUrlInput.addEventListener('input', () => {
-    loadQrCode(qrUrlInput.value.trim());
-  });
+  // Dynamic QR update on input change with debounce
+  if (qrUrlInput) {
+    qrUrlInput.addEventListener('input', () => {
+      clearTimeout(qrDebounceTimer);
+      qrDebounceTimer = setTimeout(() => {
+        loadQrCode(qrUrlInput.value.trim());
+      }, 350);
+    });
+  }
+
+  // Modal open safety check - ensure QR is present when modal is displayed
+  const qrModalEl = document.getElementById('qrCodeModal');
+  if (qrModalEl) {
+    qrModalEl.addEventListener('show.bs.modal', function () {
+      if (!qrContainer || !qrContainer.querySelector('img')) {
+        const urlToLoad = qrUrlInput ? qrUrlInput.value : getCleanUploadUrl();
+        loadQrCode(urlToLoad);
+      }
+    });
+  }
 
   // Reset to Dedicated Customer Portal URL
   if (resetToOriginBtn) {

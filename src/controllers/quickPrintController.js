@@ -229,6 +229,11 @@ class QuickPrintController {
   async generateQrCode(req, res) {
     try {
       const { getUploadUrl } = require('../utils/network');
+      // Prevent 304 caching issues with dynamic QR generation
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
       // Determine host dynamically: if accessed via localhost, use Wi-Fi / LAN IP so phones can connect!
       const defaultUrl = getUploadUrl(req);
       const targetUrl = (req.query.url || defaultUrl).trim();
