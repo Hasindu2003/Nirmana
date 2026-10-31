@@ -269,6 +269,107 @@
   </div>
 </div>
 
+<!-- Modal: Instant Online Order / WhatsApp Intake -->
+<div class="modal fade" id="guestOnlineOrderModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+      <div class="modal-header border-bottom py-3 px-4" style="background:#f0fdf4;">
+        <div class="d-flex align-items-center gap-2">
+          <div class="p-2 rounded-3 bg-success text-white d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+            <i class="bi bi-cart-check-fill fs-6"></i>
+          </div>
+          <div>
+            <h6 class="modal-title fw-bold text-dark mb-0">Place Online Order</h6>
+            <div class="text-muted small" style="font-size: 0.75rem;">Fast order confirmation via WhatsApp &bull; Nirmana Store</div>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <form id="guestOnlineOrderForm" onsubmit="handleGuestOrderSubmit(event)">
+        <div class="modal-body p-4">
+          <!-- Notification for guests -->
+          <% if (!currentUser) { %>
+            <div class="alert alert-light border border-info-subtle d-flex align-items-start gap-2 py-2 px-3 mb-3" style="font-size: 0.82rem; background: #f0f9ff; border-radius: 8px;">
+              <i class="bi bi-info-circle-fill text-info fs-6 flex-shrink-0 mt-0-5"></i>
+              <div>
+                <strong>Ordering as a guest?</strong> Please provide your active <strong>WhatsApp number</strong> so our print team can contact you to confirm details. Or <a href="/login" class="fw-semibold text-primary">Sign In</a> / <a href="/register" class="fw-semibold text-primary">Sign Up</a> to track live in your customer portal.
+              </div>
+            </div>
+          <% } %>
+
+          <!-- Selected Item Card -->
+          <div class="p-3 rounded-3 mb-3 border d-flex justify-content-between align-items-center" style="background: #fafbfc;">
+            <div>
+              <span class="text-muted small d-block">Selected Item / Service:</span>
+              <strong class="text-dark" id="orderModalItemName">-</strong>
+              <div class="text-muted small" id="orderModalItemCode">-</div>
+            </div>
+            <div class="text-end">
+              <span class="text-muted small d-block">Unit Rate:</span>
+              <span class="fw-bold text-success fs-6 tabular-nums" id="orderModalItemPrice">Rs. 0.00</span>
+            </div>
+          </div>
+
+          <input type="hidden" name="productName" id="orderModalInputProductName" value="">
+          <input type="hidden" name="unitPrice" id="orderModalInputUnitPrice" value="0">
+
+          <!-- Name -->
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-dark">Your Full Name *</label>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text bg-white"><i class="bi bi-person"></i></span>
+              <input type="text" name="customerName" id="orderModalCustomerName" class="form-control" placeholder="e.g. Kasun Jayawardena" 
+                     value="<%= currentUser ? (currentUser.fullName || currentUser.username) : '' %>" required>
+            </div>
+          </div>
+
+          <!-- WhatsApp Number -->
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-dark">
+              WhatsApp / Contact Number *
+              <span class="badge bg-success-subtle text-success border border-success-subtle ms-1" style="font-size: 0.68rem;"><i class="bi bi-whatsapp"></i> Required</span>
+            </label>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text bg-white text-success"><i class="bi bi-whatsapp"></i></span>
+              <input type="tel" name="whatsappNumber" id="orderModalWhatsApp" class="form-control" placeholder="e.g. 0771234567" 
+                     value="<%= currentUser && currentUser.phone ? currentUser.phone : '' %>" required maxlength="15">
+            </div>
+            <div class="form-text small text-muted">Must be 10 digits starting with 0 (e.g. 0771234567).</div>
+          </div>
+
+          <!-- Quantity -->
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-semibold text-dark">Order Quantity *</label>
+              <input type="number" name="quantity" id="orderModalQuantity" class="form-control form-control-sm text-center fw-bold" value="1" min="1" oninput="calculateOrderModalTotal()" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold text-dark">Total Estimated Price</label>
+              <div class="form-control form-control-sm bg-light text-end fw-bold text-success tabular-nums" id="orderModalTotalDisplay">
+                Rs. 0.00
+              </div>
+            </div>
+          </div>
+
+          <!-- Specifications / Custom Notes -->
+          <div class="mb-2">
+            <label class="form-label small fw-semibold text-dark">Special Instructions / Customization (Optional)</label>
+            <textarea name="specifications" id="orderModalSpecifications" class="form-control form-control-sm" rows="2" placeholder="e.g. Custom text on frame, color preferences, urgent delivery, etc."></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer border-top py-2 px-4 bg-light d-flex justify-content-between">
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-success fw-bold px-3" id="orderModalSubmitBtn">
+            <i class="bi bi-send-fill me-1"></i> Send Online Order
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <%- include('../partials/footer') %>
 
 <script>
@@ -304,10 +405,17 @@ function openProductModal(p) {
   }
 
   const actionContainer = document.getElementById('modalActionButtons');
+  const waMsg = encodeURIComponent(`Hi Nirmana Printing! I would like to order:\nProduct: ${p.name}\nPrice: Rs. ${parseFloat(p.unitPrice || 0).toFixed(2)}\nQuantity: 1`);
+
   <% if (!currentUser) { %>
     actionContainer.innerHTML = `
-      <a href="/register" class="btn btn-sm btn-success fw-semibold">Sign Up</a>
-      <a href="/upload" class="btn btn-sm btn-primary">Quick Print</a>
+      <a href="https://wa.me/94771234567?text=${waMsg}" target="_blank" class="btn btn-sm btn-success fw-semibold" title="Instant Order via WhatsApp">
+        <i class="bi bi-whatsapp me-1"></i> WhatsApp
+      </a>
+      <button type="button" class="btn btn-sm btn-primary fw-semibold" onclick="openGuestOnlineOrderModal()">
+        <i class="bi bi-cart-plus me-1"></i> Order Online
+      </button>
+      <a href="/register" class="btn btn-sm btn-outline-secondary">Sign Up</a>
     `;
   <% } else if (currentUser.role === 'ADMIN' || currentUser.role === 'WORKER') { %>
     actionContainer.innerHTML = `
@@ -318,12 +426,81 @@ function openProductModal(p) {
     `;
   <% } else { %>
     actionContainer.innerHTML = `
-      <a href="/upload" class="btn btn-sm btn-primary">Submit Job</a>
+      <button type="button" class="btn btn-sm btn-primary fw-semibold" onclick="openGuestOnlineOrderModal()">
+        <i class="bi bi-cart-plus me-1"></i> Order Now
+      </button>
+      <a href="https://wa.me/94771234567?text=${waMsg}" target="_blank" class="btn btn-sm btn-outline-success fw-semibold">
+        <i class="bi bi-whatsapp me-1"></i> WhatsApp
+      </a>
     `;
   <% } %>
 
   const modal = new bootstrap.Modal(document.getElementById('productDetailsModal'));
   modal.show();
+}
+
+function openGuestOnlineOrderModal() {
+  if (!currentModalProduct) return;
+  const pModalEl = document.getElementById('productDetailsModal');
+  const pModal = bootstrap.Modal.getInstance(pModalEl);
+  if (pModal) pModal.hide();
+
+  document.getElementById('orderModalItemName').textContent = currentModalProduct.name;
+  document.getElementById('orderModalItemCode').textContent = currentModalProduct.code || '';
+  document.getElementById('orderModalItemPrice').textContent = '<%= currencySymbol %> ' + (parseFloat(currentModalProduct.unitPrice) || 0).toFixed(2);
+  document.getElementById('orderModalInputProductName').value = currentModalProduct.name;
+  document.getElementById('orderModalInputUnitPrice').value = currentModalProduct.unitPrice || 0;
+  document.getElementById('orderModalQuantity').value = 1;
+  calculateOrderModalTotal();
+
+  const oModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('guestOnlineOrderModal'));
+  oModal.show();
+}
+
+function calculateOrderModalTotal() {
+  const price = parseFloat(document.getElementById('orderModalInputUnitPrice').value) || 0;
+  const qty = parseInt(document.getElementById('orderModalQuantity').value, 10) || 1;
+  const total = price * qty;
+  document.getElementById('orderModalTotalDisplay').textContent = '<%= currencySymbol %> ' + total.toLocaleString('en-LK', { minimumFractionDigits: 2 });
+}
+
+async function handleGuestOrderSubmit(e) {
+  e.preventDefault();
+  const form = e.target;
+  const formData = new FormData(form);
+  const payload = Object.fromEntries(formData.entries());
+
+  const btn = document.getElementById('orderModalSubmitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Submitting...';
+
+  try {
+    const res = await fetch('/api/orders/online-guest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (result.success) {
+      const oModalEl = document.getElementById('guestOnlineOrderModal');
+      const oModal = bootstrap.Modal.getInstance(oModalEl);
+      if (oModal) oModal.hide();
+
+      setPendingToast(result.message, 'success');
+      <% if (currentUser && currentUser.role === 'CUSTOMER') { %>
+        window.location.href = '/portal';
+      <% } else { %>
+        window.location.reload();
+      <% } %>
+    } else {
+      toast.error(result.message || 'Could not place order');
+    }
+  } catch (err) {
+    toast.error('Network error: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-send-fill me-1"></i> Send Online Order';
+  }
 }
 
 function triggerQuickTxFromProductModal() {

@@ -37,8 +37,18 @@ class ProductService {
     // Transform StockItems into unified Product Catalog view models
     const products = stockItems.map(item => {
       let isFrame = item.category === 'Photo Frames' || (item.width && item.length);
-      let pType = isFrame ? 'PHOTO_FRAME' : (item.category === 'Paper / Substrate' ? 'SUBSTRATE' : 'MERCHANDISE');
-      if (item.category === 'Finishing / Binding') pType = 'FINISHING';
+      let cat = (item.category || '').toLowerCase();
+      let pType = isFrame ? 'PHOTO_FRAME' : 'PHYSICAL_GOOD';
+
+      if (cat.includes('stationery') || cat.includes('pen') || cat.includes('pencil') || cat.includes('highlight')) {
+        pType = 'STATIONERY';
+      } else if (cat.includes('keytag') || cat.includes('merchandise') || cat.includes('mug') || cat.includes('gift')) {
+        pType = 'MERCHANDISE';
+      } else if (cat.includes('paper') || cat.includes('substrate')) {
+        pType = 'SUBSTRATE';
+      } else if (cat.includes('finishing') || cat.includes('binding')) {
+        pType = 'FINISHING';
+      }
 
       return {
         id: item.id,
@@ -47,15 +57,16 @@ class ProductService {
         category: item.category,
         type: pType,
         unit: item.unit,
-        unitPrice: parseFloat(item.sellingPrice || 0),
+        unitPrice: parseFloat(item.sellingPrice || item.unitCost || 0),
         unitCost: parseFloat(item.unitCost || 0),
         currentStock: parseFloat(item.currentStock || 0),
         inStock: parseFloat(item.currentStock || 0) > 0,
-        description: item.notes || `High quality ${item.category} ready for printing & custom framing.`,
+        description: item.notes || `Store merchandise & retail stock ready for instant counter purchase or custom branding.`,
         dimensions: (item.width && item.length) ? `${item.width} x ${item.length} ${item.dimensionUnit || 'in'}` : null,
         sizeLabel: item.sizeLabel || null,
         isCustomizable: true,
         source: 'STOCK',
+        stockItemId: item.id,
       };
     });
 
@@ -157,16 +168,19 @@ class ProductService {
       combined = combined.filter(p => p.type === type);
     }
 
-    // Extract unique categories
-    const allCategories = [
+    // Dynamically extract all available categories from stock goods + standard print services
+    const categorySet = new Set([
       'Photo Frames',
       'Printing Services',
+      'Stationery & Retail',
+      'Merchandise & Keytags',
       'Paper / Substrate',
-      'Merchandise',
+      'Document Services',
       'Vinyl / Film',
       'Finishing / Binding',
-      'Document Services',
-    ];
+      ...combined.map(p => p.category).filter(Boolean)
+    ]);
+    const allCategories = Array.from(categorySet);
 
     return {
       products: combined,

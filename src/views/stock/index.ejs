@@ -507,24 +507,33 @@
             <div class="col-6">
               <label class="form-label">Category</label>
               <select name="category" id="newItemCategorySelect" class="form-select" onchange="onNewItemCategoryChange(this)">
-                <option value="Paper / Substrate" selected>Paper / Substrate</option>
+                <option value="Stationery (Pens, Pencils, Highlighters)">Stationery (Pens, Pencils, Highlighters)</option>
+                <option value="Merchandise & Keytags">Merchandise & Keytags (Keyrings, Badges, Mugs)</option>
                 <option value="Photo Frames">Photo Frames / Framing</option>
+                <option value="Retail Store Goods">Retail Store Goods (General Counter Items)</option>
+                <option value="Paper / Substrate" selected>Paper / Substrate</option>
                 <option value="Office Stationery">Office Stationery / Supplies</option>
                 <option value="Ink / Toner">Ink / Toner</option>
                 <option value="Vinyl / Film">Vinyl / Film</option>
                 <option value="Finishing / Binding">Finishing / Binding</option>
-                <option value="Merchandise / Blank">Merchandise / Blank</option>
+                <option value="CUSTOM_CATEGORY">+ Custom Category (Type your own)...</option>
               </select>
+              <div id="customCategoryContainer" class="mt-2 d-none">
+                <input type="text" id="customCategoryInput" class="form-control form-control-sm" placeholder="e.g. Keytags, Gel Pens, School Books">
+              </div>
             </div>
             <div class="col-6">
               <label class="form-label">Unit of Measure</label>
               <select name="unit" id="newItemUnitSelect" class="form-select">
-                <option value="Sheets" selected>Sheets</option>
-                <option value="Pcs">Pieces (Pcs) / Frames</option>
+                <option value="Pcs" selected>Pieces (Pcs) / Units / Frames</option>
+                <option value="Packs">Packs</option>
+                <option value="Dozen">Dozen</option>
+                <option value="Boxes">Boxes</option>
+                <option value="Sets">Sets</option>
+                <option value="Sheets">Sheets</option>
                 <option value="Bundles">Bundles</option>
                 <option value="Reams">Reams</option>
                 <option value="Rolls">Rolls</option>
-                <option value="Boxes">Boxes</option>
                 <option value="Bottles">Bottles</option>
               </select>
             </div>
@@ -741,11 +750,24 @@ function calculateNewItemProfit(trigger) {
 function onNewItemCategoryChange(selectEl) {
   const section = document.getElementById('photoFrameDimensionsSection');
   const unitSelect = document.getElementById('newItemUnitSelect');
+  const customCatRow = document.getElementById('customCategoryContainer');
+
+  if (selectEl.value === 'CUSTOM_CATEGORY') {
+    if (customCatRow) customCatRow.classList.remove('d-none');
+    const input = document.getElementById('customCategoryInput');
+    if (input) input.focus();
+  } else {
+    if (customCatRow) customCatRow.classList.add('d-none');
+  }
+
   if (selectEl.value === 'Photo Frames') {
     section.style.display = 'block';
     if (unitSelect) unitSelect.value = 'Pcs';
   } else {
     section.style.display = 'none';
+    if (selectEl.value.includes('Stationery') || selectEl.value.includes('Merchandise') || selectEl.value.includes('Retail')) {
+      if (unitSelect) unitSelect.value = 'Pcs';
+    }
   }
 }
 
@@ -794,6 +816,15 @@ async function handleCreateStockItem(e) {
   const form = e.target;
   const formData = new FormData(form);
   const payload = Object.fromEntries(formData.entries());
+
+  if (payload.category === 'CUSTOM_CATEGORY') {
+    const customVal = (document.getElementById('customCategoryInput').value || '').trim();
+    if (!customVal) {
+      toast.warning('Please enter a name for your custom category.');
+      return;
+    }
+    payload.category = customVal;
+  }
 
   try {
     const res = await fetch('/api/stock', {

@@ -11,7 +11,7 @@ const quickPrintController = require('../controllers/quickPrintController');
 const posController = require('../controllers/posController');
 const productController = require('../controllers/productController');
 const { uploadQuickPrint } = require('../middleware/upload');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, optionalAuthenticate } = require('../middleware/auth');
 const { requireRole } = require('../middleware/rbac');
 
 // =========================================================================
@@ -32,6 +32,9 @@ router.get('/quick-print/storage-status', quickPrintController.getStorageStatus)
 // Public Products & Services Catalog
 router.get('/products', productController.listProducts);
 router.get('/products/:id', productController.getProduct);
+
+// Public Online Order Intake (Signed up customer or guest with WhatsApp number)
+router.post('/orders/online-guest', optionalAuthenticate, orderController.createGuestOnlineOrder);
 
 // =========================================================================
 // 2. PROTECTED STAFF ROUTES (Require active session or Bearer token)

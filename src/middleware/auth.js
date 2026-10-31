@@ -73,6 +73,47 @@ const authenticate = async (req, res, next) => {
   }
 };
 
+// Optional authentication: populates req.user if present, but does not block guests
+const optionalAuthenticate = async (req, res, next) => {
+  try {
+    if (req.user && req.user.isActive) {
+      res.locals.currentUser = req.user;
+      return next();
+    }
+
+    let token = null;
+    if (req.cookies && req.cookies.auth_token) {
+      token = req.cookies.auth_token;
+    }
+    if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, config.jwtSecret);
+        if (decoded && decoded.id) {
+          const user = await User.findByPk(decoded.id);
+          if (user && user.isActive) {
+            req.user = user;
+            res.locals.currentUser = user;
+          }
+        }
+      } catch (e) {}
+    } else if (req.session && req.session.userId) {
+      const user = await User.findByPk(req.session.userId);
+      if (user && user.isActive) {
+        req.user = user;
+        res.locals.currentUser = user;
+      }
+    }
+    return next();
+  } catch (err) {
+    return next();
+  }
+};
+
 module.exports = {
   authenticate,
+  optionalAuthenticate,
 };
