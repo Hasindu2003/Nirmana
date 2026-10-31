@@ -81,8 +81,20 @@
                     <% } %>
                   </td>
                   <td>
-                    <div class="fw-medium text-dark"><%= o.jobTitle %></div>
-                    <span class="badge bg-light text-muted border small mt-1"><%= o.quantity %> units</span>
+                    <div class="fw-semibold text-dark"><%= o.jobTitle %></div>
+                    <div class="d-flex align-items-center flex-wrap gap-1 mt-1">
+                      <span class="badge bg-light text-muted border small"><%= o.quantity %> units</span>
+                      <% if (o.paperMaterial) { %>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle small fw-semibold">
+                          <i class="bi bi-box-seam me-1"></i><%= o.paperMaterial %>
+                        </span>
+                      <% } %>
+                    </div>
+                    <% if (o.specifications) { %>
+                      <div class="text-muted small text-truncate mt-1" style="max-width: 280px; font-size: 0.73rem;" title="<%= o.specifications %>">
+                        <i class="bi bi-palette text-secondary me-1"></i><%= o.specifications %>
+                      </div>
+                    <% } %>
                   </td>
                   <td>
                     <div class="tabular-nums fw-semibold text-dark">

@@ -299,19 +299,39 @@
           <% } %>
 
           <!-- Selected Item Card -->
-          <div class="p-3 rounded-3 mb-3 border d-flex justify-content-between align-items-center" style="background: #fafbfc;">
-            <div>
-              <span class="text-muted small d-block">Selected Item / Service:</span>
-              <strong class="text-dark" id="orderModalItemName">-</strong>
-              <div class="text-muted small" id="orderModalItemCode">-</div>
+          <div class="p-3 rounded-3 mb-3 border shadow-xs" style="background: #fafbfc;">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div>
+                <span class="text-muted small d-block" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.03em;">Selected Good / Service</span>
+                <strong class="text-dark fs-6" id="orderModalItemName">-</strong>
+                <div class="text-muted small font-monospace" id="orderModalItemCode">-</div>
+              </div>
+              <div class="text-end flex-shrink-0">
+                <span class="text-muted small d-block" style="font-size: 0.72rem;">Unit Rate</span>
+                <span class="fw-bold text-success fs-6 tabular-nums" id="orderModalItemPrice">Rs. 0.00</span>
+              </div>
             </div>
-            <div class="text-end">
-              <span class="text-muted small d-block">Unit Rate:</span>
-              <span class="fw-bold text-success fs-6 tabular-nums" id="orderModalItemPrice">Rs. 0.00</span>
+
+            <!-- Product Type, Category & Material Badges (Clearly visible to customer) -->
+            <div class="d-flex align-items-center flex-wrap gap-1 pt-2 border-top">
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" id="orderModalItemType" style="font-size: 0.73rem;">
+                <i class="bi bi-tag-fill me-1"></i>Product Type
+              </span>
+              <span class="badge bg-light text-dark border px-2 py-1" id="orderModalItemCategory" style="font-size: 0.73rem;">
+                <i class="bi bi-folder-fill text-muted me-1"></i>Category
+              </span>
+              <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle px-2 py-1" id="orderModalItemMaterial" style="font-size: 0.73rem;">
+                <i class="bi bi-box-seam me-1"></i>Material
+              </span>
             </div>
           </div>
 
           <input type="hidden" name="productName" id="orderModalInputProductName" value="">
+          <input type="hidden" name="productType" id="orderModalInputProductType" value="">
+          <input type="hidden" name="category" id="orderModalInputCategory" value="">
+          <input type="hidden" name="paperMaterial" id="orderModalInputPaperMaterial" value="">
+          <input type="hidden" name="dimensions" id="orderModalInputDimensions" value="">
+          <input type="hidden" name="stockItemId" id="orderModalInputStockItemId" value="">
           <input type="hidden" name="unitPrice" id="orderModalInputUnitPrice" value="0">
 
           <!-- Name -->
@@ -354,8 +374,14 @@
 
           <!-- Specifications / Custom Notes -->
           <div class="mb-2">
-            <label class="form-label small fw-semibold text-dark">Special Instructions / Customization (Optional)</label>
-            <textarea name="specifications" id="orderModalSpecifications" class="form-control form-control-sm" rows="2" placeholder="e.g. Custom text on frame, color preferences, urgent delivery, etc."></textarea>
+            <label class="form-label small fw-semibold text-dark d-flex justify-content-between align-items-center">
+              <span><i class="bi bi-palette text-primary me-1"></i> Customization & Specific Instructions</span>
+              <span class="text-muted" style="font-size: 0.7rem;">Optional</span>
+            </label>
+            <textarea name="specifications" id="orderModalSpecifications" class="form-control form-control-sm" rows="3" placeholder="e.g. For Mug/Frame: specify custom photo placement, text e.g. 'Happy Birthday', color choices, or urgent pickup date."></textarea>
+            <div class="form-text small text-muted mt-1" style="font-size: 0.72rem;">
+              You can send custom photos or artwork directly via WhatsApp when our staff contacts you to confirm the order.
+            </div>
           </div>
         </div>
 
@@ -445,12 +471,35 @@ function openGuestOnlineOrderModal() {
   const pModal = bootstrap.Modal.getInstance(pModalEl);
   if (pModal) pModal.hide();
 
-  document.getElementById('orderModalItemName').textContent = currentModalProduct.name;
-  document.getElementById('orderModalItemCode').textContent = currentModalProduct.code || '';
-  document.getElementById('orderModalItemPrice').textContent = '<%= currencySymbol %> ' + (parseFloat(currentModalProduct.unitPrice) || 0).toFixed(2);
-  document.getElementById('orderModalInputProductName').value = currentModalProduct.name;
-  document.getElementById('orderModalInputUnitPrice').value = currentModalProduct.unitPrice || 0;
+  const p = currentModalProduct;
+  document.getElementById('orderModalItemName').textContent = p.name;
+  document.getElementById('orderModalItemCode').textContent = p.code ? `[${p.code}]` : '';
+  document.getElementById('orderModalItemPrice').textContent = '<%= currencySymbol %> ' + (parseFloat(p.unitPrice) || 0).toLocaleString('en-LK', { minimumFractionDigits: 2 });
+  
+  // Format user-friendly product type badge
+  let typeLabel = p.type || 'Custom Product';
+  if (typeLabel === 'MERCHANDISE') typeLabel = 'Custom Merchandise';
+  else if (typeLabel === 'PHOTO_FRAME') typeLabel = 'Photo Frame & Print';
+  else if (typeLabel === 'STATIONERY') typeLabel = 'Stationery & Retail';
+  else if (typeLabel === 'SUBSTRATE') typeLabel = 'Paper & Substrate';
+  else if (typeLabel === 'SERVICE') typeLabel = 'Printing Service';
+  document.getElementById('orderModalItemType').textContent = typeLabel;
+
+  document.getElementById('orderModalItemCategory').textContent = p.category || 'Store Goods';
+
+  // Format material & dimensions
+  const materialOrDim = p.sizeLabel || p.dimensions || p.category || 'Standard Material';
+  document.getElementById('orderModalItemMaterial').textContent = materialOrDim;
+
+  document.getElementById('orderModalInputProductName').value = p.name;
+  document.getElementById('orderModalInputProductType').value = typeLabel;
+  document.getElementById('orderModalInputCategory').value = p.category || '';
+  document.getElementById('orderModalInputPaperMaterial').value = `${p.name}${p.sizeLabel || p.dimensions ? ' (' + (p.sizeLabel || p.dimensions) + ')' : ''}`;
+  document.getElementById('orderModalInputDimensions').value = p.dimensions || '';
+  document.getElementById('orderModalInputStockItemId').value = p.stockItemId || '';
+  document.getElementById('orderModalInputUnitPrice').value = p.unitPrice || 0;
   document.getElementById('orderModalQuantity').value = 1;
+  document.getElementById('orderModalSpecifications').value = '';
   calculateOrderModalTotal();
 
   const oModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('guestOnlineOrderModal'));

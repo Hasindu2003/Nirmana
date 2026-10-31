@@ -55,3 +55,4 @@ const PhoneVerification = sequelize.define('PhoneVerification', {
 });
 
 module.exports = PhoneVerification;
+

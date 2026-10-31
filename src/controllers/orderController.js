@@ -106,6 +106,12 @@ class OrderController {
         phone,
         productName,
         jobTitle,
+        productType,
+        category,
+        paperMaterial,
+        material,
+        dimensions,
+        sizeLabel,
         quantity,
         unitPrice,
         specifications,
@@ -119,6 +125,9 @@ class OrderController {
       const qty = Math.max(1, parseInt(quantity, 10) || 1);
       const price = Math.max(0, parseFloat(unitPrice) || 0);
       const totalAmount = parseFloat((qty * price).toFixed(2));
+
+      // Extract accurate physical substrate / material / good description
+      const materialDesc = (paperMaterial || material || sizeLabel || dimensions || (category ? `${category} Material` : 'Custom Merchandise')).trim();
 
       // Validation
       if (!cName) {
@@ -153,6 +162,7 @@ class OrderController {
         newCustomerPhone: cPhone,
         newCustomerEmail: email || (req.user ? req.user.email : null),
         jobTitle: title,
+        paperMaterial: materialDesc,
         quantity: qty,
         subtotal: totalAmount,
         discount: 0,
@@ -160,7 +170,7 @@ class OrderController {
         advancePaid: 0,
         specifications: specifications || null,
         status: 'RECEIVED',
-        notes: `[Online Web Order via WhatsApp Contact: ${cPhone || 'N/A'}]\nCustomer Name: ${cName}\nRequested Item: ${title} (${qty} qty @ Rs. ${price.toFixed(2)})\nInstructions: ${notes || specifications || 'None'}`,
+        notes: `[Online Order: ${category || productType || 'Good'}]\nItem: ${title}\nMaterial / Substrate: ${materialDesc}\nCustomer: ${cName} (Phone: ${cPhone || 'N/A'})\nCustom Instructions: ${specifications || 'Standard'}`,
       };
 
       const order = await orderService.createOrder(orderPayload);

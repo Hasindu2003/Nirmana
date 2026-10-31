@@ -56,13 +56,13 @@
             <div class="d-flex flex-wrap gap-2 mb-3">
               <span class="spec-chip"><i class="bi bi-boxes me-1"></i> Quantity: <strong><%= order.quantity %></strong></span>
               <% if (order.paperMaterial) { %>
-                <span class="spec-chip"><i class="bi bi-file-richtext me-1"></i> Material: <strong><%= order.paperMaterial %></strong></span>
+                <span class="spec-chip" style="background: #f0fdf4; border-color: #bbf7d0;"><i class="bi bi-box-seam text-success me-1"></i> Good / Material: <strong class="text-success"><%= order.paperMaterial %></strong></span>
               <% } %>
             </div>
 
             <% if (order.specifications) { %>
               <div class="mb-3">
-                <span class="fw-semibold small text-muted d-block mb-1">Specifications & Finishing:</span>
+                <span class="fw-semibold small text-muted d-block mb-1">Customer Customization & Specific Instructions:</span>
                 <div class="p-3 rounded-2 bg-light border text-dark small" style="white-space: pre-line;"><%= order.specifications %></div>
               </div>
             <% } %>

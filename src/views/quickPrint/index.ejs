@@ -316,8 +316,26 @@
                       <i class="bi <%= job.colorMode === 'COLOR' ? 'bi-palette-fill text-warning' : (job.colorMode === 'MIXED' ? 'bi-shuffle text-info' : 'bi-circle-half text-secondary') %> me-1"></i>
                       <strong><%= job.colorMode %></strong>
                     </span>
-                    <span class="badge bg-light text-dark border px-2 py-1" style="font-size: 0.74rem;">
-                      <strong><%= job.paperSize %></strong>
+                    <% 
+                      const pSize = job.paperSize || 'A4';
+                      let iconClass = 'bi-file-earmark-text text-secondary';
+                      let badgeBg = 'bg-light text-dark';
+                      if (pSize.toLowerCase().includes('mug')) {
+                        iconClass = 'bi-cup-hot-fill text-danger';
+                        badgeBg = 'bg-danger-subtle text-danger-emphasis border-danger-subtle';
+                      } else if (pSize.toLowerCase().includes('frame') || pSize.toLowerCase().includes('photo')) {
+                        iconClass = 'bi-image-fill text-primary';
+                        badgeBg = 'bg-primary-subtle text-primary border-primary-subtle';
+                      } else if (pSize.toLowerCase().includes('keytag')) {
+                        iconClass = 'bi-tag-fill text-warning';
+                        badgeBg = 'bg-warning-subtle text-warning-emphasis border-warning-subtle';
+                      } else if (pSize.toLowerCase().includes('sticker') || pSize.toLowerCase().includes('vinyl')) {
+                        iconClass = 'bi-sticky-fill text-success';
+                        badgeBg = 'bg-success-subtle text-success border-success-subtle';
+                      }
+                    %>
+                    <span class="badge <%= badgeBg %> border px-2 py-1 fw-bold" style="font-size: 0.74rem;">
+                      <i class="bi <%= iconClass %> me-1"></i><%= pSize %>
                     </span>
                   </div>
 
@@ -1910,9 +1928,31 @@
                 <i class="bi ${colorIcon} me-1"></i>
                 <strong>${escapeHtml(job.colorMode || 'BW')}</strong>
               </span>
-              <span class="badge bg-light text-dark border px-2 py-1" style="font-size: 0.74rem;">
-                <strong>${escapeHtml(job.paperSize || 'A4')}</strong>
-              </span>
+              <%
+                // In dynamic client JS, render appropriate icon and color for good/substrate
+              %>
+              ${(() => {
+                const s = (job.paperSize || 'A4');
+                const low = s.toLowerCase();
+                let icon = 'bi-file-earmark-text text-secondary';
+                let cls = 'bg-light text-dark';
+                if (low.includes('mug')) {
+                  icon = 'bi-cup-hot-fill text-danger';
+                  cls = 'bg-danger-subtle text-danger-emphasis border-danger-subtle';
+                } else if (low.includes('frame') || low.includes('photo')) {
+                  icon = 'bi-image-fill text-primary';
+                  cls = 'bg-primary-subtle text-primary border-primary-subtle';
+                } else if (low.includes('keytag')) {
+                  icon = 'bi-tag-fill text-warning';
+                  cls = 'bg-warning-subtle text-warning-emphasis border-warning-subtle';
+                } else if (low.includes('sticker') || low.includes('vinyl')) {
+                  icon = 'bi-sticky-fill text-success';
+                  cls = 'bg-success-subtle text-success border-success-subtle';
+                }
+                return `<span class="badge ${cls} border px-2 py-1 fw-bold" style="font-size: 0.74rem;">
+                  <i class="bi ${icon} me-1"></i>${escapeHtml(s)}
+                </span>`;
+              })()}
             </div>
 
             <!-- 4. Right: Time & Primary Action Button -->
