@@ -14,6 +14,7 @@ const googleDriveService = require('../services/googleDriveService');
 const jwt = require('jsonwebtoken');
 const config = require('../config/config');
 const { authenticate } = require('../middleware/auth');
+const { requireStaff, requireRole } = require('../middleware/rbac');
 const { getUploadUrl, getAvailableLanIps } = require('../utils/network');
 
 // Helper to check if visitor is already authenticated (cookie or session)
@@ -267,12 +268,9 @@ router.get('/oauth2callback', async (req, res) => {
 // =========================================================================
 router.use(authenticate);
 
-// 1. Dashboard
-router.get('/dashboard', async (req, res, next) => {
+// 1. Dashboard (Staff & Admin Only)
+router.get('/dashboard', requireStaff, async (req, res, next) => {
   try {
-    if (req.user && req.user.role === 'CUSTOMER') {
-      return res.redirect('/portal');
-    }
     const selectedDate = req.query.date || null;
     const stats = await dashboardService.getDashboardStats(selectedDate);
     res.render('dashboard/index', {
@@ -286,11 +284,11 @@ router.get('/dashboard', async (req, res, next) => {
   }
 });
 
-// 1b. Customer Portal (Personal Orders, Bills, Advance Paid & Yet to Give Balance)
+// 1b. Customer Portal (Personal Orders, Quick Print Submissions, Bills & Balance)
 router.get('/portal', async (req, res, next) => {
   try {
     let customerId = req.user.customerId;
-    if (!customerId && (req.user.role === 'ADMIN' || req.user.role === 'STAFF')) {
+    if (!customerId && (req.user.role === 'ADMIN' || req.user.role === 'WORKER' || req.user.role === 'STAFF')) {
       if (req.query.customerId) {
         customerId = parseInt(req.query.customerId, 10);
       } else {
@@ -305,12 +303,52 @@ router.get('/portal', async (req, res, next) => {
       return res.redirect('/dashboard');
     }
 
+    const { Order, QuickPrintJob, QuickPrintFile } = require('../models');
+    const { Op } = require('sequelize');
+
     const customer = await customerService.getCustomerById(customerId);
+
+    // Auto-link any previous unlinked orders or quick print jobs created before signup with this phone
+    if (customer && customer.phone) {
+      await Order.update(
+        { customerId: customer.id },
+        {
+          where: {
+            customerId: null,
+            notes: { [Op.like]: `%${customer.phone}%` },
+          },
+        }
+      ).catch(() => null);
+
+      await QuickPrintJob.update(
+        { customerId: customer.id },
+        {
+          where: { customerPhone: customer.phone },
+        }
+      ).catch(() => null);
+    }
+
+    // Refresh customer profile after auto-linking
+    const freshCustomer = await customerService.getCustomerById(customerId);
+
+    // Fetch all Quick Print jobs for this customer
+    const quickPrintJobs = await QuickPrintJob.findAll({
+      where: {
+        [Op.or]: [
+          { customerId: freshCustomer.id },
+          ...(freshCustomer.phone ? [{ customerPhone: freshCustomer.phone }] : []),
+        ],
+      },
+      include: [{ model: QuickPrintFile, as: 'files' }],
+      order: [['createdAt', 'DESC']],
+    });
+
     res.render('customerPortal/index', {
-      title: `${customer.name} · Client Portal · Nirmana Printing`,
+      title: `${freshCustomer.name} · Client Portal · Nirmana Printing`,
       activePage: 'portal',
-      customer,
-      orders: customer.orders || [],
+      customer: freshCustomer,
+      orders: freshCustomer.orders || [],
+      quickPrintJobs: quickPrintJobs || [],
     });
   } catch (err) {
     next(err);
@@ -318,7 +356,7 @@ router.get('/portal', async (req, res, next) => {
 });
 
 // 2. Orders List
-router.get('/orders', async (req, res, next) => {
+router.get('/orders', requireStaff, async (req, res, next) => {
   try {
     const { status, search, customerId, page, limit } = req.query;
     // Load recent orders across statuses so tabs can filter in-memory instantly
@@ -345,7 +383,7 @@ router.get('/orders', async (req, res, next) => {
 });
 
 // 3. New Order Form (with inline customer selection / creation)
-router.get('/orders/new', async (req, res, next) => {
+router.get('/orders/new', requireStaff, async (req, res, next) => {
   try {
     const [customers, stockItems] = await Promise.all([
       customerService.getAllCustomers({ paginate: false }),
@@ -363,7 +401,7 @@ router.get('/orders/new', async (req, res, next) => {
 });
 
 // 4. Order Detail & Actions
-router.get('/orders/:id', async (req, res, next) => {
+router.get('/orders/:id', requireStaff, async (req, res, next) => {
   try {
     const order = await orderService.getOrderById(req.params.id);
     res.render('orders/detail', {
@@ -377,7 +415,7 @@ router.get('/orders/:id', async (req, res, next) => {
 });
 
 // 5. Stock Management (Live Inventory, Stock In/Out, Office Use, History)
-router.get('/stock', async (req, res, next) => {
+router.get('/stock', requireStaff, async (req, res, next) => {
   try {
     const { search, category, page, txPage, officePage, tab } = req.query;
     const [
@@ -443,7 +481,7 @@ router.get('/stock', async (req, res, next) => {
 });
 
 // 5b. Stock Item Details Page
-router.get('/stock/:id', async (req, res, next) => {
+router.get('/stock/:id', requireStaff, async (req, res, next) => {
   try {
     const item = await stockService.getStockItemById(req.params.id);
     const profit = item.getProfitInfo();
@@ -461,7 +499,7 @@ router.get('/stock/:id', async (req, res, next) => {
 });
 
 // 6. Customers Directory
-router.get('/customers', async (req, res, next) => {
+router.get('/customers', requireStaff, async (req, res, next) => {
   try {
     const { search, page, limit } = req.query;
     const { customers, pagination, accountsSummary } = await customerService.getAllCustomers({
@@ -484,7 +522,7 @@ router.get('/customers', async (req, res, next) => {
 });
 
 // 6b. Customer Profile & Order History Details Page
-router.get('/customers/:id', async (req, res, next) => {
+router.get('/customers/:id', requireStaff, async (req, res, next) => {
   try {
     const customer = await customerService.getCustomerById(req.params.id);
     res.render('customers/detail', {
@@ -498,7 +536,7 @@ router.get('/customers/:id', async (req, res, next) => {
 });
 
 // 7. Shopkeeper Quick Print Counter Queue & Print Management
-router.get('/quick-print', async (req, res, next) => {
+router.get('/quick-print', requireStaff, async (req, res, next) => {
   try {
     const status = req.query.status || 'PENDING';
     const search = req.query.search || '';
@@ -527,7 +565,7 @@ router.get('/quick-print', async (req, res, next) => {
 });
 
 // 8. Point of Sale (POS) Counter Checkout & Sales Ledger
-router.get('/pos', async (req, res, next) => {
+router.get('/pos', requireStaff, async (req, res, next) => {
   try {
     const { search, dateFrom, dateTo, paymentMethod, page } = req.query;
 
@@ -563,16 +601,8 @@ router.get('/pos', async (req, res, next) => {
 });
 
 // 9. User Administration (Admin Only)
-router.get('/users', async (req, res, next) => {
+router.get('/users', requireRole('ADMIN'), async (req, res, next) => {
   try {
-    if (req.user && req.user.role !== 'ADMIN') {
-      return res.status(403).render('error', {
-        title: 'Access Restricted',
-        message: 'Administrator privileges are required to access user administration.',
-        statusCode: 403,
-        activePage: 'users',
-      });
-    }
     const { User } = require('../models');
     const users = await User.findAll({ order: [['fullName', 'ASC']] });
     res.render('users/index', {

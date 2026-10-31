@@ -12,13 +12,15 @@ const posController = require('../controllers/posController');
 const productController = require('../controllers/productController');
 const { uploadQuickPrint } = require('../middleware/upload');
 const { authenticate, optionalAuthenticate } = require('../middleware/auth');
-const { requireRole } = require('../middleware/rbac');
+const { requireRole, requireStaff } = require('../middleware/rbac');
 
 // =========================================================================
 // 1. PUBLIC ROUTES (Accessible by customers and pre-login staff)
 // =========================================================================
 router.post('/auth/login', authController.login);
 router.post('/auth/register', authController.register);
+router.post('/auth/send-otp', authController.sendOtp);
+router.post('/auth/verify-otp', authController.verifyOtp);
 
 // Customer walk-in upload & token tracking
 router.post('/quick-print/upload', uploadQuickPrint, quickPrintController.submitUpload);
@@ -37,53 +39,53 @@ router.get('/products/:id', productController.getProduct);
 router.post('/orders/online-guest', optionalAuthenticate, orderController.createGuestOnlineOrder);
 
 // =========================================================================
-// 2. PROTECTED STAFF ROUTES (Require active session or Bearer token)
+// 2. PROTECTED STAFF ROUTES (Require active session or Bearer token + Staff Role)
 // =========================================================================
 router.post('/auth/logout', authenticate, authController.logout);
 router.get('/auth/me', authenticate, authController.getMe);
 
-// Dashboard
-router.get('/dashboard/stats', authenticate, dashboardController.getStats);
+// Dashboard (Staff only)
+router.get('/dashboard/stats', authenticate, requireStaff, dashboardController.getStats);
 
-// Stock Management
-router.get('/stock', authenticate, stockController.listItems);
-router.post('/stock', authenticate, stockController.createItem);
-router.post('/stock/in', authenticate, stockController.recordStockIn);
-router.post('/stock/out', authenticate, stockController.recordStockOut);
-router.post('/stock/office-use', authenticate, stockController.recordOfficeUse);
-router.get('/stock/office-use', authenticate, stockController.listOfficeUse);
-router.get('/stock/transactions', authenticate, stockController.listTransactions);
+// Stock Management (Staff only)
+router.get('/stock', authenticate, requireStaff, stockController.listItems);
+router.post('/stock', authenticate, requireStaff, stockController.createItem);
+router.post('/stock/in', authenticate, requireStaff, stockController.recordStockIn);
+router.post('/stock/out', authenticate, requireStaff, stockController.recordStockOut);
+router.post('/stock/office-use', authenticate, requireStaff, stockController.recordOfficeUse);
+router.get('/stock/office-use', authenticate, requireStaff, stockController.listOfficeUse);
+router.get('/stock/transactions', authenticate, requireStaff, stockController.listTransactions);
 
-// Printing Orders
-router.get('/orders', authenticate, orderController.listOrders);
-router.post('/orders', authenticate, orderController.createOrder);
-router.get('/orders/:id', authenticate, orderController.getOrder);
-router.put('/orders/:id/status', authenticate, orderController.updateStatus);
-router.post('/orders/:id/payment', authenticate, orderController.recordPayment);
-router.put('/orders/:id/discount', authenticate, orderController.updateDiscount);
+// Printing Orders (Staff only)
+router.get('/orders', authenticate, requireStaff, orderController.listOrders);
+router.post('/orders', authenticate, requireStaff, orderController.createOrder);
+router.get('/orders/:id', authenticate, requireStaff, orderController.getOrder);
+router.put('/orders/:id/status', authenticate, requireStaff, orderController.updateStatus);
+router.post('/orders/:id/payment', authenticate, requireStaff, orderController.recordPayment);
+router.put('/orders/:id/discount', authenticate, requireStaff, orderController.updateDiscount);
 
-// Customers
-router.get('/customers', authenticate, customerController.listCustomers);
-router.post('/customers', authenticate, customerController.createCustomer);
-router.get('/customers/:id', authenticate, customerController.getCustomer);
+// Customers (Staff only)
+router.get('/customers', authenticate, requireStaff, customerController.listCustomers);
+router.post('/customers', authenticate, requireStaff, customerController.createCustomer);
+router.get('/customers/:id', authenticate, requireStaff, customerController.getCustomer);
 
 // Quick Print Counter Queue (Shopkeeper Operations)
-router.get('/quick-print/jobs', authenticate, quickPrintController.listJobs);
-router.put('/quick-print/jobs/:id/status', authenticate, quickPrintController.updateStatus);
-router.delete('/quick-print/jobs/:id', authenticate, quickPrintController.deleteJob);
-router.post('/quick-print/jobs/batch-delete', authenticate, quickPrintController.batchDeleteJobs);
-router.post('/quick-print/jobs/:id/convert', authenticate, quickPrintController.convertToOrder);
-router.get('/quick-print/stats', authenticate, quickPrintController.getStats);
-router.get('/quick-print/files/:fileId/view', authenticate, quickPrintController.viewFile);
-router.get('/quick-print/files/:fileId/download', authenticate, quickPrintController.downloadFile);
+router.get('/quick-print/jobs', authenticate, requireStaff, quickPrintController.listJobs);
+router.put('/quick-print/jobs/:id/status', authenticate, requireStaff, quickPrintController.updateStatus);
+router.delete('/quick-print/jobs/:id', authenticate, requireStaff, quickPrintController.deleteJob);
+router.post('/quick-print/jobs/batch-delete', authenticate, requireStaff, quickPrintController.batchDeleteJobs);
+router.post('/quick-print/jobs/:id/convert', authenticate, requireStaff, quickPrintController.convertToOrder);
+router.get('/quick-print/stats', authenticate, requireStaff, quickPrintController.getStats);
+router.get('/quick-print/files/:fileId/view', authenticate, requireStaff, quickPrintController.viewFile);
+router.get('/quick-print/files/:fileId/download', authenticate, requireStaff, quickPrintController.downloadFile);
 
 // Point of Sale (POS) Counter Operations
-router.get('/pos/sales', authenticate, posController.listSales);
-router.post('/pos/sales', authenticate, posController.createSale);
-router.post('/pos/quick-transaction', authenticate, posController.createQuickTransaction);
-router.get('/pos/sales/:id', authenticate, posController.getSale);
-router.post('/pos/sales/:id/void', authenticate, posController.voidSale);
-router.get('/pos/stats', authenticate, posController.getStats);
+router.get('/pos/sales', authenticate, requireStaff, posController.listSales);
+router.post('/pos/sales', authenticate, requireStaff, posController.createSale);
+router.post('/pos/quick-transaction', authenticate, requireStaff, posController.createQuickTransaction);
+router.get('/pos/sales/:id', authenticate, requireStaff, posController.getSale);
+router.post('/pos/sales/:id/void', authenticate, requireStaff, posController.voidSale);
+router.get('/pos/stats', authenticate, requireStaff, posController.getStats);
 
 // =========================================================================
 // 3. ADMIN-ONLY USER & ROLE ADMINISTRATION (Shop Employees)

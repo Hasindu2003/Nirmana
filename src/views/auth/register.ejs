@@ -57,18 +57,59 @@
           <label class="form-label small fw-semibold">Full Name *</label>
           <div class="input-group">
             <span class="input-group-text bg-light border-end-0"><i class="bi bi-person text-muted"></i></span>
-            <input type="text" name="fullName" class="form-control border-start-0" placeholder="Your Name" value="<%= typeof formData !== 'undefined' && formData.fullName ? formData.fullName : '' %>" required autofocus>
+            <input type="text" name="fullName" id="fullNameInput" class="form-control border-start-0" placeholder="Your Name" value="<%= typeof formData !== 'undefined' && formData.fullName ? formData.fullName : '' %>" required autofocus>
           </div>
         </div>
         <div class="col-md-6">
           <label class="form-label small fw-semibold">Phone Number *</label>
           <div class="input-group">
             <span class="input-group-text bg-light border-end-0"><i class="bi bi-telephone text-muted"></i></span>
-            <input type="tel" name="phone" class="form-control border-start-0" placeholder="0771234567" pattern="0[0-9]{9}" maxlength="10" minlength="10" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 10)" value="<%= typeof formData !== 'undefined' && formData.phone ? formData.phone : '' %>" required>
+            <input type="tel" name="phone" id="phoneInput" class="form-control border-start-0" placeholder="0771234567" pattern="0[0-9]{9}" maxlength="10" minlength="10" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 10); onPhoneInputChanged();" value="<%= typeof formData !== 'undefined' && formData.phone ? formData.phone : '' %>" required>
+            <button class="btn btn-outline-primary btn-sm px-3" type="button" id="sendOtpBtn" onclick="handleSendOtp()">
+              <span id="sendOtpBtnText">Verify</span>
+              <span id="sendOtpSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+            </button>
           </div>
-          <div class="form-text" style="font-size: 0.72rem;">10 digits starting with 0</div>
+          <div class="d-flex justify-content-between align-items-center mt-1">
+            <div class="form-text mt-0" style="font-size: 0.72rem;">10 digits starting with 0</div>
+            <div id="phoneVerifiedBadge" class="text-success small fw-semibold d-none" style="font-size: 0.75rem;">
+              <i class="bi bi-patch-check-fill text-success me-1"></i> Verified
+            </div>
+          </div>
         </div>
       </div>
+
+      <!-- Phone Verification OTP Interactive Box -->
+      <div id="otpBox" class="p-3 mb-3 rounded-3 bg-light border d-none" style="border-left: 4px solid var(--serene-primary) !important;">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="small fw-bold text-dark">
+            <i class="bi bi-shield-lock text-primary me-1"></i> Verify Mobile Ownership
+          </div>
+          <span id="countdownBadge" class="badge bg-secondary-subtle text-secondary small">Valid for 5m</span>
+        </div>
+        <p class="text-muted small mb-2" style="font-size: 0.78rem;">
+          Enter the 6-digit verification code sent to <strong id="otpTargetPhone">your mobile</strong>:
+        </p>
+        <div class="input-group input-group-sm mb-2">
+          <input type="text" id="otpCodeInput" class="form-control font-monospace text-center fw-bold fs-6" placeholder="------" maxlength="6" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 6)">
+          <button class="btn btn-primary px-3" type="button" id="verifyOtpBtn" onclick="handleVerifyOtp()">
+            <span id="verifyOtpBtnText">Submit Code</span>
+            <span id="verifyOtpSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+          </button>
+        </div>
+        <div id="otpSandboxAlert" class="alert alert-info py-1 px-2 small mb-2 d-none" style="font-size: 0.75rem;">
+          <i class="bi bi-info-circle-fill me-1"></i> <strong>Sandbox Code:</strong> <span id="otpSandboxCode" class="font-monospace fw-bold text-primary cursor-pointer text-decoration-underline" onclick="document.getElementById('otpCodeInput').value=this.innerText; handleVerifyOtp();"></span> (Click to auto-fill)
+        </div>
+        <div id="otpStatusMsg" class="small mt-1 d-none"></div>
+        <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+          <span class="text-muted" style="font-size: 0.73rem;">Didn't get the SMS?</span>
+          <button type="button" id="resendOtpBtn" class="btn btn-link btn-sm p-0 text-decoration-none text-primary" style="font-size: 0.75rem;" onclick="handleSendOtp()" disabled>
+            Resend Code (<span id="resendCountdown">45</span>s)
+          </button>
+        </div>
+      </div>
+
+      <input type="hidden" id="isPhoneVerifiedField" name="isPhoneVerified" value="false">
 
       <div class="row g-2 mb-3">
         <div class="col-md-6">
@@ -109,7 +150,7 @@
         If you already placed orders with Nirmana Printing using this phone number, your account will be linked automatically so you can immediately see your past orders, payments, and balances due!
       </div>
 
-      <button type="submit" class="btn btn-serene-primary w-100 justify-content-center py-2 mb-3">
+      <button type="submit" id="submitRegisterBtn" class="btn btn-serene-primary w-100 justify-content-center py-2 mb-3">
         <span>Create Account & Access Portal</span>
         <i class="bi bi-arrow-right"></i>
       </button>
@@ -125,6 +166,169 @@
     &copy; <%= new Date().getFullYear() %> Nirmana Printing (Pvt) Ltd. All rights reserved.
   </div>
 </div>
+
+<script>
+  let isVerified = false;
+  let countdownTimer = null;
+  let resendSeconds = 45;
+
+  function onPhoneInputChanged() {
+    if (isVerified) {
+      isVerified = false;
+      document.getElementById('isPhoneVerifiedField').value = 'false';
+      document.getElementById('phoneVerifiedBadge').classList.add('d-none');
+      document.getElementById('sendOtpBtn').classList.remove('btn-success');
+      document.getElementById('sendOtpBtn').classList.add('btn-outline-primary');
+      document.getElementById('sendOtpBtnText').innerText = 'Verify';
+      document.getElementById('phoneInput').readOnly = false;
+    }
+  }
+
+  async function handleSendOtp() {
+    const phoneInput = document.getElementById('phoneInput');
+    const phone = (phoneInput.value || '').trim();
+
+    if (!/^0\d{9}$/.test(phone)) {
+      alert('Please enter a valid 10-digit mobile number starting with 0 (e.g. 0771234567) before requesting verification.');
+      phoneInput.focus();
+      return;
+    }
+
+    const sendBtn = document.getElementById('sendOtpBtn');
+    const sendBtnText = document.getElementById('sendOtpBtnText');
+    const sendSpinner = document.getElementById('sendOtpSpinner');
+    const statusMsg = document.getElementById('otpStatusMsg');
+    const sandboxAlert = document.getElementById('otpSandboxAlert');
+
+    sendBtn.disabled = true;
+    sendBtnText.classList.add('d-none');
+    sendSpinner.classList.remove('d-none');
+
+    try {
+      const response = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone }),
+      });
+
+      const res = await response.json();
+      if (!response.ok || !res.success) {
+        throw new Error(res.message || 'Failed to send verification code.');
+      }
+
+      // Display OTP input container
+      document.getElementById('otpBox').classList.remove('d-none');
+      document.getElementById('otpTargetPhone').innerText = phone;
+      document.getElementById('otpCodeInput').value = '';
+      document.getElementById('otpCodeInput').focus();
+
+      // If in dev / sandbox mode, show the debug OTP helper badge
+      if (res.devOtp) {
+        document.getElementById('otpSandboxCode').innerText = res.devOtp;
+        sandboxAlert.classList.remove('d-none');
+      } else {
+        sandboxAlert.classList.add('d-none');
+      }
+
+      statusMsg.className = 'small text-success mt-1';
+      statusMsg.innerText = res.message || 'Verification code sent!';
+      statusMsg.classList.remove('d-none');
+
+      startResendCountdown();
+    } catch (err) {
+      alert(err.message || 'Failed to send OTP code.');
+    } finally {
+      sendBtn.disabled = false;
+      sendBtnText.classList.remove('d-none');
+      sendSpinner.classList.add('d-none');
+    }
+  }
+
+  function startResendCountdown() {
+    const resendBtn = document.getElementById('resendOtpBtn');
+    const countdownSpan = document.getElementById('resendCountdown');
+    resendSeconds = 45;
+    resendBtn.disabled = true;
+
+    if (countdownTimer) clearInterval(countdownTimer);
+
+    countdownTimer = setInterval(() => {
+      resendSeconds--;
+      if (countdownSpan) countdownSpan.innerText = resendSeconds;
+      if (resendSeconds <= 0) {
+        clearInterval(countdownTimer);
+        resendBtn.disabled = false;
+        resendBtn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i> Resend Code';
+      }
+    }, 1000);
+  }
+
+  async function handleVerifyOtp() {
+    const phone = (document.getElementById('phoneInput').value || '').trim();
+    const otp = (document.getElementById('otpCodeInput').value || '').trim();
+    const statusMsg = document.getElementById('otpStatusMsg');
+    const verifyBtn = document.getElementById('verifyOtpBtn');
+    const verifyBtnText = document.getElementById('verifyOtpBtnText');
+    const verifySpinner = document.getElementById('verifyOtpSpinner');
+
+    if (!otp || otp.length !== 6) {
+      statusMsg.className = 'small text-danger mt-1';
+      statusMsg.innerText = 'Please enter the full 6-digit numeric verification code.';
+      statusMsg.classList.remove('d-none');
+      return;
+    }
+
+    verifyBtn.disabled = true;
+    verifyBtnText.classList.add('d-none');
+    verifySpinner.classList.remove('d-none');
+
+    try {
+      const response = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, otp }),
+      });
+
+      const res = await response.json();
+      if (!response.ok || !res.success) {
+        throw new Error(res.message || 'Verification failed. Incorrect code.');
+      }
+
+      // Mark verified
+      isVerified = true;
+      document.getElementById('isPhoneVerifiedField').value = 'true';
+      document.getElementById('phoneInput').readOnly = true;
+
+      // Update UI badges
+      document.getElementById('phoneVerifiedBadge').classList.remove('d-none');
+      document.getElementById('otpBox').classList.add('d-none');
+
+      const sendBtn = document.getElementById('sendOtpBtn');
+      sendBtn.classList.remove('btn-outline-primary');
+      sendBtn.classList.add('btn-success');
+      sendBtn.innerHTML = '<i class="bi bi-check-lg"></i> Verified';
+      sendBtn.disabled = true;
+
+      if (countdownTimer) clearInterval(countdownTimer);
+    } catch (err) {
+      statusMsg.className = 'small text-danger mt-1';
+      statusMsg.innerText = err.message || 'Invalid verification code.';
+      statusMsg.classList.remove('d-none');
+    } finally {
+      verifyBtn.disabled = false;
+      verifyBtnText.classList.remove('d-none');
+      verifySpinner.classList.add('d-none');
+    }
+  }
+
+  document.getElementById('registerForm').addEventListener('submit', function (e) {
+    if (!isVerified) {
+      e.preventDefault();
+      alert('Please verify your phone number with the SMS code before submitting your registration.');
+      handleSendOtp();
+    }
+  });
+</script>
 
 </body>
 </html>

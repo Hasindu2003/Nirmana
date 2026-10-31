@@ -3,12 +3,18 @@
   <button class="btn btn-serene-ghost mobile-menu-btn" id="sidebarToggle" type="button" aria-label="Open Navigation Menu">
     <i class="bi bi-list fs-4"></i>
   </button>
-  <a href="/dashboard" class="mobile-topbar-brand">
+  <a href="<%= (currentUser && currentUser.role === 'CUSTOMER') ? '/portal' : '/dashboard' %>" class="mobile-topbar-brand">
     <img src="/images/logo.png" alt="Nirmana Printing" class="mobile-topbar-logo">
   </a>
-  <a href="/orders/new" class="btn btn-sm btn-serene-primary mobile-topbar-action" title="Create New Order">
-    <i class="bi bi-plus-lg"></i>
-  </a>
+  <% if (currentUser && currentUser.role === 'CUSTOMER') { %>
+    <a href="/upload" class="btn btn-sm btn-serene-primary mobile-topbar-action" title="Upload Print Files">
+      <i class="bi bi-cloud-arrow-up"></i>
+    </a>
+  <% } else { %>
+    <a href="/orders/new" class="btn btn-sm btn-serene-primary mobile-topbar-action" title="Create New Order">
+      <i class="bi bi-plus-lg"></i>
+    </a>
+  <% } %>
 </header>
 
 <!-- Mobile drawer backdrop overlay -->
@@ -16,7 +22,7 @@
 
 <aside class="sidebar" id="appSidebar">
   <div class="sidebar-brand-wrapper d-flex align-items-center justify-content-between">
-    <a href="/dashboard" class="sidebar-brand flex-grow-1" title="Nirmana Printing — When quality really matters">
+    <a href="<%= (currentUser && currentUser.role === 'CUSTOMER') ? '/portal' : '/dashboard' %>" class="sidebar-brand flex-grow-1" title="Nirmana Printing — When quality really matters">
       <img src="/images/logo.png" alt="Nirmana Printing — When quality really matters" class="sidebar-brand-img">
     </a>
     <button type="button" class="btn btn-sm btn-serene-ghost d-lg-none me-2" id="sidebarClose" aria-label="Close Navigation" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;">

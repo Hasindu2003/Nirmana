@@ -101,26 +101,43 @@ class OrderService {
           throw new Error('Phone number must be exactly 10 digits starting with 0 (e.g. 0771234567).');
         }
 
-        // Auto generate customer code
-        const custCount = await Customer.count({ transaction: t });
-        let custSeq = custCount + 1;
-        let customerCode = `CUST-${custSeq.toString().padStart(4, '0')}`;
-        while (await Customer.findOne({ where: { customerCode }, transaction: t })) {
-          custSeq++;
-          customerCode = `CUST-${custSeq.toString().padStart(4, '0')}`;
+        // Check if an existing customer with this phone number already exists to prevent duplicates
+        let existingCustomer = await Customer.findOne({
+          where: { phone: custPhone },
+          transaction: t,
+        });
+
+        if (existingCustomer) {
+          customerId = existingCustomer.id;
+          if (!existingCustomer.email && (data.newCustomerEmail || data.email)) {
+            existingCustomer.email = data.newCustomerEmail || data.email;
+          }
+          if (!existingCustomer.companyName && (data.newCustomerCompany || data.companyName)) {
+            existingCustomer.companyName = data.newCustomerCompany || data.companyName;
+          }
+          await existingCustomer.save({ transaction: t });
+        } else {
+          // Auto generate customer code
+          const custCount = await Customer.count({ transaction: t });
+          let custSeq = custCount + 1;
+          let customerCode = `CUST-${custSeq.toString().padStart(4, '0')}`;
+          while (await Customer.findOne({ where: { customerCode }, transaction: t })) {
+            custSeq++;
+            customerCode = `CUST-${custSeq.toString().padStart(4, '0')}`;
+          }
+
+          const newCustomer = await Customer.create({
+            customerCode,
+            name: custName,
+            phone: custPhone,
+            email: (data.newCustomerEmail || data.email || null),
+            companyName: (data.newCustomerCompany || data.companyName || null),
+            address: (data.newCustomerAddress || data.address || null),
+            notes: 'Created automatically during new order intake',
+          }, { transaction: t });
+
+          customerId = newCustomer.id;
         }
-
-        const newCustomer = await Customer.create({
-          customerCode,
-          name: custName,
-          phone: custPhone,
-          email: (data.newCustomerEmail || data.email || null),
-          companyName: (data.newCustomerCompany || data.companyName || null),
-          address: (data.newCustomerAddress || data.address || null),
-          notes: 'Created automatically during new order intake',
-        }, { transaction: t });
-
-        customerId = newCustomer.id;
       }
 
       let customer = null;

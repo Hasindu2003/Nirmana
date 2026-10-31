@@ -9,6 +9,7 @@ const QuickPrintFile = require('./QuickPrintFile');
 const AuditLog = require('./AuditLog');
 const PosSale = require('./PosSale');
 const PosSaleItem = require('./PosSaleItem');
+const PhoneVerification = require('./PhoneVerification');
 
 // Customer <-> Orders
 Customer.hasMany(Order, { foreignKey: 'customerId', as: 'orders' });
@@ -62,5 +63,6 @@ module.exports = {
   AuditLog,
   PosSale,
   PosSaleItem,
+  PhoneVerification,
 };
 

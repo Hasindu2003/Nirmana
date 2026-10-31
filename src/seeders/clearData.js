@@ -11,6 +11,7 @@ const {
   QuickPrintJob,
   QuickPrintFile,
   AuditLog,
+  PhoneVerification,
 } = require('../models');
 
 async function clearFakeData() {
@@ -46,6 +47,11 @@ async function clearFakeData() {
 
   const auditDeleted = await AuditLog.destroy({ where: {}, truncate: true });
   console.log(`✓ Cleared Audit Logs (${auditDeleted} removed)`);
+
+  if (PhoneVerification) {
+    const pvDeleted = await PhoneVerification.destroy({ where: {}, truncate: true }).catch(() => 0);
+    console.log(`✓ Cleared Phone Verifications (${pvDeleted} removed)`);
+  }
 
   // Remove test users and preserve only primary admin
   const usersDeleted = await User.destroy({

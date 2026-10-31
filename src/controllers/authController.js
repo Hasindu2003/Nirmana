@@ -1,4 +1,5 @@
 const authService = require('../services/authService');
+const phoneVerificationService = require('../services/phoneVerificationService');
 const { logAudit } = require('../middleware/audit');
 
 class AuthController {
@@ -151,6 +152,25 @@ class AuthController {
       });
 
       return res.json({ success: true, message: 'Password updated successfully.' });
+    } catch (error) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+  }
+  async sendOtp(req, res, next) {
+    try {
+      const { phone } = req.body;
+      const result = await phoneVerificationService.sendOtp(phone);
+      return res.json(result);
+    } catch (error) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
+  async verifyOtp(req, res, next) {
+    try {
+      const { phone, otp } = req.body;
+      const result = await phoneVerificationService.verifyOtp(phone, otp);
+      return res.json(result);
     } catch (error) {
       return res.status(400).json({ success: false, message: error.message });
     }
