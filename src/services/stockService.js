@@ -64,11 +64,15 @@ class StockService {
       const u = usageMap[item.id] || { totalIn: 0, totalOut: 0, officeQty: 0, officeCost: 0, prodQty: 0 };
       const curStock = parseFloat(item.currentStock) || 0;
       const uCost = parseFloat(item.unitCost) || 0;
+      const prodCost = u.prodQty * uCost;
+      const totalCostUsed = u.officeCost + prodCost;
       item.dataValues.totalIn = u.totalIn;
       item.dataValues.totalUsed = u.totalOut;
+      item.dataValues.totalUsedCost = parseFloat(totalCostUsed.toFixed(2));
       item.dataValues.officeUseQty = u.officeQty;
       item.dataValues.officeUseCost = u.officeCost;
       item.dataValues.productionUsedQty = u.prodQty;
+      item.dataValues.productionUsedCost = parseFloat(prodCost.toFixed(2));
       item.dataValues.remainingStock = curStock;
       item.dataValues.remainingValuation = parseFloat((curStock * uCost).toFixed(2));
       return item;
@@ -91,19 +95,26 @@ class StockService {
     const pagination = buildPagination(count, pageNum, limitNum);
 
     // Calculate global inventory summary metrics
-    const allActive = await StockItem.findAll({ where: { isActive: true }, attributes: ['currentStock', 'unitCost'] });
+    const allActive = await StockItem.findAll({ where: { isActive: true }, attributes: ['id', 'currentStock', 'unitCost'] });
     let totalValuation = 0;
     allActive.forEach(i => {
       totalValuation += (parseFloat(i.currentStock) || 0) * (parseFloat(i.unitCost) || 0);
     });
     let totalOfficeUseVal = 0;
-    Object.values(usageMap).forEach(u => {
-      totalOfficeUseVal += u.officeCost;
+    let totalJobStockVal = 0;
+    allActive.forEach(i => {
+      const u = usageMap[i.id] || { officeCost: 0, prodQty: 0 };
+      const uCost = parseFloat(i.unitCost) || 0;
+      totalOfficeUseVal += (u.officeCost || 0);
+      totalJobStockVal += ((u.prodQty || 0) * uCost);
     });
+    const totalUsageVal = totalOfficeUseVal + totalJobStockVal;
 
     const inventorySummary = {
       totalItems: count,
       totalRemainingValuation: parseFloat(totalValuation.toFixed(2)),
+      totalUsageValue: parseFloat(totalUsageVal.toFixed(2)),
+      totalJobStockValue: parseFloat(totalJobStockVal.toFixed(2)),
       totalOfficeUseValue: parseFloat(totalOfficeUseVal.toFixed(2)),
     };
 
@@ -419,6 +430,55 @@ class StockService {
         department: deptName,
       };
     });
+  }
+
+  // Unified Internal Material & Usage Ledger (Both Job Stock Out & Office Use together)
+  async getUsageTransactions(options = {}) {
+    let page = 1;
+    let limit = 10;
+    let paginate = true;
+    let category = null; // 'ALL', 'PRODUCTION', 'OFFICE_USE'
+    let date = null;
+
+    if (typeof options === 'object') {
+      page = options.page || 1;
+      limit = options.limit || 10;
+      paginate = options.paginate !== undefined ? options.paginate : true;
+      category = options.category || null;
+      date = options.date || null;
+    }
+
+    const where = { type: 'OUT' };
+    if (category && category !== 'ALL') {
+      where.category = category;
+    }
+    if (date) where.date = date;
+
+    const queryOptions = {
+      where,
+      order: [['createdAt', 'DESC']],
+      include: [
+        {
+          model: StockItem,
+          as: 'stockItem',
+          attributes: ['id', 'code', 'name', 'unit', 'category', 'unitCost'],
+        },
+      ],
+    };
+
+    if (!paginate) {
+      return await StockTransaction.findAll(queryOptions);
+    }
+
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, parseInt(limit, 10) || 10);
+    queryOptions.limit = limitNum;
+    queryOptions.offset = (pageNum - 1) * limitNum;
+
+    const { count, rows: transactions } = await StockTransaction.findAndCountAll(queryOptions);
+    const pagination = buildPagination(count, pageNum, limitNum);
+
+    return { transactions, pagination };
   }
 
   async getOfficeUseTransactions(options = {}) {

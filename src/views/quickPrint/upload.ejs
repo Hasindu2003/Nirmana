@@ -240,6 +240,11 @@
       WhatsApp වලට දාන්න ඕනෙ නෑ! ඔයාගේ Photos හෝ Documents මෙතනින් කෙලින්ම අපේ Counter Printer එකට Send කරන්න.
     </p>
   </header>
+  <div class="d-flex justify-content-center mb-3">
+    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 shadow-xs fw-semibold" data-bs-toggle="modal" data-bs-target="#publicTrackModal">
+      <i class="bi bi-search me-1"></i> Track Order or Token Status
+    </button>
+  </div>
 
   <!-- FORM VIEW -->
   <div id="uploadView" class="kiosk-card">
@@ -1162,5 +1167,115 @@
   });
 </script>
 
+  <!-- Public Track Modal -->
+  <div class="modal fade" id="publicTrackModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow-lg border-0 rounded-4">
+        <div class="modal-header bg-primary text-white border-0">
+          <h5 class="modal-title fs-6 fw-bold"><i class="bi bi-search me-2"></i> Track Your Print Job or Order</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4">
+          <p class="text-muted small mb-3">
+            Enter your <strong>Tracking Code / Order #</strong> (e.g. <code>ORD-2026-0002</code>), <strong>Token Number</strong> (e.g. <code>QP-1001</code>), or your <strong>WhatsApp Number</strong>.
+          </p>
+          <div class="input-group mb-3">
+            <span class="input-group-text bg-white"><i class="bi bi-upc-scan"></i></span>
+            <input type="text" id="trackCodeInput" class="form-control" placeholder="e.g. ORD-2026-0002 or QP-1001 or 077xxxxxxx" onkeydown="if(event.key==='Enter') lookupPublicTrack()">
+            <button class="btn btn-primary fw-semibold" type="button" id="btnTrackLookup" onclick="lookupPublicTrack()">Track</button>
+          </div>
+          
+          <div id="trackResultContainer" style="display: none;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  async function lookupPublicTrack() {
+    const input = document.getElementById('trackCodeInput');
+    const container = document.getElementById('trackResultContainer');
+    const code = (input.value || '').trim();
+    if (!code) {
+      alert('Please enter a tracking code, token, or phone number.');
+      return;
+    }
+
+    const btn = document.getElementById('btnTrackLookup');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    container.style.display = 'block';
+    container.innerHTML = '<div class="text-center py-3 text-muted small"><span class="spinner-border spinner-border-sm me-1"></span> Looking up order details...</div>';
+
+    try {
+      const res = await fetch('/api/orders/track/' + encodeURIComponent(code));
+      const json = await res.json();
+      btn.disabled = false;
+      btn.textContent = 'Track';
+
+      if (!json.success) {
+        container.innerHTML = '<div class="alert alert-warning small mb-0"><i class="bi bi-exclamation-triangle me-1"></i> ' + (json.message || 'No matching order found.') + '</div>';
+        return;
+      }
+
+      const d = json.data;
+      if (d.type === 'ORDER') {
+        const isPaid = (d.balanceAmount || 0) <= 0;
+        let statusBadge = '<span class="badge bg-secondary">RECEIVED</span>';
+        if (d.status === 'PRINTING') statusBadge = '<span class="badge bg-primary"><i class="bi bi-printer me-1"></i> PRINTING NOW</span>';
+        else if (d.status === 'READY') statusBadge = '<span class="badge bg-success"><i class="bi bi-box-seam me-1"></i> READY FOR PICKUP</span>';
+        else if (d.status === 'COMPLETED') statusBadge = '<span class="badge bg-success"><i class="bi bi-check2-all me-1"></i> COMPLETED</span>';
+
+        container.innerHTML = `
+          <div class="p-3 rounded-3 border bg-light">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="font-monospace fw-bold text-dark fs-6">${d.orderNumber}</span>
+              ${statusBadge}
+            </div>
+            <h6 class="fw-bold text-dark mb-1">${d.jobTitle}</h6>
+            <div class="small text-muted mb-2">Quantity: ${d.quantity} units ${d.paperMaterial ? ' · ' + d.paperMaterial : ''}</div>
+            
+            <div class="p-2 rounded-2 bg-white border small mb-2">
+              <div class="d-flex justify-content-between text-muted mb-1">
+                <span>Total Price:</span>
+                <strong class="text-dark">Rs. ${parseFloat(d.totalAmount).toLocaleString('en-LK', {minimumFractionDigits: 2})}</strong>
+              </div>
+              <div class="d-flex justify-content-between text-success mb-1">
+                <span>Given (Paid):</span>
+                <strong>Rs. ${parseFloat(d.advancePaid).toLocaleString('en-LK', {minimumFractionDigits: 2})}</strong>
+              </div>
+              <hr class="my-1">
+              <div class="d-flex justify-content-between fw-bold ${isPaid ? 'text-success' : 'text-danger'}">
+                <span>Balance Yet to Give:</span>
+                <span>${isPaid ? 'Paid in Full (Rs. 0.00 Due)' : 'Rs. ' + parseFloat(d.balanceAmount).toLocaleString('en-LK', {minimumFractionDigits: 2})}</span>
+              </div>
+            </div>
+            ${d.status === 'READY' ? '<div class="alert alert-success p-2 small mb-0 text-center fw-bold"><i class="bi bi-bell-fill me-1"></i> Your print job is ready! You can pick it up at the shop counter.</div>' : ''}
+          </div>
+        `;
+      } else if (d.type === 'QUICK_PRINT') {
+        let statusBadge = '<span class="badge bg-secondary">IN QUEUE</span>';
+        if (d.status === 'PRINTING') statusBadge = '<span class="badge bg-primary">PRINTING NOW</span>';
+        else if (d.status === 'COMPLETED') statusBadge = '<span class="badge bg-success">READY / COMPLETED</span>';
+
+        container.innerHTML = `
+          <div class="p-3 rounded-3 border bg-light">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="font-monospace fw-bold text-dark fs-5">Token #${d.tokenNumber}</span>
+              ${statusBadge}
+            </div>
+            <div class="small text-dark mb-1">Customer: <strong>${d.customerName}</strong></div>
+            <div class="small text-muted mb-2">Files uploaded: ${d.fileCount} file(s)</div>
+            <div class="alert alert-info p-2 small mb-0 text-center">Show Token #${d.tokenNumber} at the print shop counter.</div>
+          </div>
+        `;
+      }
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = 'Track';
+      container.innerHTML = '<div class="alert alert-danger small mb-0">Failed to lookup tracking code: ' + err.message + '</div>';
+    }
+  }
+  </script>
 </body>
 </html>

@@ -10,6 +10,7 @@ const AuditLog = require('./AuditLog');
 const PosSale = require('./PosSale');
 const PosSaleItem = require('./PosSaleItem');
 const PhoneVerification = require('./PhoneVerification');
+const Payment = require('./Payment');
 
 // Customer <-> Orders
 Customer.hasMany(Order, { foreignKey: 'customerId', as: 'orders' });
@@ -51,6 +52,13 @@ Customer.belongsTo(User, { foreignKey: 'userId', as: 'userAccount' });
 User.hasOne(Customer, { foreignKey: 'userId', as: 'customerProfile' });
 User.belongsTo(Customer, { foreignKey: 'customerId', as: 'linkedCustomer' });
 
+// Payments <-> Order, Customer, User
+Order.hasMany(Payment, { foreignKey: 'orderId', as: 'payments' });
+Payment.belongsTo(Order, { foreignKey: 'orderId', as: 'order' });
+Customer.hasMany(Payment, { foreignKey: 'customerId', as: 'payments' });
+Payment.belongsTo(Customer, { foreignKey: 'customerId', as: 'customer' });
+Payment.belongsTo(User, { foreignKey: 'recordedById', as: 'recordedBy' });
+
 module.exports = {
   sequelize,
   User,
@@ -64,5 +72,6 @@ module.exports = {
   PosSale,
   PosSaleItem,
   PhoneVerification,
+  Payment,
 };
 

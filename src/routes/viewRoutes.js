@@ -369,11 +369,30 @@ router.get('/orders', requireStaff, async (req, res, next) => {
       limit: parseInt(limit, 10) || 100,
       paginate: true,
     });
+
+    let totalBilledVal = 0;
+    let totalGivenVal = 0;
+    let totalDueVal = 0;
+    let completedCount = 0;
+    orders.forEach(o => {
+      totalBilledVal += parseFloat(o.totalAmount || 0);
+      totalGivenVal += parseFloat(o.advancePaid || 0);
+      totalDueVal += parseFloat(o.balanceAmount || 0);
+      if (o.status === 'COMPLETED') completedCount++;
+    });
+
     res.render('orders/index', {
       title: 'Printing Orders · Nirmana Printing',
       activePage: 'orders',
       orders,
       pagination,
+      ordersSummary: {
+        totalOrders: orders.length,
+        completedCount,
+        totalBilled: totalBilledVal,
+        totalGiven: totalGivenVal,
+        totalDue: totalDueVal,
+      },
       currentStatus: status || 'ALL',
       search: search || '',
       customerId: customerId || '',
@@ -418,11 +437,11 @@ router.get('/orders/:id', requireStaff, async (req, res, next) => {
 // 5. Stock Management (Live Inventory, Stock In/Out, Office Use, History)
 router.get('/stock', requireStaff, async (req, res, next) => {
   try {
-    const { search, category, page, txPage, officePage, tab } = req.query;
+    const { search, category, page, txPage, usagePage, officePage, usageCategory, tab } = req.query;
     const [
       stockResult,
       { transactions, pagination: transactionsPagination },
-      officeResult,
+      usageResult,
       allItems
     ] = await Promise.all([
       stockService.getAllStockItems({
@@ -437,9 +456,10 @@ router.get('/stock', requireStaff, async (req, res, next) => {
         limit: 10,
         paginate: true,
       }),
-      stockService.getOfficeUseTransactions({
-        page: parseInt(officePage, 10) || 1,
+      stockService.getUsageTransactions({
+        page: parseInt(usagePage || officePage, 10) || 1,
         limit: 10,
+        category: usageCategory || null,
         paginate: true,
       }),
       stockService.getAllStockItems({ paginate: false }),
@@ -450,10 +470,12 @@ router.get('/stock', requireStaff, async (req, res, next) => {
     const inventorySummary = stockResult.inventorySummary || {
       totalItems: items.length,
       totalRemainingValuation: 0,
+      totalUsageValue: 0,
+      totalJobStockValue: 0,
       totalOfficeUseValue: 0,
     };
-    const officeTransactions = officeResult.transactions || [];
-    const officePagination = officeResult.pagination || null;
+    const usageTransactions = usageResult.transactions || [];
+    const usagePagination = usageResult.pagination || null;
 
     // Extract unique categories for filter
     const categories = [...new Set(allItems.map(i => i.category))];
@@ -466,14 +488,17 @@ router.get('/stock', requireStaff, async (req, res, next) => {
       inventorySummary,
       transactions,
       transactionsPagination,
-      officeTransactions,
-      officePagination,
+      usageTransactions,
+      usagePagination,
+      officeTransactions: usageTransactions, // for backward compatibility
+      officePagination: usagePagination,
       categories,
       currentCategory: category || 'ALL',
       search: search || '',
       currentPage: parseInt(page, 10) || 1,
       currentTxPage: parseInt(txPage, 10) || 1,
-      currentOfficePage: parseInt(officePage, 10) || 1,
+      currentUsagePage: parseInt(usagePage || officePage, 10) || 1,
+      currentUsageCategory: usageCategory || 'ALL',
       currentTab: tab || 'inventory',
     });
   } catch (err) {

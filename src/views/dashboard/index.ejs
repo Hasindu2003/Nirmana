@@ -260,19 +260,19 @@
             </div>
           </div>
 
-          <!-- Metric 3: Office Consumable Overhead Expense -->
+          <!-- Metric 3: Internal Material & Consumables Consumed (Job Stock + Office Use) -->
           <div class="col-6 col-lg-3">
             <div class="p-3 rounded-3 border h-100" style="background: #fffbeb; border-color: #fde68a !important;">
               <div class="d-flex justify-content-between align-items-start mb-1">
-                <span class="small fw-semibold text-warning-emphasis">Office Consumables</span>
-                <span class="badge bg-warning text-dark" style="font-size: 0.68rem;">Internal Used</span>
+                <span class="small fw-semibold text-warning-emphasis">Consumed Materials</span>
+                <span class="badge bg-warning text-dark" style="font-size: 0.68rem;">Job + Office</span>
               </div>
               <div class="fs-4 fw-bold text-danger tabular-nums">
-                <%= currencySymbol %> <%= stats.dailyBusiness.officeUseTotalCost.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+                <%= currencySymbol %> <%= (stats.dailyBusiness.materialUsageTotalCost !== undefined ? stats.dailyBusiness.materialUsageTotalCost : stats.dailyBusiness.officeUseTotalCost).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
               </div>
-              <div class="small text-muted mt-1" style="font-size: 0.75rem;">
-                <%= stats.dailyBusiness.officeUseTotalQty %> units deducted<br>
-                Across <%= stats.dailyBusiness.officeUseCount %> office usage records
+              <div class="small text-muted mt-1" style="font-size: 0.73rem;">
+                Job: <%= currencySymbol %> <%= (stats.dailyBusiness.jobStockTotalCost || 0).toFixed(2) %> (<%= stats.dailyBusiness.jobStockTotalQty || 0 %> units)<br>
+                Office: <%= currencySymbol %> <%= (stats.dailyBusiness.officeUseTotalCost || 0).toFixed(2) %> (<%= stats.dailyBusiness.officeUseTotalQty || 0 %> units)
               </div>
             </div>
           </div>
@@ -282,7 +282,7 @@
             <div class="p-3 rounded-3 border h-100" style="background: #faf5ff; border-color: #e9d5ff !important;">
               <div class="d-flex justify-content-between align-items-start mb-1">
                 <span class="small fw-semibold" style="color: #6b21a8;">Net Operating Balance</span>
-                <span class="badge" style="background: #f3e8ff; color: #6b21a8; font-size: 0.68rem;">Cash - Office</span>
+                <span class="badge" style="background: #f3e8ff; color: #6b21a8; font-size: 0.68rem;">Cash - Materials</span>
               </div>
               <div class="fs-4 fw-bold tabular-nums" style="color: #6b21a8;">
                 <%= currencySymbol %> <%= stats.dailyBusiness.netOperatingBalance.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
@@ -311,7 +311,7 @@
           </li>
           <li class="nav-item" role="presentation">
             <button class="nav-link fw-semibold small" id="daily-office-tab" data-bs-toggle="tab" data-bs-target="#daily-office-pane" type="button" role="tab">
-              <i class="bi bi-building-down me-1 text-warning"></i> Office Use Taken (<%= stats.dailyBusiness.officeUseCount %>)
+              <i class="bi bi-box-arrow-up-right me-1 text-warning"></i> Materials Consumed (<%= stats.dailyBusiness.materialUsageCount !== undefined ? stats.dailyBusiness.materialUsageCount : stats.dailyBusiness.officeUseCount %>)
             </button>
           </li>
           <li class="nav-item" role="presentation">
@@ -478,25 +478,28 @@
           <% } %>
         </div>
 
-        <!-- 3. Office Use Pane -->
+        <!-- 3. Unified Internal Materials Consumed Pane (Job Stock + Office Use) -->
         <div class="tab-pane fade p-0" id="daily-office-pane" role="tabpanel">
-          <% if (stats.dailyBusiness.todayOfficeUseTransactions && stats.dailyBusiness.todayOfficeUseTransactions.length > 0) { %>
+          <% const usageList = stats.dailyBusiness.todayUsageTransactions || stats.dailyBusiness.todayOfficeUseTransactions || []; %>
+          <% if (usageList && usageList.length > 0) { %>
             <div class="table-responsive">
               <table class="serene-table mb-0">
                 <thead>
                   <tr>
                     <th>Time</th>
                     <th>Material Consumed</th>
-                    <th>Qty Taken</th>
-                    <th>Department / Section</th>
+                    <th>Usage Type</th>
+                    <th>Qty Consumed</th>
+                    <th>Job / Section Reference</th>
                     <th>Unit Buying Cost</th>
-                    <th>Total Office Expense</th>
+                    <th>Expense Deducted</th>
                     <th>Purpose / Notes</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <% stats.dailyBusiness.todayOfficeUseTransactions.forEach(tx => { %>
+                  <% usageList.forEach(tx => { %>
                     <% const txCost = parseFloat(tx.totalCost) || (parseFloat(tx.quantity) * (parseFloat(tx.unitCost) || 0)); %>
+                    <% const isOffice = tx.category === 'OFFICE_USE' || (tx.reference && tx.reference.includes('Office')); %>
                     <tr>
                       <td class="text-muted small"><%= formatTime(tx.createdAt) %></td>
                       <td>
@@ -506,13 +509,24 @@
                         <% } %>
                       </td>
                       <td>
-                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-bold fs-6 tabular-nums">
+                        <% if (isOffice) { %>
+                          <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-semibold">
+                            <i class="bi bi-building me-1"></i> Office Use
+                          </span>
+                        <% } else { %>
+                          <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-semibold">
+                            <i class="bi bi-printer me-1"></i> Job Production
+                          </span>
+                        <% } %>
+                      </td>
+                      <td>
+                        <span class="badge <%= isOffice ? 'bg-warning-subtle text-warning-emphasis' : 'bg-primary-subtle text-primary' %> border fw-bold fs-6 tabular-nums">
                           <%= parseFloat(tx.quantity) %> <%= tx.stockItem ? tx.stockItem.unit : '' %>
                         </span>
                       </td>
                       <td>
                         <span class="badge bg-light text-dark border">
-                          <i class="bi bi-building me-1"></i><%= tx.reference.replace('Office Use: ', '') %>
+                          <%= tx.reference ? tx.reference.replace('Office Use: ', '') : (isOffice ? 'Front Desk' : 'Print Job') %>
                         </span>
                       </td>
                       <td class="tabular-nums small text-muted"><%= currencySymbol %> <%= parseFloat(tx.unitCost || 0).toFixed(2) %></td>
@@ -523,17 +537,20 @@
                 </tbody>
                 <tfoot class="table-light">
                   <tr>
-                    <th colspan="2" class="text-end">Total Office Consumable Deductions:</th>
-                    <th><span class="badge bg-warning text-dark"><%= stats.dailyBusiness.officeUseTotalQty %> Units</span></th>
-                    <th colspan="2"></th>
-                    <th class="tabular-nums fw-bold text-danger fs-6"><%= currencySymbol %> <%= stats.dailyBusiness.officeUseTotalCost.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %></th>
+                    <th colspan="3" class="text-end">Total Internal Material Expense Deducted:</th>
+                    <th><span class="badge bg-secondary text-white"><%= (stats.dailyBusiness.materialUsageTotalQty !== undefined ? stats.dailyBusiness.materialUsageTotalQty : stats.dailyBusiness.officeUseTotalQty) %> Units</span></th>
+                    <th colspan="2">
+                      <span class="badge bg-primary-subtle text-primary me-2">Job Stock: <%= currencySymbol %> <%= (stats.dailyBusiness.jobStockTotalCost || 0).toFixed(2) %></span>
+                      <span class="badge bg-warning-subtle text-warning-emphasis">Office: <%= currencySymbol %> <%= (stats.dailyBusiness.officeUseTotalCost || 0).toFixed(2) %></span>
+                    </th>
+                    <th class="tabular-nums fw-bold text-danger fs-6"><%= currencySymbol %> <%= (stats.dailyBusiness.materialUsageTotalCost !== undefined ? stats.dailyBusiness.materialUsageTotalCost : stats.dailyBusiness.officeUseTotalCost).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %></th>
                     <th></th>
                   </tr>
                 </tfoot>
               </table>
             </div>
           <% } else { %>
-            <div class="text-center py-4 text-muted small">No materials were deducted for internal office use on <%= stats.dailyBusiness.formattedDate %>.</div>
+            <div class="text-center py-4 text-muted small">No materials were deducted for jobs or internal office operations on <%= stats.dailyBusiness.formattedDate %>.</div>
           <% } %>
         </div>
 
@@ -647,9 +664,9 @@
                   <td class="text-end tabular-nums fs-6"><%= currencySymbol %> <%= stats.dailyBusiness.totalCollectedToday.toFixed(2) %></td>
                 </tr>
                 <tr>
-                  <td><i class="bi bi-building-down me-2 text-warning"></i> Internal Office Consumables Expense</td>
-                  <td class="text-center font-monospace"><%= stats.dailyBusiness.officeUseTotalQty %> units</td>
-                  <td class="text-end fw-semibold text-danger tabular-nums">- <%= stats.dailyBusiness.officeUseTotalCost.toFixed(2) %></td>
+                  <td><i class="bi bi-box-arrow-up-right me-2 text-warning"></i> Internal Materials & Consumables Consumed (Job + Office)</td>
+                  <td class="text-center font-monospace"><%= (stats.dailyBusiness.materialUsageTotalQty !== undefined ? stats.dailyBusiness.materialUsageTotalQty : stats.dailyBusiness.officeUseTotalQty) %> units</td>
+                  <td class="text-end fw-semibold text-danger tabular-nums">- <%= (stats.dailyBusiness.materialUsageTotalCost !== undefined ? stats.dailyBusiness.materialUsageTotalCost : stats.dailyBusiness.officeUseTotalCost).toFixed(2) %></td>
                 </tr>
                 <tr class="table-light">
                   <td><i class="bi bi-box-arrow-in-down me-2 text-info"></i> Inventory Stock Restock Purchases</td>

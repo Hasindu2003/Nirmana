@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { sequelize, Order, Customer } = require('../models');
+const { sequelize, Order, Customer, Payment } = require('../models');
 const { getSriLankaTodayString } = require('../utils/dateUtils');
 
 const { buildPagination } = require('../utils/pagination');
@@ -174,23 +174,92 @@ class OrderService {
         notes: data.notes || null,
       }, { transaction: t });
 
+      // Automatically record initial advance deposit in Payment ledger if advance was collected
+      if (advance > 0) {
+        try {
+          const payCount = await Payment.count({ transaction: t });
+          const paymentNumber = `PAY-${new Date().getFullYear()}-${(payCount + 1).toString().padStart(4, '0')}`;
+          await Payment.create({
+            paymentNumber,
+            orderId: order.id,
+            customerId: customer ? customer.id : null,
+            amount: advance,
+            paymentMethod: data.paymentMethod || 'CASH',
+            paymentDate: data.orderDate || getSriLankaTodayString(),
+            notes: `Advance deposit for order ${order.orderNumber}`,
+          }, { transaction: t });
+        } catch (payErr) {
+          console.warn('Could not record initial payment row:', payErr.message);
+        }
+      }
+
       return order;
     });
   }
 
-  async updateOrderStatus(id, newStatus, notes) {
-    const order = await Order.findByPk(id);
+  async updateOrderStatus(id, newStatus, notes, paymentOptions = {}) {
+    const order = await Order.findByPk(id, {
+      include: [{ model: Customer, as: 'customer' }],
+    });
     if (!order) throw new Error('Order not found.');
 
+    const oldStatus = order.status;
     order.status = newStatus;
-    if (notes) {
-      order.notes = order.notes ? `${order.notes}\n[${newStatus}]: ${notes}` : `[${newStatus}]: ${notes}`;
+
+    let paymentRecorded = 0;
+    // When marking order as COMPLETED, handle settlement of balance
+    if (newStatus === 'COMPLETED') {
+      const balance = parseFloat(order.balanceAmount) || 0;
+      if (paymentOptions.collectFullBalance && balance > 0) {
+        paymentRecorded = balance;
+        order.advancePaid = (parseFloat(order.advancePaid) || 0) + balance;
+        order.balanceAmount = 0.00;
+      } else if (paymentOptions.paymentAmount && parseFloat(paymentOptions.paymentAmount) > 0) {
+        const amt = Math.min(balance, parseFloat(paymentOptions.paymentAmount));
+        paymentRecorded = amt;
+        order.advancePaid = (parseFloat(order.advancePaid) || 0) + amt;
+        order.balanceAmount = Math.max(0, balance - amt);
+      }
     }
+
+    let noteText = `[${newStatus}]`;
+    if (paymentRecorded > 0) {
+      noteText += `: Job completed & collected payment of Rs. ${paymentRecorded.toFixed(2)} (Balance: Rs. ${parseFloat(order.balanceAmount).toFixed(2)})`;
+    } else if (newStatus === 'COMPLETED' && parseFloat(order.balanceAmount) > 0) {
+      noteText += `: Job completed & delivered on credit (Balance of Rs. ${parseFloat(order.balanceAmount).toFixed(2)} remaining due)`;
+    } else if (newStatus === 'COMPLETED' && parseFloat(order.balanceAmount) <= 0) {
+      noteText += `: Job completed & delivered (Paid in full)`;
+    }
+    if (notes) {
+      noteText += ` - ${notes}`;
+    }
+
+    order.notes = order.notes ? `${order.notes}\n${noteText}` : noteText;
     await order.save();
-    return order;
+
+    if (paymentRecorded > 0) {
+      try {
+        const payCount = await Payment.count();
+        const paymentNumber = `PAY-${new Date().getFullYear()}-${(payCount + 1).toString().padStart(4, '0')}`;
+        await Payment.create({
+          paymentNumber,
+          orderId: order.id,
+          customerId: order.customerId,
+          amount: paymentRecorded,
+          paymentMethod: paymentOptions.paymentMethod || 'CASH',
+          paymentDate: getSriLankaTodayString(),
+          notes: notes || `Payment recorded on order completion (${order.orderNumber})`,
+          recordedById: paymentOptions.recordedById || null,
+        });
+      } catch (payErr) {
+        console.warn('Could not record Payment row on updateOrderStatus:', payErr.message);
+      }
+    }
+
+    return { order, paymentRecorded };
   }
 
-  async recordPayment(id, paymentAmount, notes) {
+  async recordPayment(id, paymentAmount, notes, paymentOptions = {}) {
     const order = await Order.findByPk(id);
     if (!order) throw new Error('Order not found.');
 
@@ -206,6 +275,23 @@ class OrderService {
       order.notes = order.notes ? `${order.notes}\n[Payment +Rs.${amt.toFixed(2)}]: ${notes}` : `[Payment +Rs.${amt.toFixed(2)}]: ${notes}`;
     }
     await order.save();
+
+    try {
+      const payCount = await Payment.count();
+      const paymentNumber = `PAY-${new Date().getFullYear()}-${(payCount + 1).toString().padStart(4, '0')}`;
+      await Payment.create({
+        paymentNumber,
+        orderId: order.id,
+        customerId: order.customerId,
+        amount: amt,
+        paymentMethod: paymentOptions.paymentMethod || 'CASH',
+        paymentDate: getSriLankaTodayString(),
+        notes: notes || `Payment recorded for order ${order.orderNumber}`,
+        recordedById: paymentOptions.recordedById || null,
+      });
+    } catch (payErr) {
+      console.warn('Could not record Payment row on recordPayment:', payErr.message);
+    }
 
     return order;
   }
@@ -224,6 +310,79 @@ class OrderService {
     await order.save();
 
     return order;
+  }
+
+  async trackOrderOrToken(code) {
+    if (!code || !code.trim()) throw new Error('Tracking code or phone number is required.');
+    const q = code.trim();
+    const { QuickPrintJob, QuickPrintFile } = require('../models');
+
+    // 1. Search in Order by orderNumber
+    let order = await Order.findOne({
+      where: { orderNumber: q },
+      include: [{ model: Customer, as: 'customer', attributes: ['id', 'name', 'phone'] }],
+    });
+
+    if (!order) {
+      // Try search by customer phone if 10-digit number
+      if (/^0\d{9}$/.test(q)) {
+        const cust = await Customer.findOne({ where: { phone: q } });
+        if (cust) {
+          order = await Order.findOne({
+            where: { customerId: cust.id },
+            order: [['createdAt', 'DESC']],
+            include: [{ model: Customer, as: 'customer', attributes: ['id', 'name', 'phone'] }],
+          });
+        }
+      }
+    }
+
+    if (order) {
+      return {
+        type: 'ORDER',
+        orderNumber: order.orderNumber,
+        status: order.status,
+        jobTitle: order.jobTitle,
+        paperMaterial: order.paperMaterial,
+        quantity: order.quantity,
+        totalAmount: parseFloat(order.totalAmount || 0),
+        advancePaid: parseFloat(order.advancePaid || 0),
+        balanceAmount: parseFloat(order.balanceAmount || 0),
+        orderDate: order.orderDate,
+        dueDate: order.dueDate,
+        specifications: order.specifications,
+        customerName: order.customer ? order.customer.name : 'Customer',
+      };
+    }
+
+    // 2. Search in QuickPrintJob by tokenNumber (e.g. QP-1001 or 1001)
+    let tokenCandidate = q;
+    if (tokenCandidate.startsWith('#')) tokenCandidate = tokenCandidate.substring(1);
+    const qpJob = await QuickPrintJob.findOne({
+      where: {
+        [Op.or]: [
+          { tokenNumber: tokenCandidate },
+          { tokenNumber: `QP-${tokenCandidate}` },
+        ],
+      },
+      include: [{ model: QuickPrintFile, as: 'files' }],
+    });
+
+    if (qpJob) {
+      return {
+        type: 'QUICK_PRINT',
+        tokenNumber: qpJob.tokenNumber,
+        status: qpJob.status,
+        customerName: qpJob.customerName || 'Walk-in Customer',
+        customerPhone: qpJob.customerPhone,
+        fileCount: qpJob.files ? qpJob.files.length : 0,
+        files: (qpJob.files || []).map(f => ({ originalName: f.originalName, pageCount: f.pageCount, colorMode: f.colorMode })),
+        notes: qpJob.notes,
+        createdAt: qpJob.createdAt,
+      };
+    }
+
+    return null;
   }
 }
 

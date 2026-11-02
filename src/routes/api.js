@@ -38,6 +38,9 @@ router.get('/products/:id', productController.getProduct);
 // Public Online Order Intake (Signed up customer or guest with WhatsApp number)
 router.post('/orders/online-guest', optionalAuthenticate, orderController.createGuestOnlineOrder);
 
+// Public Order & Quick Print Token Tracker
+router.get('/orders/track/:code', orderController.trackOrder);
+
 // =========================================================================
 // 2. PROTECTED STAFF ROUTES (Require active session or Bearer token + Staff Role)
 // =========================================================================

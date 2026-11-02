@@ -22,7 +22,7 @@ const Payment = sequelize.define('Payment', {
   },
   customerId: {
     type: DataTypes.INTEGER,
-    allowNull: false,
+    allowNull: true,
     references: {
       model: 'customers',
       key: 'id',

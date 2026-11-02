@@ -16,11 +16,8 @@
         <button class="btn btn-success text-white shadow-xs" data-bs-toggle="modal" data-bs-target="#stockInModal">
           <i class="bi bi-box-arrow-in-down"></i> Stock In (Arrival)
         </button>
-        <button class="btn btn-warning text-dark fw-semibold shadow-xs" data-bs-toggle="modal" data-bs-target="#officeUseModal">
-          <i class="bi bi-building-down me-1"></i> Office Use
-        </button>
-        <button class="btn btn-outline-danger shadow-xs" data-bs-toggle="modal" data-bs-target="#stockOutModal">
-          <i class="bi bi-box-arrow-up"></i> Job Stock Out
+        <button class="btn btn-warning text-dark fw-semibold shadow-xs" data-bs-toggle="modal" data-bs-target="#stockOutModal">
+          <i class="bi bi-box-arrow-up-right me-1"></i> Record Material Usage (Job / Office)
         </button>
       </div>
     </div>
@@ -67,22 +64,22 @@
         </div>
       </div>
 
-      <!-- 3. Office Use Overhead Value -->
+      <!-- 3. Material & Consumable Usage Expense -->
       <div class="col-6 col-lg-3">
         <div class="kpi-card-compact border-warning-subtle">
           <div class="kpi-compact-content">
             <div class="kpi-compact-label">
-              <span>Office Consumables</span>
+              <span>Consumed Materials</span>
             </div>
             <div class="kpi-compact-num text-danger tabular-nums" style="font-size: 1.35rem;">
-              <%= currencySymbol %> <%= inventorySummary ? inventorySummary.totalOfficeUseValue.toLocaleString('en-LK', { minimumFractionDigits: 2 }) : '0.00' %>
+              <%= currencySymbol %> <%= inventorySummary ? (inventorySummary.totalUsageValue || inventorySummary.totalOfficeUseValue).toLocaleString('en-LK', { minimumFractionDigits: 2 }) : '0.00' %>
             </div>
-            <div class="kpi-compact-sub text-warning-emphasis fw-medium">
-              <i class="bi bi-building"></i> Internal office expenses
+            <div class="kpi-compact-sub text-warning-emphasis fw-medium" style="font-size: 0.73rem;">
+              Job: <%= currencySymbol %> <%= inventorySummary ? (inventorySummary.totalJobStockValue || 0).toFixed(2) : '0.00' %> &bull; Office: <%= currencySymbol %> <%= inventorySummary ? (inventorySummary.totalOfficeUseValue || 0).toFixed(2) : '0.00' %>
             </div>
           </div>
           <div class="kpi-icon-chip" style="background: #fffbeb; color: #b45309;">
-            <i class="bi bi-building-down"></i>
+            <i class="bi bi-box-arrow-up-right"></i>
           </div>
         </div>
       </div>
@@ -123,7 +120,7 @@
       </li>
       <li class="nav-item" role="presentation">
         <button class="nav-link <%= currentTab === 'office' ? 'active' : '' %> fw-semibold d-flex align-items-center gap-2 px-3 py-2" id="office-tab" data-bs-toggle="tab" data-bs-target="#office-pane" type="button" role="tab" style="color: #b45309;">
-          <i class="bi bi-building-down"></i> Office Use Ledger
+          <i class="bi bi-box-arrow-up-right"></i> Material & Usage Ledger (Job + Office)
           <% if (officeTransactions && officeTransactions.length > 0) { %>
             <span class="badge bg-warning text-dark ms-1"><%= typeof officePagination !== 'undefined' && officePagination ? officePagination.totalItems : officeTransactions.length %></span>
           <% } %>
@@ -173,8 +170,7 @@
                 <tr>
                   <th>Material / Item Name</th>
                   <th>Remaining Stock</th>
-                  <th>Total Used</th>
-                  <th>Office Use (Part)</th>
+                  <th>Total Consumed / Used</th>
                   <th>Unit Pricing & Value</th>
                   <th>Status</th>
                   <th class="text-end">Quick Actions</th>
@@ -209,26 +205,15 @@
                         </div>
                       </td>
                       <td>
-                        <div class="tabular-nums fw-semibold text-dark">
-                          <%= item.dataValues.totalUsed !== undefined ? parseFloat(item.dataValues.totalUsed) : 0 %> <span class="text-muted small"><%= item.unit %></span>
+                        <div class="tabular-nums fw-bold text-dark">
+                          <%= item.dataValues.totalUsed !== undefined ? parseFloat(item.dataValues.totalUsed) : 0 %> <span class="text-muted small fw-normal"><%= item.unit %></span>
                         </div>
-                        <div class="text-muted small" style="font-size: 0.73rem;">
+                        <div class="text-danger small fw-semibold tabular-nums mt-0" style="font-size: 0.75rem;">
+                          <%= currencySymbol %> <%= (item.dataValues.totalUsedCost || 0).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+                        </div>
+                        <div class="text-muted small" style="font-size: 0.72rem;">
                           Job: <%= item.dataValues.productionUsedQty || 0 %> &bull; Office: <%= item.dataValues.officeUseQty || 0 %>
                         </div>
-                      </td>
-                      <td>
-                        <% const offQty = item.dataValues.officeUseQty || 0; %>
-                        <% const offCost = item.dataValues.officeUseCost || 0; %>
-                        <% if (offQty > 0) { %>
-                          <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-bold tabular-nums">
-                            <%= offQty %> <%= item.unit %>
-                          </span>
-                          <div class="text-danger small fw-semibold tabular-nums mt-1" style="font-size: 0.75rem;">
-                            <%= currencySymbol %> <%= offCost.toFixed(2) %>
-                          </div>
-                        <% } else { %>
-                          <span class="text-muted small">0 <%= item.unit %></span>
-                        <% } %>
                       </td>
                       <td>
                         <div class="tabular-nums small">
@@ -253,11 +238,8 @@
                           <button class="btn btn-sm btn-success py-1 px-2 text-white shadow-xs" onclick="quickStockIn(<%= item.id %>, null, '<%= escape(item.name) %>')" title="Add Stock (Stock In)">
                             <i class="bi bi-plus-lg"></i> In
                           </button>
-                          <button class="btn btn-sm btn-warning py-1 px-2 text-dark fw-semibold shadow-xs" onclick="quickOfficeUse(<%= item.id %>, null, '<%= escape(item.name) %>')" title="Take for Office Use">
-                            <i class="bi bi-building"></i> Office
-                          </button>
-                          <button class="btn btn-sm btn-outline-danger py-1 px-2" onclick="quickStockOut(<%= item.id %>)" title="Job Stock Out">
-                            <i class="bi bi-dash-lg"></i> Out
+                          <button class="btn btn-sm btn-warning py-1 px-2 text-dark fw-semibold shadow-xs" onclick="quickStockOut(<%= item.id %>, '<%= escape(item.name) %>')" title="Record Material Usage (Job or Office)">
+                            <i class="bi bi-box-arrow-up-right"></i> Use
                           </button>
                           <a href="/stock/<%= item.id %>" class="btn btn-sm btn-serene-secondary py-1 px-2" title="View Full Details">
                             <i class="bi bi-eye"></i>

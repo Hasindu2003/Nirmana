@@ -238,6 +238,12 @@ async function ensureDbInitialized() {
             }
           }
 
+          // Ensure payments table exists
+          const { Payment } = require('./src/models');
+          if (Payment && typeof Payment.sync === 'function') {
+            await Payment.sync().catch(() => {});
+          }
+
           // Ensure stock_transactions table has category column
           const txDesc = await qi.describeTable('stock_transactions').catch(() => null);
           if (txDesc && !txDesc.category) {

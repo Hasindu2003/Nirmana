@@ -16,6 +16,94 @@
       </div>
     </div>
 
+    <!-- Financial & Order Value Ribbon -->
+    <% if (locals.ordersSummary) { %>
+      <div class="row g-2 g-md-3 mb-4">
+        <!-- 1. Total Orders -->
+        <div class="col-6 col-lg-3">
+          <div class="kpi-card-compact">
+            <div class="kpi-compact-content">
+              <div class="kpi-compact-label">
+                <span>Total Orders</span>
+              </div>
+              <div class="kpi-compact-num text-dark tabular-nums">
+                <%= ordersSummary.totalOrders %>
+              </div>
+              <div class="kpi-compact-sub">
+                <span class="status-dot" style="background:#16a34a;"></span> <%= ordersSummary.completedCount %> completed
+              </div>
+            </div>
+            <div class="kpi-icon-chip" style="background: #f1f5f9; color: #334155;">
+              <i class="bi bi-receipt"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Total Billed Value -->
+        <div class="col-6 col-lg-3">
+          <div class="kpi-card-compact">
+            <div class="kpi-compact-content">
+              <div class="kpi-compact-label">
+                <span>Total Billed Value</span>
+              </div>
+              <div class="kpi-compact-num text-dark tabular-nums" style="font-size: 1.35rem;">
+                <%= currencySymbol %> <%= ordersSummary.totalBilled.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+              </div>
+              <div class="kpi-compact-sub text-muted">
+                <i class="bi bi-file-earmark-check"></i> Gross order sales
+              </div>
+            </div>
+            <div class="kpi-icon-chip" style="background: #e6f0ef; color: #2d6a68;">
+              <i class="bi bi-tag-fill"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Total Given (Collected) -->
+        <div class="col-6 col-lg-3">
+          <div class="kpi-card-compact">
+            <div class="kpi-compact-content">
+              <div class="kpi-compact-label">
+                <span>Total Collected</span>
+              </div>
+              <div class="kpi-compact-num text-success tabular-nums" style="font-size: 1.35rem;">
+                <%= currencySymbol %> <%= ordersSummary.totalGiven.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+              </div>
+              <div class="kpi-compact-sub text-success">
+                <i class="bi bi-cash-stack"></i> Advances & settled payments
+              </div>
+            </div>
+            <div class="kpi-icon-chip" style="background: #edf7ed; color: #16a34a;">
+              <i class="bi bi-wallet2"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Outstanding Balance Due -->
+        <div class="col-6 col-lg-3">
+          <div class="kpi-card-compact <%= ordersSummary.totalDue > 0 ? 'border-danger-subtle' : '' %>">
+            <div class="kpi-compact-content">
+              <div class="kpi-compact-label">
+                <span>Yet to Give (Due)</span>
+              </div>
+              <div class="kpi-compact-num <%= ordersSummary.totalDue > 0 ? 'text-danger' : 'text-success' %> tabular-nums" style="font-size: 1.35rem;">
+                <%= currencySymbol %> <%= ordersSummary.totalDue.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+              </div>
+              <div class="kpi-compact-sub <%= ordersSummary.totalDue > 0 ? 'text-danger fw-semibold' : 'text-muted' %>">
+                <% if (ordersSummary.totalDue > 0) { %>
+                  <i class="bi bi-exclamation-circle text-danger"></i> Uncollected balance
+                <% } else { %>
+                  <i class="bi bi-check2-circle text-success"></i> All settled
+                <% } %>
+              </div>
+            </div>
+            <div class="kpi-icon-chip <%= ordersSummary.totalDue > 0 ? 'bg-danger-subtle text-danger' : 'bg-light text-muted' %>">
+              <i class="bi <%= ordersSummary.totalDue > 0 ? 'bi-hourglass-top' : 'bi-shield-check' %>"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% } %>
     <!-- Status Filters & Search -->
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
       <div class="d-flex flex-wrap gap-1" id="orderStatusTabs">

@@ -48,14 +48,27 @@ class OrderController {
   async updateStatus(req, res, next) {
     try {
       const { id } = req.params;
-      const { status, notes } = req.body;
+      const { status, notes, collectFullBalance, paymentAmount, paymentMethod } = req.body;
       if (!status) return res.status(400).json({ success: false, message: 'Status is required.' });
 
-      const order = await orderService.updateOrderStatus(id, status, notes);
+      const result = await orderService.updateOrderStatus(id, status, notes, {
+        collectFullBalance: Boolean(collectFullBalance),
+        paymentAmount: paymentAmount ? parseFloat(paymentAmount) : 0,
+        paymentMethod: paymentMethod || 'CASH',
+        recordedById: req.user ? req.user.id : null,
+      });
+
+      const order = result.order || result;
+      let msg = `Order status updated to ${status}.`;
+      if (result.paymentRecorded > 0) {
+        msg += ` Payment of Rs. ${result.paymentRecorded.toFixed(2)} recorded. Balance is now Rs. ${parseFloat(order.balanceAmount).toFixed(2)}.`;
+      }
+
       return res.json({
         success: true,
-        message: `Order status updated to ${status}.`,
+        message: msg,
         data: order,
+        paymentRecorded: result.paymentRecorded,
       });
     } catch (error) {
       return res.status(400).json({ success: false, message: error.message });
@@ -65,13 +78,29 @@ class OrderController {
   async recordPayment(req, res, next) {
     try {
       const { id } = req.params;
-      const { amount, notes } = req.body;
-      const order = await orderService.recordPayment(id, amount, notes);
+      const { amount, notes, paymentMethod } = req.body;
+      const order = await orderService.recordPayment(id, amount, notes, {
+        paymentMethod: paymentMethod || 'CASH',
+        recordedById: req.user ? req.user.id : null,
+      });
       return res.json({
         success: true,
         message: `Payment of Rs. ${amount} recorded. New balance: Rs. ${order.balanceAmount}.`,
         data: order,
       });
+    } catch (error) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
+  async trackOrder(req, res, next) {
+    try {
+      const { code } = req.params;
+      const result = await orderService.trackOrderOrToken(code);
+      if (!result) {
+        return res.status(404).json({ success: false, message: `No active order or quick print job found matching '${code}'. Please verify the tracking code or phone number.` });
+      }
+      return res.json({ success: true, data: result });
     } catch (error) {
       return res.status(400).json({ success: false, message: error.message });
     }

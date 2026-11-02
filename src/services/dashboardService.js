@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { Order, Customer, StockItem, StockTransaction, PosSale, PosSaleItem, User } = require('../models');
+const { Order, Customer, StockItem, StockTransaction, PosSale, PosSaleItem, User, Payment } = require('../models');
 const { getSriLankaTodayString, getSriLankaDayBounds, formatSriLankaDate } = require('../utils/dateUtils');
 
 class DashboardService {
@@ -18,8 +18,10 @@ class DashboardService {
       recentTransactions,
       todayPosSales,
       todayOrders,
-      todayOfficeUseTransactions,
+      todayUsageTransactions,
       todayStockInTransactions,
+      todayCompletedOrders,
+      todayPayments,
     ] = await Promise.all([
       Order.count({
         where: {
@@ -100,11 +102,10 @@ class DashboardService {
           },
         ],
       }),
-      // Office Use deductions today
+      // Unified Internal Material & Usage Deductions (Both Job Stock Out & Office Use) today
       StockTransaction.findAll({
         where: {
           type: 'OUT',
-          category: 'OFFICE_USE',
           [Op.or]: [
             { date: targetDateStr },
             { createdAt: { [Op.gte]: startOfDay, [Op.lte]: endOfDay } },
@@ -115,7 +116,7 @@ class DashboardService {
           {
             model: StockItem,
             as: 'stockItem',
-            attributes: ['id', 'name', 'code', 'unit', 'unitCost'],
+            attributes: ['id', 'name', 'code', 'unit', 'unitCost', 'category'],
           },
         ],
       }),
@@ -134,6 +135,46 @@ class DashboardService {
             model: StockItem,
             as: 'stockItem',
             attributes: ['id', 'name', 'code', 'unit', 'unitCost'],
+          },
+        ],
+      }),
+      // Orders completed today
+      Order.findAll({
+        where: {
+          status: 'COMPLETED',
+          [Op.or]: [
+            { updatedAt: { [Op.gte]: startOfDay, [Op.lte]: endOfDay } },
+            { orderDate: targetDateStr },
+          ],
+        },
+        order: [['updatedAt', 'DESC']],
+        include: [
+          {
+            model: Customer,
+            as: 'customer',
+            attributes: ['id', 'name', 'phone', 'companyName'],
+          },
+        ],
+      }),
+      // Order payments / balance collections recorded today
+      Payment.findAll({
+        where: {
+          [Op.or]: [
+            { paymentDate: targetDateStr },
+            { createdAt: { [Op.gte]: startOfDay, [Op.lte]: endOfDay } },
+          ],
+        },
+        order: [['createdAt', 'DESC']],
+        include: [
+          {
+            model: Order,
+            as: 'order',
+            attributes: ['id', 'orderNumber', 'jobTitle', 'totalAmount', 'balanceAmount', 'status'],
+          },
+          {
+            model: Customer,
+            as: 'customer',
+            attributes: ['id', 'name', 'phone', 'companyName'],
           },
         ],
       }),
@@ -167,12 +208,41 @@ class DashboardService {
       ordersBalanceDue += parseFloat(ord.balanceAmount) || 0;
     });
 
+    // Sum all payments recorded today (advances, completions, credit settlements)
+    let paymentsCollectedToday = 0;
+    todayPayments.forEach(p => {
+      paymentsCollectedToday += parseFloat(p.amount) || 0;
+    });
+
+    // Use payments table if records exist, otherwise fallback to today's order advances
+    const actualOrdersCollectedToday = todayPayments.length > 0 ? paymentsCollectedToday : ordersAdvanceCollected;
+
+    // Combined Internal Material & Consumable Usage (Job Stock + Office Use)
+    let materialUsageTotalCost = 0;
+    let materialUsageTotalQty = 0;
+    let jobStockTotalCost = 0;
+    let jobStockTotalQty = 0;
     let officeUseTotalCost = 0;
     let officeUseTotalQty = 0;
-    todayOfficeUseTransactions.forEach(tx => {
+
+    const todayOfficeUseTransactions = [];
+    const todayJobStockTransactions = [];
+
+    todayUsageTransactions.forEach(tx => {
       const cost = parseFloat(tx.totalCost) || (parseFloat(tx.quantity) * (parseFloat(tx.unitCost) || 0));
-      officeUseTotalCost += cost;
-      officeUseTotalQty += parseFloat(tx.quantity) || 0;
+      const qty = parseFloat(tx.quantity) || 0;
+      materialUsageTotalCost += cost;
+      materialUsageTotalQty += qty;
+
+      if (tx.category === 'OFFICE_USE') {
+        officeUseTotalCost += cost;
+        officeUseTotalQty += qty;
+        todayOfficeUseTransactions.push(tx);
+      } else {
+        jobStockTotalCost += cost;
+        jobStockTotalQty += qty;
+        todayJobStockTransactions.push(tx);
+      }
     });
 
     let stockInTotalCost = 0;
@@ -183,12 +253,12 @@ class DashboardService {
       stockInTotalQty += parseFloat(tx.quantity) || 0;
     });
 
-    // Total actual money/cash received today (POS sales + order advances)
-    const totalCollectedToday = posTotalRevenue + ordersAdvanceCollected;
-    // Total gross sales booked today
+    // Total actual money/cash received today (POS sales + order payments / advances)
+    const totalCollectedToday = posTotalRevenue + actualOrdersCollectedToday;
+    // Total gross sales booked today (POS sales + Orders placed)
     const totalBusinessBookedToday = posTotalRevenue + ordersTotalValue;
-    // Net operating balance (Cash inflow - Office consumable overhead expense)
-    const netOperatingBalance = totalCollectedToday - officeUseTotalCost;
+    // Net operating balance: Total Money Collected minus ALL internal materials & consumables consumed (Job Stock + Office Use)
+    const netOperatingBalance = totalCollectedToday - materialUsageTotalCost;
 
     const dailyBusiness = {
       date: targetDateStr,
@@ -201,12 +271,19 @@ class DashboardService {
       posCardTotal: parseFloat(posCardTotal.toFixed(2)),
       posBankTransferTotal: parseFloat(posBankTransferTotal.toFixed(2)),
       ordersTotalValue: parseFloat(ordersTotalValue.toFixed(2)),
-      ordersAdvanceCollected: parseFloat(ordersAdvanceCollected.toFixed(2)),
+      ordersAdvanceCollected: parseFloat(actualOrdersCollectedToday.toFixed(2)),
       ordersBalanceDue: parseFloat(ordersBalanceDue.toFixed(2)),
       ordersCount: todayOrders.length,
+      completedOrdersCountToday: todayCompletedOrders.length,
       totalCollectedToday: parseFloat(totalCollectedToday.toFixed(2)),
       totalBusinessBookedToday: parseFloat(totalBusinessBookedToday.toFixed(2)),
-      // Office Use Expense
+      // Unified Internal Materials & Consumables Consumed
+      materialUsageTotalCost: parseFloat(materialUsageTotalCost.toFixed(2)),
+      materialUsageTotalQty,
+      materialUsageCount: todayUsageTransactions.length,
+      jobStockTotalCost: parseFloat(jobStockTotalCost.toFixed(2)),
+      jobStockTotalQty,
+      jobStockCount: todayJobStockTransactions.length,
       officeUseTotalCost: parseFloat(officeUseTotalCost.toFixed(2)),
       officeUseTotalQty,
       officeUseCount: todayOfficeUseTransactions.length,
@@ -214,11 +291,15 @@ class DashboardService {
       stockInTotalCost: parseFloat(stockInTotalCost.toFixed(2)),
       stockInTotalQty,
       stockInCount: todayStockInTransactions.length,
-      // Net figures
+      // Net operating balance (Gross collections minus internal material & consumables expense)
       netOperatingBalance: parseFloat(netOperatingBalance.toFixed(2)),
       // Detailed arrays for Day-End Ledger display
       todayPosSales,
       todayOrders,
+      todayCompletedOrders,
+      todayPayments,
+      todayUsageTransactions,
+      todayJobStockTransactions,
       todayOfficeUseTransactions,
       todayStockInTransactions,
     };
