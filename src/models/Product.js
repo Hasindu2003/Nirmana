@@ -33,6 +33,10 @@ const Product = sequelize.define('Product', {
     type: DataTypes.TEXT,
     allowNull: true,
   },
+  imageUrl: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+  },
   unit: {
     type: DataTypes.ENUM('PCS', 'SHEETS', 'ROLLS', 'PACKS', 'BOXES', 'SQFT', 'HOURS'),
     allowNull: false,

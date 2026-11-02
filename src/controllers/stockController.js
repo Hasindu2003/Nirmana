@@ -22,7 +22,7 @@ class StockController {
 
   async createItem(req, res, next) {
     try {
-      const { name, category, unit, initialStock, minStockAlert, unitCost, batchCost, sellingPrice, notes } = req.body;
+      const { name, category, unit, initialStock, minStockAlert, unitCost, batchCost, sellingPrice, notes, width, length, dimensionUnit, sizeLabel, imageUrl } = req.body;
       if (!name) {
         return res.status(400).json({ success: false, message: 'Stock item name is required.' });
       }
@@ -37,6 +37,11 @@ class StockController {
         batchCost,
         sellingPrice,
         notes,
+        width,
+        length,
+        dimensionUnit,
+        sizeLabel,
+        imageUrl,
       });
 
       return res.status(201).json({

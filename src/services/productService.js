@@ -2,6 +2,44 @@ const { Op } = require('sequelize');
 const { StockItem, Product, ProductCategory } = require('../models');
 
 /**
+ * High-resolution example photography presets for printing goods & merchandise
+ */
+function getDefaultImageForProduct(item) {
+  if (item.imageUrl && item.imageUrl.trim()) return item.imageUrl.trim();
+  const name = (item.name || '').toLowerCase();
+  const cat = (item.category || '').toLowerCase();
+
+  if (cat.includes('mug') || name.includes('mug')) {
+    return 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=600&auto=format&fit=crop&q=80';
+  }
+  if (cat.includes('frame') || name.includes('frame') || item.width || item.length) {
+    return 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=600&auto=format&fit=crop&q=80';
+  }
+  if (cat.includes('keytag') || name.includes('keytag') || cat.includes('keychain') || name.includes('keychain')) {
+    return 'https://images.unsplash.com/photo-1614728894747-a83421e2b9c9?w=600&auto=format&fit=crop&q=80';
+  }
+  if (cat.includes('card') || name.includes('card') || name.includes('business card')) {
+    return 'https://images.unsplash.com/photo-1589829085413-56de8ae18c73?w=600&auto=format&fit=crop&q=80';
+  }
+  if (cat.includes('flyer') || name.includes('flyer') || name.includes('leaflet') || name.includes('brochure')) {
+    return 'https://images.unsplash.com/photo-1586075010923-2dd4570fb338?w=600&auto=format&fit=crop&q=80';
+  }
+  if (cat.includes('banner') || name.includes('banner') || cat.includes('vinyl') || name.includes('vinyl')) {
+    return 'https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=600&auto=format&fit=crop&q=80';
+  }
+  if (cat.includes('stationery') || name.includes('pen') || name.includes('pencil') || name.includes('highlight')) {
+    return 'https://images.unsplash.com/photo-1585336261026-77897233f81e?w=600&auto=format&fit=crop&q=80';
+  }
+  if (name.includes('spiral') || name.includes('binding') || name.includes('document')) {
+    return 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80';
+  }
+  if (cat.includes('paper') || cat.includes('substrate') || name.includes('board') || name.includes('paper')) {
+    return 'https://images.unsplash.com/photo-1607344645866-009c320b5ab8?w=600&auto=format&fit=crop&q=80';
+  }
+  return 'https://images.unsplash.com/photo-1562654501-a0ccc0fc3fb1?w=600&auto=format&fit=crop&q=80';
+}
+
+/**
  * Product & Printing Service Catalog Service
  * Follows SOLID principles:
  * - Single Responsibility: Manages product/goods catalog and specifications viewing.
@@ -64,6 +102,7 @@ class ProductService {
         description: item.notes || `Store merchandise & retail stock ready for instant counter purchase or custom branding.`,
         dimensions: (item.width && item.length) ? `${item.width} x ${item.length} ${item.dimensionUnit || 'in'}` : null,
         sizeLabel: item.sizeLabel || null,
+        imageUrl: getDefaultImageForProduct(item),
         isCustomizable: true,
         source: 'STOCK',
         stockItemId: item.id,
@@ -81,6 +120,7 @@ class ProductService {
         unit: 'Box (100 Pcs)',
         unitPrice: 1500.00,
         inStock: true,
+        imageUrl: 'https://images.unsplash.com/photo-1589829085413-56de8ae18c73?w=600&auto=format&fit=crop&q=80',
         description: 'Single or double-sided full-color printing on 300gsm/350gsm art board with matte, velvet, or gloss lamination.',
         dimensions: '3.5 x 2.0 in',
         sizeLabel: 'Standard Card',
@@ -96,6 +136,7 @@ class ProductService {
         unit: '100 Sheets',
         unitPrice: 2800.00,
         inStock: true,
+        imageUrl: 'https://images.unsplash.com/photo-1586075010923-2dd4570fb338?w=600&auto=format&fit=crop&q=80',
         description: 'Vibrant offset/digital color print on 150gsm gloss art paper. Ideal for marketing handouts, events, and menus.',
         dimensions: 'A4 / A5',
         sizeLabel: 'A4 / A5',
@@ -111,6 +152,7 @@ class ProductService {
         unit: 'Sq. Ft',
         unitPrice: 120.00,
         inStock: true,
+        imageUrl: 'https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=600&auto=format&fit=crop&q=80',
         description: 'High-density weatherproof eco-solvent print with eyelets and hemmed edges for signs, hoarding, and displays.',
         dimensions: 'Custom Size',
         sizeLabel: 'Per Sq. Ft',
@@ -126,6 +168,7 @@ class ProductService {
         unit: 'Pcs',
         unitPrice: 850.00,
         inStock: true,
+        imageUrl: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=600&auto=format&fit=crop&q=80',
         description: '11oz Grade A white ceramic mug with high-gloss heat-press photo print and gift packaging box.',
         dimensions: '11 oz',
         sizeLabel: 'Standard 11oz',
@@ -141,6 +184,7 @@ class ProductService {
         unit: 'Per Page',
         unitPrice: 25.00,
         inStock: true,
+        imageUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80',
         description: 'Instant counter laser printing (Color or B&W) on 80gsm bond paper with clear plastic cover and plastic comb/wire binding.',
         dimensions: 'A4 / Legal',
         sizeLabel: 'A4',
@@ -209,6 +253,7 @@ class ProductService {
           description: item.notes || `Authentic ${item.category} prepared for custom commercial printing and framing.`,
           dimensions: (item.width && item.length) ? `${item.width} x ${item.length} ${item.dimensionUnit || 'in'}` : null,
           sizeLabel: item.sizeLabel || null,
+          imageUrl: getDefaultImageForProduct(item),
           width: item.width,
           length: item.length,
           dimensionUnit: item.dimensionUnit,

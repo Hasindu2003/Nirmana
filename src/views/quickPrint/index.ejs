@@ -382,6 +382,11 @@
                         </li>
                         <li><hr class="dropdown-divider my-1"></li>
                         <li>
+                          <a class="dropdown-item py-2 d-flex align-items-center text-success fw-semibold" href="/pos?token=<%= encodeURIComponent(job.tokenNumber) %>&customer=<%= encodeURIComponent(job.customerName) %>&phone=<%= encodeURIComponent(job.customerPhone || '') %>&colorMode=<%= encodeURIComponent(job.colorMode) %>&paperSize=<%= encodeURIComponent(job.paperSize || 'A4') %>&copies=<%= job.copies || 1 %>&price=<%= job.colorMode === 'COLOR' ? 50 : 20 %>&quickPrintId=<%= job.id %>">
+                            <i class="bi bi-calculator me-2 text-success"></i> Bill & Collect in POS
+                          </a>
+                        </li>
+                        <li>
                           <a class="dropdown-item py-2 d-flex align-items-center" href="javascript:void(0)" onclick="convertToFormalOrder(<%= job.id %>)">
                             <i class="bi bi-receipt me-2 text-serene-primary"></i> Convert to Formal Order
                           </a>
@@ -1986,6 +1991,11 @@
                     </a>
                   </li>
                   <li><hr class="dropdown-divider my-1"></li>
+                  <li>
+                    <a class="dropdown-item py-2 d-flex align-items-center text-success fw-semibold" href="/pos?token=${encodeURIComponent(job.tokenNumber)}&customer=${encodeURIComponent(job.customerName || '')}&phone=${encodeURIComponent(job.customerPhone || '')}&colorMode=${encodeURIComponent(job.colorMode || 'BW')}&paperSize=${encodeURIComponent(job.paperSize || 'A4')}&copies=${job.copies || 1}&price=${job.colorMode === 'COLOR' ? 50 : 20}&quickPrintId=${job.id}">
+                      <i class="bi bi-calculator me-2 text-success"></i> Bill & Collect in POS
+                    </a>
+                  </li>
                   <li>
                     <a class="dropdown-item py-2 d-flex align-items-center" href="javascript:void(0)" onclick="convertToFormalOrder(${job.id})">
                       <i class="bi bi-receipt me-2 text-serene-primary"></i> Convert to Formal Order

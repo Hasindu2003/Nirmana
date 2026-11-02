@@ -569,7 +569,7 @@
   let lastItemAddedTime = 0;
   let lastQtyEnterTime = 0;
 
-  document.addEventListener('DOMContentLoaded', () => {
+  function initPosBillingFromUrl() {
     // Check if URL has tab=records
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('tab') === 'records') {
@@ -579,10 +579,45 @@
       }
     }
 
+    // Check if coming from Walk-in QR Quick Print checkout
+    const qpToken = urlParams.get('token');
+    if (qpToken && !window._qpPosLoaded) {
+      window._qpPosLoaded = true;
+      const qpCustomer = urlParams.get('customer') || '';
+      const qpPhone = urlParams.get('phone') || '';
+      const qpColor = urlParams.get('colorMode') || 'BW';
+      const qpSize = urlParams.get('paperSize') || 'A4';
+      const qpQty = parseFloat(urlParams.get('copies')) || 1;
+      const qpPrice = parseFloat(urlParams.get('price')) || (qpColor === 'COLOR' ? 50 : 20);
+
+      const custNameInput = document.getElementById('saleCustomerName');
+      const custPhoneInput = document.getElementById('saleCustomerPhone');
+      if (custNameInput && qpCustomer) custNameInput.value = qpCustomer;
+      if (custPhoneInput && qpPhone) custPhoneInput.value = qpPhone;
+
+      // Add item to cart
+      cart.push({
+        id: 'cart_qp_' + Date.now(),
+        stockItemId: null,
+        itemCode: qpToken,
+        name: `Walk-in Print #${qpToken} (${qpColor} ${qpSize})`,
+        unitPrice: qpPrice,
+        quantity: qpQty,
+        lineTotal: qpPrice * qpQty,
+        unit: 'Copies',
+      });
+      renderCartTable();
+
+      showPosAlert(`Loaded QR Quick Print order <strong>#${escapeHtml(qpToken)}</strong> for <strong>${escapeHtml(qpCustomer)}</strong> into bill! Total: <%= currencySymbol %> ${(qpPrice * qpQty).toFixed(2)}`, 'success');
+    }
+
     // Default focus to item code input for fast cashier entry
     const codeInput = document.getElementById('itemCodeInput');
     if (codeInput) codeInput.focus();
-  });
+  }
+
+  document.addEventListener('DOMContentLoaded', initPosBillingFromUrl);
+  document.addEventListener('turbo:load', initPosBillingFromUrl);
 
   // Jump to Unit Price section and select text
   function goToUnitPrice() {

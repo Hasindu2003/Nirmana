@@ -214,6 +214,7 @@ class StockService {
         length,
         dimensionUnit,
         sizeLabel,
+        imageUrl: data.imageUrl ? data.imageUrl.trim() : null,
         notes: data.notes || null,
         isActive: true,
       }, { transaction: t });
@@ -253,6 +254,7 @@ class StockService {
       length: data.length !== undefined ? (data.length ? parseFloat(data.length) : null) : item.length,
       dimensionUnit: data.dimensionUnit !== undefined ? data.dimensionUnit : item.dimensionUnit,
       sizeLabel: data.sizeLabel !== undefined ? data.sizeLabel : item.sizeLabel,
+      imageUrl: data.imageUrl !== undefined ? (data.imageUrl ? data.imageUrl.trim() : null) : item.imageUrl,
       notes: data.notes !== undefined ? data.notes : item.notes,
     });
 

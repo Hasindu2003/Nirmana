@@ -59,7 +59,11 @@ const StockItem = sequelize.define('StockItem', {
     defaultValue: 'inches',
   },
   sizeLabel: {
-    type: DataTypes.STRING(50),
+    type: DataTypes.STRING(500),
+    allowNull: true,
+  },
+  imageUrl: {
+    type: DataTypes.STRING(500),
     allowNull: true,
   },
   notes: {

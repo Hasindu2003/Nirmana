@@ -320,6 +320,20 @@ async function ensureDbInitialized() {
                 allowNull: true,
               });
             }
+            if (!stockDesc.imageUrl) {
+              await qi.addColumn('stock_items', 'imageUrl', {
+                type: sequelize.Sequelize.STRING(500),
+                allowNull: true,
+              });
+            }
+          }
+
+          const prodDesc = await qi.describeTable('products').catch(() => null);
+          if (prodDesc && !prodDesc.imageUrl) {
+            await qi.addColumn('products', 'imageUrl', {
+              type: sequelize.Sequelize.STRING(500),
+              allowNull: true,
+            });
           }
         } catch (migErr) {
           // Non-fatal if table already updated
