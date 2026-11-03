@@ -17,13 +17,17 @@ class UserController {
 
   async createUser(req, res, next) {
     try {
-      const { username, email, password, fullName, role, phone } = req.body;
+      let { username, email, password, fullName, role, phone } = req.body;
 
-      if (!username || !email || !password || !fullName) {
+      if (!username || !password || !fullName) {
         return res.status(400).json({
           success: false,
-          message: 'Username, email, password, and full name are required.',
+          message: 'Username, password, and full name are required.',
         });
+      }
+
+      if (!email || !email.trim()) {
+        email = `${username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '')}@nirmana.lk`;
       }
 
       const assignedRole = role ? normalizeRole(role) : ROLES.WORKER;
