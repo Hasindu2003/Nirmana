@@ -384,6 +384,115 @@ class OrderService {
 
     return null;
   }
+
+  /**
+   * Customer edits their own order request before printing begins.
+   * Locked if status is PRINTING, READY, COMPLETED, or CANCELLED.
+   */
+  async customerEditOrder(orderId, customerId, { specifications, quantity }) {
+    const order = await Order.findByPk(orderId);
+    if (!order) throw new Error('Order not found.');
+
+    if (customerId && order.customerId && order.customerId !== customerId) {
+      throw new Error('Access denied: You can only edit your own orders.');
+    }
+
+    if (order.status !== 'RECEIVED') {
+      throw new Error(`Production has already commenced (${order.status}). Online editing is locked. Please contact our print shop counter directly.`);
+    }
+
+    const changes = [];
+
+    if (typeof specifications !== 'undefined' && specifications !== null) {
+      order.specifications = specifications.trim();
+      changes.push('Specifications updated');
+    }
+
+    if (quantity && parseInt(quantity, 10) > 0) {
+      const newQty = parseInt(quantity, 10);
+      if (newQty !== order.quantity) {
+        const oldQty = Math.max(1, order.quantity || 1);
+        const currentSubtotal = parseFloat(order.subtotal) || parseFloat(order.totalAmount) || 0;
+        const unitPrice = currentSubtotal / oldQty;
+        const newSubtotal = parseFloat((unitPrice * newQty).toFixed(2));
+        const discount = parseFloat(order.discount) || 0;
+        const newTotal = Math.max(0, parseFloat((newSubtotal - discount).toFixed(2)));
+        const advance = parseFloat(order.advancePaid) || 0;
+        const newBalance = Math.max(0, parseFloat((newTotal - advance).toFixed(2)));
+
+        changes.push(`Quantity changed from ${order.quantity} to ${newQty} (New Total: Rs. ${newTotal})`);
+        order.quantity = newQty;
+        order.subtotal = newSubtotal;
+        order.totalAmount = newTotal;
+        order.balanceAmount = newBalance;
+      }
+    }
+
+    const auditStr = `\n[Customer Edit on ${new Date().toLocaleString('en-LK')}]: ${changes.join(', ')}`;
+    order.notes = (order.notes || '') + auditStr;
+
+    await order.save();
+    return order;
+  }
+
+  /**
+   * Customer uploads a bank transfer payment receipt / slip.
+   */
+  async uploadPaymentSlip(orderId, customerId, { slipUrl, amount, ref, notes }) {
+    const order = await Order.findByPk(orderId);
+    if (!order) throw new Error('Order not found.');
+
+    if (customerId && order.customerId && order.customerId !== customerId) {
+      throw new Error('Access denied: You can only upload slips to your own orders.');
+    }
+
+    order.paymentSlipUrl = slipUrl;
+    order.paymentSlipStatus = 'PENDING_VERIFICATION';
+    order.paymentSlipUploadedAt = new Date();
+    order.paymentSlipAmount = amount ? parseFloat(amount) : parseFloat(order.balanceAmount);
+    order.paymentSlipRef = ref ? ref.trim() : null;
+    order.paymentSlipNotes = notes ? notes.trim() : null;
+
+    const auditStr = `\n[Bank Slip Uploaded on ${new Date().toLocaleString('en-LK')}]: Claimed Amount: Rs. ${order.paymentSlipAmount}, Ref: ${order.paymentSlipRef || 'N/A'}`;
+    order.notes = (order.notes || '') + auditStr;
+
+    await order.save();
+    return order;
+  }
+
+  /**
+   * Staff/Owner reviews and verifies or rejects the bank payment slip.
+   */
+  async verifyPaymentSlip(orderId, { action, verifiedAmount, notes, verifiedById }) {
+    const order = await Order.findByPk(orderId);
+    if (!order) throw new Error('Order not found.');
+
+    if (action === 'VERIFY') {
+      const amt = verifiedAmount ? parseFloat(verifiedAmount) : (parseFloat(order.paymentSlipAmount) || parseFloat(order.balanceAmount));
+      if (amt > 0) {
+        await this.recordPayment(
+          order.id,
+          amt,
+          `Online Bank Transfer Verified (Ref: ${order.paymentSlipRef || 'N/A'}). ${notes || ''}`,
+          {
+            paymentMethod: 'BANK_TRANSFER',
+            recordedById: verifiedById,
+          }
+        );
+      }
+      order.paymentSlipStatus = 'VERIFIED';
+      await order.save();
+      return { order: await Order.findByPk(orderId), verified: true, amount: amt };
+    } else if (action === 'REJECT') {
+      order.paymentSlipStatus = 'REJECTED';
+      const rejectNote = `\n[Bank Slip REJECTED on ${new Date().toLocaleString('en-LK')} by Staff]: ${notes || 'Slip illegible or funds not received'}`;
+      order.notes = (order.notes || '') + rejectNote;
+      await order.save();
+      return { order, verified: false, reason: notes };
+    } else {
+      throw new Error('Invalid verification action. Must be VERIFY or REJECT.');
+    }
+  }
 }
 
 module.exports = new OrderService();

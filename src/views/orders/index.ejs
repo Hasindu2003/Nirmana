@@ -200,6 +200,13 @@
                     <span class="status-badge status-<%= o.status.toLowerCase() %>">
                       <span class="status-dot"></span> <%= o.status.replace('_', ' ') %>
                     </span>
+                    <% if (o.paymentSlipStatus === 'PENDING_VERIFICATION') { %>
+                      <div class="mt-1">
+                        <span class="badge bg-warning text-dark border border-warning small" style="font-size: 0.68rem;" title="Bank transfer slip uploaded awaiting review">
+                          <i class="bi bi-receipt me-1"></i> Slip Pending
+                        </span>
+                      </div>
+                    <% } %>
                   </td>
                   <td>
                     <a href="/orders/<%= o.id %>" class="btn btn-sm btn-serene-secondary py-1 px-2" title="View Details">

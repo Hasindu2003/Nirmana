@@ -16,13 +16,13 @@
       <div>
         <div class="d-flex align-items-center gap-2 mb-1">
           <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-semibold px-2 py-1">
-            <i class="bi bi-shield-check me-1"></i> Verified Client Portal
+            <i class="bi bi-speedometer2 me-1"></i> Customer Dashboard
           </span>
           <span class="badge bg-light text-muted border font-monospace"><%= customer.customerCode %></span>
         </div>
-        <h2 class="fs-4 fw-bold mb-1">Hello, <%= customer.name %>!</h2>
+        <h2 class="fs-4 fw-bold mb-1">My Dashboard — <%= customer.name %></h2>
         <div class="text-muted small">
-          Track all your printing orders, given advances, and balances yet to give.
+          Track individual print orders, edit requests before printing, upload bank slips, and monitor queue tokens.
         </div>
       </div>
 
@@ -187,26 +187,198 @@
     </div>
 
     <!-- Orders & Transactions List -->
-    <div class="serene-card mb-4">
-      <div class="serene-card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
-        <h3 class="serene-card-title mb-0">
-          <i class="bi bi-card-checklist me-2 text-primary"></i> My Printing Orders & Transactions
-        </h3>
-        <span class="badge bg-light text-muted border"><%= ordersList.length %> Total Jobs</span>
+    <div class="serene-card mb-4" id="ordersSection">
+      <div class="serene-card-header d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div>
+          <h3 class="serene-card-title mb-0 d-flex align-items-center gap-2">
+            <i class="bi bi-receipt-cutoff text-primary"></i>
+            <span>My Printing Orders</span>
+          </h3>
+          <div class="text-muted small" style="font-size: 0.78rem;">Each order is shown separately below with exact time, custom request, and payment status</div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge bg-light text-muted border"><%= ordersList.length %> Total Jobs</span>
+          <div class="btn-group btn-group-sm" role="group">
+            <button type="button" class="btn btn-outline-secondary active" id="btnViewCards" onclick="toggleOrderView('cards')">
+              <i class="bi bi-grid-fill me-1"></i> Separate Cards
+            </button>
+            <button type="button" class="btn btn-outline-secondary" id="btnViewTable" onclick="toggleOrderView('table')">
+              <i class="bi bi-table me-1"></i> Table View
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div class="table-responsive">
+      <!-- VIEW 1: SEPARATE ORDER CARDS (Clear distinction for 2+ simultaneous orders) -->
+      <div id="ordersCardsContainer" class="p-3 p-md-4">
+        <% if (ordersList.length > 0) { %>
+          <div class="d-flex flex-column gap-3">
+            <% ordersList.forEach((o, idx) => { %>
+              <% const orderDue = parseFloat(o.balanceAmount) || 0; %>
+              <% const orderPaid = parseFloat(o.advancePaid) || 0; %>
+              <% const orderTotal = parseFloat(o.totalAmount) || 0; %>
+              <% const isEditable = o.status === 'RECEIVED'; %>
+              <div class="card border rounded-3 shadow-xs overflow-hidden bg-white order-card-item" id="order-card-<%= o.id %>">
+                <!-- Order Card Header: Unique Order #, Exact Timestamp with seconds, and Badges -->
+                <div class="card-header bg-light py-2 px-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2">
+                  <div class="d-flex align-items-center flex-wrap gap-2">
+                    <span class="badge bg-dark font-monospace fs-6 px-2 py-1"><%= o.orderNumber %></span>
+                    <span class="text-muted small">
+                      <i class="bi bi-clock me-1"></i>
+                      <strong><%= typeof formatSriLankaDateTime !== 'undefined' ? formatSriLankaDateTime(o.createdAt) : (o.createdAt ? new Date(o.createdAt).toLocaleString('en-LK') : o.orderDate) %></strong>
+                    </span>
+                    <% if (idx === 0) { %>
+                      <span class="badge bg-info-subtle text-info border border-info-subtle small" style="font-size: 0.7rem;">Latest Order</span>
+                    <% } %>
+                  </div>
+
+                  <div class="d-flex align-items-center flex-wrap gap-2">
+                    <!-- Status Badge -->
+                    <span class="status-badge status-<%= o.status.toLowerCase() %>">
+                      <span class="status-dot"></span> <%= o.status.replace('_', ' ') %>
+                    </span>
+
+                    <!-- Online Bank Slip Status Badge -->
+                    <% if (o.paymentSlipStatus === 'PENDING_VERIFICATION') { %>
+                      <span class="badge bg-warning-subtle text-warning border border-warning-subtle fw-semibold">
+                        <i class="bi bi-hourglass-split me-1"></i> Slip Verification Pending
+                      </span>
+                    <% } else if (o.paymentSlipStatus === 'VERIFIED') { %>
+                      <span class="badge bg-success-subtle text-success border border-success-subtle fw-semibold">
+                        <i class="bi bi-check-circle-fill me-1"></i> Bank Slip Confirmed
+                      </span>
+                    <% } else if (o.paymentSlipStatus === 'REJECTED') { %>
+                      <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-semibold">
+                        <i class="bi bi-exclamation-octagon me-1"></i> Slip Rejected (Re-upload needed)
+                      </span>
+                    <% } %>
+                  </div>
+                </div>
+
+                <!-- Order Card Body: Job Title, Good/Material, Qty, Specifications & Instructions -->
+                <div class="card-body p-3">
+                  <div class="row g-3 align-items-center">
+                    <div class="col-lg-7">
+                      <h5 class="fw-bold fs-6 text-dark mb-1 d-flex align-items-center gap-2">
+                        <span><%= o.jobTitle %></span>
+                      </h5>
+
+                      <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                        <span class="badge bg-secondary-subtle text-secondary border small">
+                          <i class="bi bi-boxes me-1"></i> <%= o.quantity %> units
+                        </span>
+                        <% if (o.paperMaterial) { %>
+                          <span class="badge bg-primary-subtle text-primary border border-primary-subtle small fw-semibold">
+                            <i class="bi bi-box-seam me-1"></i> <%= o.paperMaterial %>
+                          </span>
+                        <% } %>
+                      </div>
+
+                      <!-- Customer Custom Specifications Box -->
+                      <div class="p-2 px-3 rounded-2 bg-light border small text-dark">
+                        <span class="text-muted fw-semibold d-block mb-1" style="font-size: 0.72rem;">
+                          <i class="bi bi-chat-left-text me-1 text-primary"></i> Customer Customization Request:
+                        </span>
+                        <% if (o.specifications && o.specifications.trim()) { %>
+                          <div style="white-space: pre-line;" id="order-specs-text-<%= o.id %>"><%= o.specifications %></div>
+                        <% } else { %>
+                          <span class="text-muted fst-italic">Standard printing request (no custom instructions entered)</span>
+                        <% } %>
+                      </div>
+                    </div>
+
+                    <!-- Financial Summary Ribbon -->
+                    <div class="col-lg-5">
+                      <div class="p-3 rounded-3 border bg-light">
+                        <div class="d-flex justify-content-between small text-muted mb-1">
+                          <span>Job Total Price:</span>
+                          <strong class="text-dark tabular-nums"><%= currencySymbol %> <%= orderTotal.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %></strong>
+                        </div>
+                        <div class="d-flex justify-content-between small text-success mb-1">
+                          <span>Given Amount (Paid):</span>
+                          <strong class="tabular-nums"><%= currencySymbol %> <%= orderPaid.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %></strong>
+                        </div>
+                        <hr class="my-1">
+                        <div class="d-flex justify-content-between align-items-center">
+                          <span class="small fw-bold <%= orderDue > 0 ? 'text-danger' : 'text-success' %>">
+                            Yet to Give (Balance):
+                          </span>
+                          <span class="fs-6 fw-bold tabular-nums <%= orderDue > 0 ? 'text-danger' : 'text-success' %>">
+                            <%= currencySymbol %> <%= orderDue.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Order Card Footer: Action Controls -->
+                <div class="card-footer bg-white border-top py-2 px-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                  <div class="d-flex align-items-center gap-2">
+                    <!-- Edit Request Button (Available ONLY before printing starts: RECEIVED) -->
+                    <% if (isEditable) { %>
+                      <button type="button" class="btn btn-sm btn-outline-primary"
+                              onclick="openCustomerEditModal(<%= o.id %>, '<%= o.orderNumber %>', <%= o.quantity %>, `<%= (o.specifications || '').replace(/`/g, '\\`').replace(/\\/g, '\\\\') %>`)">
+                        <i class="bi bi-pencil-square me-1"></i> Edit Request
+                      </button>
+                    <% } else { %>
+                      <button type="button" class="btn btn-sm btn-light border text-muted" disabled
+                              title="Production has started (<%= o.status %>). Requests can no longer be edited online.">
+                        <i class="bi bi-lock-fill me-1"></i> In Print / Production (Locked)
+                      </button>
+                    <% } %>
+
+                    <!-- Cancellation Help Link (Customers cannot delete; must contact store) -->
+                    <button type="button" class="btn btn-sm btn-link text-secondary text-decoration-none"
+                            onclick="openCustomerCancelModal('<%= o.orderNumber %>')">
+                      <i class="bi bi-telephone-outbound text-danger me-1"></i> Need to cancel?
+                    </button>
+                  </div>
+
+                  <!-- Bank Slip Upload / Preview Buttons -->
+                  <div class="d-flex align-items-center gap-2">
+                    <% if (o.paymentSlipUrl) { %>
+                      <a href="<%= o.paymentSlipUrl %>" target="_blank" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-file-earmark-image me-1"></i> View Bank Slip
+                      </a>
+                    <% } %>
+
+                    <% if (orderDue > 0 || o.paymentSlipStatus === 'REJECTED') { %>
+                      <button type="button" class="btn btn-sm btn-serene-primary"
+                              onclick="openUploadSlipModal(<%= o.id %>, '<%= o.orderNumber %>', <%= orderDue %>)">
+                        <i class="bi bi-cloud-arrow-up me-1"></i>
+                        <%= o.paymentSlipUrl ? 'Re-upload Bank Slip' : 'Upload Bank Slip' %>
+                      </button>
+                    <% } %>
+                  </div>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        <% } else { %>
+          <div class="text-center py-5 text-muted">
+            <div class="mb-2"><i class="bi bi-printer fs-2 text-muted"></i></div>
+            <div class="fw-semibold text-dark">No orders found yet</div>
+            <div class="small text-muted mt-1">When you place print jobs at Nirmana, they will be listed here separately.</div>
+            <a href="/upload" class="btn btn-sm btn-serene-primary mt-3">Upload Print Artwork</a>
+          </div>
+        <% } %>
+      </div>
+
+      <!-- VIEW 2: COMPACT TABLE VIEW (Optional Toggle) -->
+      <div id="ordersTableContainer" class="table-responsive" style="display: none;">
         <table class="serene-table">
           <thead>
             <tr>
               <th>Order #</th>
-              <th>Date</th>
+              <th>Placed Time</th>
               <th>Job Description</th>
               <th>Quantity</th>
               <th>Total Amount</th>
               <th>Given Amount</th>
               <th>Yet to Give</th>
               <th>Job Status</th>
+              <th>Slip Status</th>
             </tr>
           </thead>
           <tbody>
@@ -220,7 +392,9 @@
                     <span class="font-monospace fw-bold text-dark"><%= o.orderNumber %></span>
                   </td>
                   <td>
-                    <span class="text-muted small"><%= o.orderDate || formatDate(o.createdAt) %></span>
+                    <span class="text-muted small">
+                      <%= typeof formatSriLankaDateTime !== 'undefined' ? formatSriLankaDateTime(o.createdAt) : (o.orderDate || formatDate(o.createdAt)) %>
+                    </span>
                   </td>
                   <td>
                     <div class="fw-semibold text-dark"><%= o.jobTitle %></div>
@@ -244,11 +418,6 @@
                     <div class="tabular-nums fw-bold text-dark">
                       <%= currencySymbol %> <%= orderTotal.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
                     </div>
-                    <% if (o.discount && parseFloat(o.discount) > 0) { %>
-                      <div class="text-muted small" style="font-size: 0.72rem;">
-                        Discount: -<%= currencySymbol %> <%= parseFloat(o.discount).toFixed(2) %>
-                      </div>
-                    <% } %>
                   </td>
                   <td>
                     <span class="tabular-nums fw-semibold text-success">
@@ -262,7 +431,7 @@
                       </span>
                     <% } else { %>
                       <span class="badge bg-success-subtle text-success border border-success-subtle fw-semibold">
-                        <i class="bi bi-check2"></i> Fully Settled
+                        <i class="bi bi-check2"></i> Settled
                       </span>
                     <% } %>
                   </td>
@@ -271,15 +440,23 @@
                       <span class="status-dot"></span> <%= o.status.replace('_', ' ') %>
                     </span>
                   </td>
+                  <td>
+                    <% if (o.paymentSlipStatus === 'PENDING_VERIFICATION') { %>
+                      <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Pending Check</span>
+                    <% } else if (o.paymentSlipStatus === 'VERIFIED') { %>
+                      <span class="badge bg-success-subtle text-success border border-success-subtle">Verified</span>
+                    <% } else if (o.paymentSlipStatus === 'REJECTED') { %>
+                      <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Rejected</span>
+                    <% } else { %>
+                      <span class="text-muted small">—</span>
+                    <% } %>
+                  </td>
                 </tr>
               <% }) %>
             <% } else { %>
               <tr>
-                <td colspan="8" class="text-center py-5 text-muted">
-                  <div class="mb-2"><i class="bi bi-printer fs-2 text-muted"></i></div>
-                  <div class="fw-semibold text-dark">No orders found yet</div>
-                  <div class="small text-muted mt-1">When you place print jobs at Nirmana, they will be listed here automatically.</div>
-                  <a href="/upload" class="btn btn-sm btn-serene-primary mt-3">Upload Print Artwork</a>
+                <td colspan="9" class="text-center py-5 text-muted">
+                  No orders found.
                 </td>
               </tr>
             <% } %>
@@ -437,6 +614,305 @@
       </div>
     </div>
   </div>
+
+  <!-- 1. Modal: Customer Edit Order Request -->
+  <div class="modal fade" id="customerEditModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow-lg border-0 rounded-4">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title fw-bold">
+            <i class="bi bi-pencil-square me-2"></i> Edit Order Request
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="customerEditForm" onsubmit="submitCustomerEdit(event)">
+          <div class="modal-body p-4">
+            <input type="hidden" id="editModalOrderId">
+
+            <div class="alert alert-info border-info-subtle small mb-3">
+              <i class="bi bi-info-circle me-1"></i> You can edit your specifications and quantity before printing commences. If quantity is changed, the bill total will be automatically recalculated.
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold small text-muted">Order Reference</label>
+              <input type="text" class="form-control font-monospace bg-light" id="editModalOrderNum" readonly>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold small text-muted" for="editModalQuantity">Order Quantity</label>
+              <input type="number" class="form-control" id="editModalQuantity" min="1" max="10000" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold small text-muted" for="editModalSpecs">Custom Specifications & Instructions</label>
+              <textarea class="form-control" id="editModalSpecs" rows="4" placeholder="Enter your custom request details, photo placement, paper preference, or special notes..."></textarea>
+            </div>
+          </div>
+          <div class="modal-footer bg-light p-3">
+            <button type="button" class="btn btn-serene-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-serene-primary" id="btnSaveCustomerEdit">
+              <i class="bi bi-check-lg me-1"></i> Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Modal: Order Cancellation Request / Direct Store Contact -->
+  <div class="modal fade" id="customerCancelModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow-lg border-0 rounded-4">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title fw-bold">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> Order Cancellation Request
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="text-center mb-3">
+            <div class="badge bg-danger-subtle text-danger font-monospace fs-5 px-3 py-2 mb-2" id="cancelModalOrderNum"></div>
+            <h6 class="fw-bold text-dark mb-1">Direct Contact Required to Cancel</h6>
+          </div>
+          <p class="text-muted small mb-3">
+            Because our store prepares printing materials (cutting photo papers, substrates, mug blanks, or vinyl rolls) shortly after receiving orders, direct online deletion is disabled to prevent accidental damage or wasted physical stock.
+          </p>
+          <div class="p-3 rounded-3 bg-light border mb-3">
+            <div class="fw-bold text-dark small mb-1"><i class="bi bi-shop me-1 text-primary"></i> Nirmana Printing Counter</div>
+            <div class="text-muted small">Hotline: <strong>077 568 5543 / 034 226 2355</strong></div>
+            <div class="text-muted small">Hours: Monday – Saturday (8:00 AM – 7:00 PM)</div>
+          </div>
+          <p class="text-muted small mb-0">
+            Please tap below to call our counter staff or send a WhatsApp message with your Order # so our team can immediately halt the job.
+          </p>
+        </div>
+        <div class="modal-footer bg-light p-3 d-flex justify-content-between">
+          <button type="button" class="btn btn-serene-secondary" data-bs-dismiss="modal">Close</button>
+          <div class="d-flex gap-2">
+            <a href="tel:0775685543" class="btn btn-outline-primary">
+              <i class="bi bi-telephone-fill me-1"></i> Call Store
+            </a>
+            <a href="#" id="cancelModalWaBtn" target="_blank" class="btn btn-success">
+              <i class="bi bi-whatsapp me-1"></i> WhatsApp
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Modal: Upload Online Bank Payment Slip -->
+  <div class="modal fade" id="uploadSlipModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow-lg border-0 rounded-4">
+        <div class="modal-header bg-serene-primary text-white">
+          <h5 class="modal-title fw-bold">
+            <i class="bi bi-cloud-arrow-up-fill me-2"></i> Upload Bank Payment Slip
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="uploadSlipForm" onsubmit="submitPaymentSlip(event)">
+          <div class="modal-body p-4">
+            <input type="hidden" id="slipModalOrderId">
+
+            <!-- Summary of the order and due amount -->
+            <div class="p-3 rounded-3 bg-light border mb-3">
+              <div class="d-flex justify-content-between small text-muted mb-1">
+                <span>Order Reference:</span>
+                <strong class="font-monospace text-dark" id="slipModalOrderNum"></strong>
+              </div>
+              <div class="d-flex justify-content-between small text-muted mb-1">
+                <span>Outstanding Balance Due:</span>
+                <strong class="text-danger fs-6 tabular-nums" id="slipModalBalance"></strong>
+              </div>
+            </div>
+
+            <!-- Bank account details snippet -->
+            <div class="p-2 px-3 rounded-2 border mb-3 small" style="background: #f0fdf4; border-color: #bbf7d0;">
+              <span class="text-success fw-bold d-block mb-1"><i class="bi bi-bank me-1"></i> Bank Transfer Account:</span>
+              <div class="text-dark">Commercial Bank · <strong>8000 1234 5678</strong> (Horana)</div>
+              <div class="text-muted" style="font-size: 0.72rem;">Account Name: Nirmana Printing (Pvt) Ltd</div>
+            </div>
+
+            <!-- File Upload Input -->
+            <div class="mb-3">
+              <label class="form-label fw-semibold small text-muted" for="slipFileInput">
+                Select Payment Slip / Receipt Screenshot <span class="text-danger">*</span>
+              </label>
+              <input type="file" class="form-control" id="slipFileInput" name="slipFile" accept="image/*,application/pdf" required>
+              <div class="form-text small" style="font-size: 0.73rem;">Accepted: JPG, PNG, WEBP, PDF (Max 15MB)</div>
+            </div>
+
+            <!-- Amount Transferred -->
+            <div class="mb-3">
+              <label class="form-label fw-semibold small text-muted" for="slipAmountInput">
+                Transferred Amount (<%= currencySymbol %>) <span class="text-danger">*</span>
+              </label>
+              <input type="number" step="0.01" min="1" class="form-control tabular-nums fw-bold" id="slipAmountInput" required>
+            </div>
+
+            <!-- Bank Ref / Transaction ID -->
+            <div class="mb-3">
+              <label class="form-label fw-semibold small text-muted" for="slipRefInput">
+                Bank Transaction Reference / Approval # (Optional)
+              </label>
+              <input type="text" class="form-control font-monospace" id="slipRefInput" placeholder="e.g. BOC-TXN-129482 or COM-FLASH-098">
+            </div>
+
+            <!-- Notes -->
+            <div class="mb-2">
+              <label class="form-label fw-semibold small text-muted" for="slipNotesInput">
+                Additional Notes (Optional)
+              </label>
+              <input type="text" class="form-control" id="slipNotesInput" placeholder="e.g. Paid via Flash app from account ending in 4432">
+            </div>
+          </div>
+          <div class="modal-footer bg-light p-3">
+            <button type="button" class="btn btn-serene-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-serene-primary" id="btnSubmitSlip">
+              <i class="bi bi-cloud-arrow-up me-1"></i> Upload & Submit Slip
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 </main>
+
+<script>
+  // View Toggle: Separate Cards vs Compact Table
+  function toggleOrderView(mode) {
+    const cardsEl = document.getElementById('ordersCardsContainer');
+    const tableEl = document.getElementById('ordersTableContainer');
+    const btnCards = document.getElementById('btnViewCards');
+    const btnTable = document.getElementById('btnViewTable');
+
+    if (mode === 'cards') {
+      if (cardsEl) cardsEl.style.display = 'block';
+      if (tableEl) tableEl.style.display = 'none';
+      if (btnCards) btnCards.classList.add('active');
+      if (btnTable) btnTable.classList.remove('active');
+    } else {
+      if (cardsEl) cardsEl.style.display = 'none';
+      if (tableEl) tableEl.style.display = 'block';
+      if (btnCards) btnCards.classList.remove('active');
+      if (btnTable) btnTable.classList.add('active');
+    }
+  }
+
+  // Customer Edit Request Modal
+  function openCustomerEditModal(orderId, orderNum, currentQty, specs) {
+    document.getElementById('editModalOrderId').value = orderId;
+    document.getElementById('editModalOrderNum').value = orderNum;
+    document.getElementById('editModalQuantity').value = currentQty || 1;
+    document.getElementById('editModalSpecs').value = specs || '';
+    const modal = new bootstrap.Modal(document.getElementById('customerEditModal'));
+    modal.show();
+  }
+
+  async function submitCustomerEdit(e) {
+    e.preventDefault();
+    const orderId = document.getElementById('editModalOrderId').value;
+    const quantity = document.getElementById('editModalQuantity').value;
+    const specifications = document.getElementById('editModalSpecs').value;
+    const btn = document.getElementById('btnSaveCustomerEdit');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';
+
+    try {
+      const res = await fetch(`/api/orders/${orderId}/customer-edit`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ quantity, specifications })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to update order');
+      }
+      alert('Order updated successfully!');
+      window.location.reload();
+    } catch (err) {
+      alert('Error updating order: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Save Changes';
+    }
+  }
+
+  // Customer Cancel Modal
+  function openCustomerCancelModal(orderNum) {
+    document.getElementById('cancelModalOrderNum').textContent = orderNum;
+    const waText = encodeURIComponent(`Hello Nirmana Printing, I need to request cancellation or modification for my order #${orderNum}. Please let me know the status.`);
+    const waBtn = document.getElementById('cancelModalWaBtn');
+    if (waBtn) {
+      waBtn.href = `https://wa.me/94775685543?text=${waText}`;
+    }
+    const modal = new bootstrap.Modal(document.getElementById('customerCancelModal'));
+    modal.show();
+  }
+
+  // Upload Bank Payment Slip Modal
+  function openUploadSlipModal(orderId, orderNum, balanceDue) {
+    document.getElementById('slipModalOrderId').value = orderId;
+    document.getElementById('slipModalOrderNum').textContent = orderNum;
+    document.getElementById('slipModalBalance').textContent = `Rs. ${parseFloat(balanceDue || 0).toLocaleString('en-LK', { minimumFractionDigits: 2 })}`;
+    document.getElementById('slipAmountInput').value = parseFloat(balanceDue || 0).toFixed(2);
+    document.getElementById('slipFileInput').value = '';
+    document.getElementById('slipRefInput').value = '';
+    document.getElementById('slipNotesInput').value = '';
+
+    const modal = new bootstrap.Modal(document.getElementById('uploadSlipModal'));
+    modal.show();
+  }
+
+  async function submitPaymentSlip(e) {
+    e.preventDefault();
+    const orderId = document.getElementById('slipModalOrderId').value;
+    const fileInput = document.getElementById('slipFileInput');
+    const amount = document.getElementById('slipAmountInput').value;
+    const refNumber = document.getElementById('slipRefInput').value;
+    const notes = document.getElementById('slipNotesInput').value;
+    const btn = document.getElementById('btnSubmitSlip');
+
+    if (!fileInput.files || fileInput.files.length === 0) {
+      alert('Please select your payment slip image or PDF file.');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('slipFile', fileInput.files[0]);
+    formData.append('amount', amount);
+    formData.append('refNumber', refNumber);
+    formData.append('notes', notes);
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Uploading...';
+
+    try {
+      const res = await fetch(`/api/orders/${orderId}/payment-slip`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json'
+        },
+        body: formData
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to upload slip');
+      }
+      alert('Payment slip uploaded successfully! Our counter staff will verify and confirm your payment.');
+      window.location.reload();
+    } catch (err) {
+      alert('Upload failed: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-cloud-arrow-up me-1"></i> Upload & Submit Slip';
+    }
+  }
+</script>
 
 <%- include('../partials/footer') %>

@@ -183,6 +183,101 @@
           </div>
         </div>
 
+        <!-- Bank Payment Slip Review & Verification Card -->
+        <div class="serene-card mb-4" id="bankSlipCard">
+          <div class="serene-card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <h3 class="serene-card-title mb-0">
+              <i class="bi bi-bank me-2 text-primary"></i> Online Bank Transfer Slip
+            </h3>
+            <% if (order.paymentSlipStatus === 'PENDING_VERIFICATION') { %>
+              <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i> Awaiting Verification</span>
+            <% } else if (order.paymentSlipStatus === 'VERIFIED') { %>
+              <span class="badge bg-success"><i class="bi bi-patch-check-fill me-1"></i> Verified & Credited</span>
+            <% } else if (order.paymentSlipStatus === 'REJECTED') { %>
+              <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i> Rejected</span>
+            <% } else { %>
+              <span class="badge bg-light text-muted border">No Slip Uploaded</span>
+            <% } %>
+          </div>
+
+          <div class="serene-card-body">
+            <% if (order.paymentSlipUrl) { %>
+              <div class="row g-3 align-items-center mb-3">
+                <div class="col-sm-4 text-center">
+                  <% const isPdf = (order.paymentSlipUrl || '').toLowerCase().endsWith('.pdf'); %>
+                  <% if (isPdf) { %>
+                    <div class="p-3 border rounded-3 bg-light text-center">
+                      <i class="bi bi-file-earmark-pdf-fill text-danger fs-1 d-block mb-1"></i>
+                      <span class="small text-muted d-block mb-2">PDF Document</span>
+                      <a href="<%= order.paymentSlipUrl %>" target="_blank" class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-box-arrow-up-right me-1"></i> Open PDF
+                      </a>
+                    </div>
+                  <% } else { %>
+                    <a href="<%= order.paymentSlipUrl %>" target="_blank" title="Click to view full image">
+                      <img src="<%= order.paymentSlipUrl %>" alt="Payment Slip" class="img-thumbnail rounded-3 shadow-xs" style="max-height: 140px; object-fit: contain;">
+                    </a>
+                  <% } %>
+                </div>
+
+                <div class="col-sm-8 small">
+                  <div class="d-flex justify-content-between py-1 border-bottom">
+                    <span class="text-muted">Claimed Amount:</span>
+                    <strong class="fs-6 text-success tabular-nums"><%= currencySymbol %> <%= parseFloat(order.paymentSlipAmount || 0).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %></strong>
+                  </div>
+                  <div class="d-flex justify-content-between py-1 border-bottom">
+                    <span class="text-muted">Bank Reference #:</span>
+                    <span class="font-monospace fw-bold text-dark"><%= order.paymentSlipRef || 'N/A' %></span>
+                  </div>
+                  <div class="d-flex justify-content-between py-1 border-bottom">
+                    <span class="text-muted">Uploaded At:</span>
+                    <span class="text-dark"><%= typeof formatSriLankaDateTime !== 'undefined' ? formatSriLankaDateTime(order.paymentSlipUploadedAt) : (order.paymentSlipUploadedAt ? new Date(order.paymentSlipUploadedAt).toLocaleString('en-LK') : 'N/A') %></span>
+                  </div>
+                  <% if (order.paymentSlipNotes) { %>
+                    <div class="py-1">
+                      <span class="text-muted d-block">Customer Note:</span>
+                      <div class="text-dark p-2 bg-light rounded mt-1"><%= order.paymentSlipNotes %></div>
+                    </div>
+                  <% } %>
+                </div>
+              </div>
+
+              <!-- Action Controls for Staff -->
+              <% if (order.paymentSlipStatus === 'PENDING_VERIFICATION' || !order.paymentSlipStatus) { %>
+                <div class="p-3 rounded-3 bg-warning-subtle border border-warning-subtle d-flex flex-wrap align-items-center justify-content-between gap-2">
+                  <div class="small text-dark">
+                    <strong>Check bank account:</strong> Verify the transaction against your bank app / SMS before crediting.
+                  </div>
+                  <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="openRejectSlipModal(<%= order.id %>)">
+                      <i class="bi bi-x-circle me-1"></i> Reject Slip
+                    </button>
+                    <button type="button" class="btn btn-sm btn-success" onclick="openVerifySlipModal(<%= order.id %>, '<%= order.orderNumber %>', <%= order.paymentSlipAmount || order.balanceAmount %>)">
+                      <i class="bi bi-check-circle-fill me-1"></i> Verify & Credit Payment
+                    </button>
+                  </div>
+                </div>
+              <% } else if (order.paymentSlipStatus === 'VERIFIED') { %>
+                <div class="p-2 px-3 rounded-2 bg-success-subtle border border-success-subtle text-success small d-flex align-items-center gap-2">
+                  <i class="bi bi-check-circle-fill fs-5"></i>
+                  <div>Payment slip verified and successfully credited as Bank Transfer to order ledger.</div>
+                </div>
+              <% } else if (order.paymentSlipStatus === 'REJECTED') { %>
+                <div class="p-2 px-3 rounded-2 bg-danger-subtle border border-danger-subtle text-danger small d-flex align-items-center gap-2">
+                  <i class="bi bi-exclamation-octagon-fill fs-5"></i>
+                  <div>This slip was rejected. The customer can re-upload a valid slip from their portal.</div>
+                </div>
+              <% } %>
+            <% } else { %>
+              <div class="text-center py-3 text-muted small">
+                <i class="bi bi-receipt fs-3 d-block mb-1 text-muted"></i>
+                No online bank transfer slip uploaded yet.
+                <div class="text-muted mt-1" style="font-size: 0.73rem;">If the customer transfers funds online, their receipt screenshot will appear here for one-click verification.</div>
+              </div>
+            <% } %>
+          </div>
+        </div>
+
         <!-- Customer Card -->
         <div class="serene-card">
           <div class="serene-card-header">
@@ -313,6 +408,90 @@
             <button type="button" class="btn btn-serene-secondary" data-bs-dismiss="modal">Cancel</button>
             <button type="submit" class="btn btn-success fw-bold px-4" id="btnConfirmComplete">
               <i class="bi bi-check2-circle me-1"></i> Confirm & Complete
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Verify Bank Payment Slip Modal -->
+  <div class="modal fade" id="verifySlipModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow-lg border-0 rounded-4">
+        <div class="modal-header bg-success text-white">
+          <h5 class="modal-title fw-bold">
+            <i class="bi bi-patch-check-fill me-2"></i> Verify & Credit Bank Payment
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="verifySlipForm" onsubmit="submitVerifySlip(event)">
+          <div class="modal-body p-4">
+            <input type="hidden" id="verifySlipOrderId">
+
+            <div class="alert alert-success border-success-subtle small mb-3">
+              <i class="bi bi-shield-check me-1"></i> Confirming will credit this amount as a <strong>Bank Transfer payment</strong> to the order ledger and deduct the remaining balance.
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-semibold text-muted">Order Reference:</label>
+              <input type="text" class="form-control font-monospace bg-light" id="verifySlipOrderNum" readonly>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-semibold text-muted" for="verifySlipAmountInput">
+                Verified Amount Received (<%= currencySymbol %>) *
+              </label>
+              <input type="number" step="0.01" min="1" class="form-control tabular-nums fw-bold fs-5 text-success" id="verifySlipAmountInput" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-semibold text-muted" for="verifySlipNotes">
+                Internal Verification Notes (Optional):
+              </label>
+              <input type="text" class="form-control" id="verifySlipNotes" placeholder="e.g. Funds verified in Commercial Bank online banking">
+            </div>
+          </div>
+          <div class="modal-footer bg-light p-3">
+            <button type="button" class="btn btn-serene-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-success fw-bold px-3" id="btnConfirmVerifySlip">
+              <i class="bi bi-check-circle-fill me-1"></i> Verify & Credit Now
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reject Bank Payment Slip Modal -->
+  <div class="modal fade" id="rejectSlipModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow-lg border-0 rounded-4">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title fw-bold">
+            <i class="bi bi-x-octagon-fill me-2"></i> Reject Payment Slip
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="rejectSlipForm" onsubmit="submitRejectSlip(event)">
+          <div class="modal-body p-4">
+            <input type="hidden" id="rejectSlipOrderId">
+
+            <p class="text-muted small mb-3">
+              Please enter the reason for rejection. The customer will be informed on their portal to submit a clear, valid bank receipt screenshot.
+            </p>
+
+            <div class="mb-3">
+              <label class="form-label small fw-semibold text-muted" for="rejectSlipNotes">
+                Reason for Rejection *
+              </label>
+              <textarea class="form-control" id="rejectSlipNotes" rows="3" required placeholder="e.g. Transaction amount does not match, image is illegible, or transfer not received in shop account..."></textarea>
+            </div>
+          </div>
+          <div class="modal-footer bg-light p-3">
+            <button type="button" class="btn btn-serene-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-danger fw-bold px-3" id="btnConfirmRejectSlip">
+              <i class="bi bi-x-circle me-1"></i> Reject Slip
             </button>
           </div>
         </form>
@@ -516,6 +695,97 @@ async function openOrderDiscountModal(orderId, currentDiscount) {
     }
   } catch (err) {
     toast.error('Request failed: ' + err.message);
+  }
+}
+
+// Online Bank Transfer Slip Verification Handlers
+function openVerifySlipModal(orderId, orderNum, amount) {
+  document.getElementById('verifySlipOrderId').value = orderId;
+  document.getElementById('verifySlipOrderNum').value = orderNum;
+  document.getElementById('verifySlipAmountInput').value = parseFloat(amount || 0).toFixed(2);
+  document.getElementById('verifySlipNotes').value = '';
+  const modal = new bootstrap.Modal(document.getElementById('verifySlipModal'));
+  modal.show();
+}
+
+async function submitVerifySlip(e) {
+  e.preventDefault();
+  const orderId = document.getElementById('verifySlipOrderId').value;
+  const verifiedAmount = document.getElementById('verifySlipAmountInput').value;
+  const notes = document.getElementById('verifySlipNotes').value;
+  const btn = document.getElementById('btnConfirmVerifySlip');
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Processing...';
+
+  try {
+    const res = await fetch(`/api/orders/${orderId}/verify-slip`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        action: 'VERIFY',
+        verifiedAmount: parseFloat(verifiedAmount),
+        notes
+      })
+    });
+    const result = await res.json();
+    if (result.success) {
+      setPendingToast(result.message, 'success');
+      window.location.reload();
+    } else {
+      toast.error('Verification failed: ' + result.message);
+    }
+  } catch (err) {
+    toast.error('Request failed: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Verify & Credit Now';
+  }
+}
+
+function openRejectSlipModal(orderId) {
+  document.getElementById('rejectSlipOrderId').value = orderId;
+  document.getElementById('rejectSlipNotes').value = '';
+  const modal = new bootstrap.Modal(document.getElementById('rejectSlipModal'));
+  modal.show();
+}
+
+async function submitRejectSlip(e) {
+  e.preventDefault();
+  const orderId = document.getElementById('rejectSlipOrderId').value;
+  const notes = document.getElementById('rejectSlipNotes').value;
+  const btn = document.getElementById('btnConfirmRejectSlip');
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Rejecting...';
+
+  try {
+    const res = await fetch(`/api/orders/${orderId}/verify-slip`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        action: 'REJECT',
+        notes
+      })
+    });
+    const result = await res.json();
+    if (result.success) {
+      setPendingToast(result.message, 'warning');
+      window.location.reload();
+    } else {
+      toast.error('Rejection failed: ' + result.message);
+    }
+  } catch (err) {
+    toast.error('Request failed: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-x-circle me-1"></i> Reject Slip';
   }
 }
 </script>

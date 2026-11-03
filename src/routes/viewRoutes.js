@@ -344,11 +344,14 @@ router.get('/portal', async (req, res, next) => {
       order: [['createdAt', 'DESC']],
     });
 
+    const sortedOrders = (freshCustomer.orders || []).slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    freshCustomer.orders = sortedOrders;
+
     res.render('customerPortal/index', {
-      title: `${freshCustomer.name} · Client Portal · Nirmana Printing`,
+      title: `${freshCustomer.name} · Customer Dashboard · Nirmana Printing`,
       activePage: 'portal',
       customer: freshCustomer,
-      orders: freshCustomer.orders || [],
+      orders: sortedOrders,
       quickPrintJobs: quickPrintJobs || [],
     });
   } catch (err) {

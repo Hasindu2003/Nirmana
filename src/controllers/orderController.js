@@ -213,6 +213,91 @@ class OrderController {
       return res.status(400).json({ success: false, message: error.message });
     }
   }
+
+  /**
+   * Customer edits their order request (specs, quantity) strictly before PRINTING starts.
+   */
+  async customerEditOrder(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { specifications, quantity } = req.body;
+      const customerId = req.user ? req.user.customerId : null;
+
+      const updated = await orderService.customerEditOrder(id, customerId, { specifications, quantity });
+      return res.json({
+        success: true,
+        message: `Order #${updated.orderNumber} updated successfully.`,
+        data: updated,
+      });
+    } catch (error) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
+  /**
+   * Customer uploads bank payment slip image/PDF.
+   */
+  async uploadPaymentSlip(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { amount, refNumber, notes } = req.body;
+      const customerId = req.user ? req.user.customerId : null;
+
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: 'Please select an image or PDF of your payment slip.' });
+      }
+
+      const slipUrl = `/uploads/slips/${req.file.filename}`;
+      const updated = await orderService.uploadPaymentSlip(id, customerId, {
+        slipUrl,
+        amount,
+        ref: refNumber,
+        notes,
+      });
+
+      return res.json({
+        success: true,
+        message: `Payment slip for order #${updated.orderNumber} uploaded successfully! Our staff will verify and confirm your payment.`,
+        data: updated,
+      });
+    } catch (error) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
+  /**
+   * Staff/Admin verifies or rejects bank payment slip.
+   */
+  async verifyPaymentSlip(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { action, verifiedAmount, notes } = req.body;
+      const verifiedById = req.user ? req.user.id : null;
+
+      if (!action || !['VERIFY', 'REJECT'].includes(action.toUpperCase())) {
+        return res.status(400).json({ success: false, message: "Action must be 'VERIFY' or 'REJECT'." });
+      }
+
+      const result = await orderService.verifyPaymentSlip(id, {
+        action: action.toUpperCase(),
+        verifiedAmount,
+        notes,
+        verifiedById,
+      });
+
+      const msg = action.toUpperCase() === 'VERIFY'
+        ? `Bank transfer payment of Rs. ${(result.amount || 0).toFixed(2)} verified and credited to order #${result.order.orderNumber}.`
+        : `Bank slip for order #${result.order.orderNumber} rejected. Customer will be notified to re-upload.`;
+
+      return res.json({
+        success: true,
+        message: msg,
+        data: result.order,
+      });
+    } catch (error) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+  }
 }
 
 module.exports = new OrderController();

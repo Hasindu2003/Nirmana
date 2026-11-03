@@ -10,7 +10,7 @@ const dashboardController = require('../controllers/dashboardController');
 const quickPrintController = require('../controllers/quickPrintController');
 const posController = require('../controllers/posController');
 const productController = require('../controllers/productController');
-const { uploadQuickPrint } = require('../middleware/upload');
+const { uploadQuickPrint, uploadPaymentSlip } = require('../middleware/upload');
 const { authenticate, optionalAuthenticate } = require('../middleware/auth');
 const { requireRole, requireStaff } = require('../middleware/rbac');
 
@@ -66,6 +66,9 @@ router.get('/orders/:id', authenticate, requireStaff, orderController.getOrder);
 router.put('/orders/:id/status', authenticate, requireStaff, orderController.updateStatus);
 router.post('/orders/:id/payment', authenticate, requireStaff, orderController.recordPayment);
 router.put('/orders/:id/discount', authenticate, requireStaff, orderController.updateDiscount);
+router.put('/orders/:id/customer-edit', authenticate, orderController.customerEditOrder);
+router.post('/orders/:id/payment-slip', authenticate, uploadPaymentSlip, orderController.uploadPaymentSlip);
+router.put('/orders/:id/verify-slip', authenticate, requireStaff, orderController.verifyPaymentSlip);
 
 // Customers (Staff only)
 router.get('/customers', authenticate, requireStaff, customerController.listCustomers);

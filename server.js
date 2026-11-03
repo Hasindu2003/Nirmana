@@ -341,6 +341,46 @@ async function ensureDbInitialized() {
               allowNull: true,
             });
           }
+
+          const orderDesc = await qi.describeTable('orders').catch(() => null);
+          if (orderDesc) {
+            if (!orderDesc.paymentSlipUrl) {
+              await qi.addColumn('orders', 'paymentSlipUrl', {
+                type: sequelize.Sequelize.STRING(500),
+                allowNull: true,
+              });
+            }
+            if (!orderDesc.paymentSlipStatus) {
+              await qi.addColumn('orders', 'paymentSlipStatus', {
+                type: sequelize.Sequelize.STRING(50),
+                allowNull: true,
+              });
+            }
+            if (!orderDesc.paymentSlipUploadedAt) {
+              await qi.addColumn('orders', 'paymentSlipUploadedAt', {
+                type: sequelize.Sequelize.DATE,
+                allowNull: true,
+              });
+            }
+            if (!orderDesc.paymentSlipAmount) {
+              await qi.addColumn('orders', 'paymentSlipAmount', {
+                type: sequelize.Sequelize.DECIMAL(12, 2),
+                allowNull: true,
+              });
+            }
+            if (!orderDesc.paymentSlipRef) {
+              await qi.addColumn('orders', 'paymentSlipRef', {
+                type: sequelize.Sequelize.STRING(100),
+                allowNull: true,
+              });
+            }
+            if (!orderDesc.paymentSlipNotes) {
+              await qi.addColumn('orders', 'paymentSlipNotes', {
+                type: sequelize.Sequelize.TEXT,
+                allowNull: true,
+              });
+            }
+          }
         } catch (migErr) {
           // Non-fatal if table already updated
         }

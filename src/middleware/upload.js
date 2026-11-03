@@ -64,7 +64,58 @@ const upload = multer({
   },
 });
 
+// Bank Payment Slip Storage & Upload
+const slipUploadDir = isVercel
+  ? path.join('/tmp', 'uploads', 'slips')
+  : path.join(__dirname, '../../public/uploads/slips');
+
+try {
+  if (!fs.existsSync(slipUploadDir)) {
+    fs.mkdirSync(slipUploadDir, { recursive: true });
+  }
+} catch (err) {
+  console.warn('Warning: Could not create slip upload directory:', err.message);
+}
+
+const slipStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    try {
+      if (!fs.existsSync(slipUploadDir)) {
+        fs.mkdirSync(slipUploadDir, { recursive: true });
+      }
+    } catch (e) {}
+    cb(null, slipUploadDir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const baseName = path.basename(file.originalname, ext)
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .substring(0, 20);
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+    cb(null, `slip_${baseName}_${uniqueSuffix}${ext}`);
+  },
+});
+
+const slipFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  const allowed = ['.jpg', '.jpeg', '.png', '.webp', '.pdf', '.heic', '.heif'];
+  if (allowed.includes(ext) || file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+    return cb(null, true);
+  }
+  return cb(new Error('Bank slip must be an image (JPG, PNG, WEBP) or PDF file.'));
+};
+
+const uploadSlip = multer({
+  storage: slipStorage,
+  fileFilter: slipFilter,
+  limits: {
+    fileSize: 15 * 1024 * 1024, // 15MB
+  },
+});
+
 module.exports = {
   uploadQuickPrint: upload.array('files', 10),
+  uploadPaymentSlip: uploadSlip.single('slipFile'),
   uploadDir,
+  slipUploadDir,
 };

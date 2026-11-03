@@ -85,6 +85,31 @@ const Order = sequelize.define('Order', {
     type: DataTypes.TEXT,
     allowNull: true,
   },
+  paymentSlipUrl: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+  },
+  paymentSlipStatus: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+    defaultValue: null, // 'PENDING_VERIFICATION', 'VERIFIED', 'REJECTED'
+  },
+  paymentSlipUploadedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  paymentSlipAmount: {
+    type: DataTypes.DECIMAL(12, 2),
+    allowNull: true,
+  },
+  paymentSlipRef: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+  },
+  paymentSlipNotes: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
 }, {
   tableName: 'orders',
 });
