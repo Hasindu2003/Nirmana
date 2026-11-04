@@ -44,6 +44,7 @@
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {
+    "neon": "^8.18.0",
     "nodemon": "^3.1.0"
   }
 }
