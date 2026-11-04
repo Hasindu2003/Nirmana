@@ -57,30 +57,34 @@ function getPrimaryLanIp() {
  * Builds the best mobile-accessible upload URL based on request & network
  */
 function getUploadUrl(req, port = 3000) {
-  // 1. If dedicated customer portal is configured via environment variable, use it!
+  // 1. If explicit customer portal or app URL is configured, use it
   if (process.env.CUSTOMER_PORTAL_URL) {
     return process.env.CUSTOMER_PORTAL_URL;
   }
-
-  // 2. Default to the new dedicated customer portal for production / Vercel
-  if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-    return 'https://nirmana-upload.vercel.app';
+  if (process.env.APP_URL) {
+    return `${process.env.APP_URL.replace(/\/$/, '')}/upload`;
   }
 
-  const host = req.get('host') || '';
+  const host = req && typeof req.get === 'function' ? (req.get('host') || '') : '';
   const hostname = host.split(':')[0];
   const reqPort = host.split(':')[1] || port;
 
-  // If accessed locally (localhost / 127.0.0.1), use the Wi-Fi / LAN IP so phones can access it!
-  if (['localhost', '127.0.0.1', '::1'].includes(hostname.toLowerCase())) {
+  // 2. If running on Vercel or accessed via public cloud domain / non-local hostname
+  if (host && !['localhost', '127.0.0.1', '::1'].includes(hostname.toLowerCase())) {
+    const proto = (req.headers && req.headers['x-forwarded-proto']) || req.protocol || 'https';
+    return `${proto}://${host}/upload`;
+  }
+
+  // 3. If accessed locally (localhost / 127.0.0.1), use the Wi-Fi / LAN IP so phones on same network can access it
+  if (['localhost', '127.0.0.1', '::1'].includes(hostname.toLowerCase()) || !host) {
     const lanIp = getPrimaryLanIp();
     if (lanIp) {
       return `http://${lanIp}:${reqPort}/upload`;
     }
   }
 
-  // Fallback: dedicated customer portal
-  return 'https://nirmana-upload.vercel.app';
+  // 4. Default fallback
+  return host ? `http://${host}/upload` : 'https://nirmana-upload.vercel.app';
 }
 
 module.exports = {
