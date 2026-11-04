@@ -49,3 +49,4 @@ build/
 .vercel/
 devspace/
 devspace-php/
+.neon

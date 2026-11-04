@@ -247,7 +247,21 @@ class OrderController {
         return res.status(400).json({ success: false, message: 'Please select an image or PDF of your payment slip.' });
       }
 
-      const slipUrl = `/uploads/slips/${req.file.filename}`;
+      let slipUrl = `/uploads/slips/${req.file.filename}`;
+      try {
+        const neonStorage = require('../services/neonStorageService');
+        if (neonStorage.isConfigured() && req.file.path) {
+          const fs = require('fs');
+          if (fs.existsSync(req.file.path)) {
+            const fileBuf = fs.readFileSync(req.file.path);
+            const s3Key = `slips/order-${id}-${Date.now()}-${req.file.filename}`;
+            const s3Upload = await neonStorage.uploadFile(s3Key, fileBuf, req.file.mimetype);
+            slipUrl = s3Upload.presignedUrl;
+          }
+        }
+      } catch (s3Err) {
+        console.warn('[Neon Storage] Slip upload fallback:', s3Err.message);
+      }
       const updated = await orderService.uploadPaymentSlip(id, customerId, {
         slipUrl,
         amount,

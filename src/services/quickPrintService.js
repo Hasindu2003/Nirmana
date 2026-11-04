@@ -227,6 +227,21 @@ class QuickPrintService {
           } catch (driveErr) {
             console.warn(`[Google Drive] Upload failed for ${file.originalname}, falling back to local:`, driveErr.message);
           }
+        } else {
+          // Check Neon Object Storage
+          try {
+            const neonStorage = require('./neonStorageService');
+            if (neonStorage.isConfigured() && file.path && fs.existsSync(file.path)) {
+              const fileBuf = fs.readFileSync(file.path);
+              const s3Key = `quick-print/${job.tokenNumber}/${file.filename}`;
+              const s3Upload = await neonStorage.uploadFile(s3Key, fileBuf, file.mimetype);
+              driveViewLink = s3Upload.presignedUrl;
+              driveDownloadLink = s3Upload.presignedUrl;
+              storageProvider = 'NEON_S3';
+            }
+          } catch (neonStorageErr) {
+            console.warn(`[Neon Storage] Upload failed for ${file.originalname}:`, neonStorageErr.message);
+          }
         }
 
         const fileUrl = `/uploads/quick-print/${file.filename}`.substring(0, 250);

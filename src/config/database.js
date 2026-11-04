@@ -46,13 +46,23 @@ if (dbUrl) {
       if (!cleanUrl.includes('?') && cleanUrl.includes('&')) {
         cleanUrl = cleanUrl.replace('&', '?');
       }
+    } else if (dialect === 'postgres') {
+      // Remove channel_binding which is unsupported in node-postgres and can cause connection issues
+      cleanUrl = cleanUrl.replace(/[?&]channel_binding=[^&]*/gi, '');
+      cleanUrl = cleanUrl.replace(/[?&]sslmode=[^&]*/gi, '');
+      if (cleanUrl.endsWith('?')) {
+        cleanUrl = cleanUrl.slice(0, -1);
+      }
+      if (!cleanUrl.includes('?') && cleanUrl.includes('&')) {
+        cleanUrl = cleanUrl.replace('&', '?');
+      }
     }
 
     const isCloudDb = !cleanUrl.includes('localhost') && !cleanUrl.includes('127.0.0.1');
     const dialectOptions = {};
     if (isCloudDb || process.env.DB_SSL === 'true') {
       dialectOptions.ssl = {
-        minVersion: 'TLSv1.2',
+        require: true,
         rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED === 'true' ? true : false,
       };
     }

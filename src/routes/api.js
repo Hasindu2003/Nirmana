@@ -102,5 +102,13 @@ router.put('/users/:id', authenticate, requireRole('ADMIN'), userController.upda
 router.put('/users/:id/toggle-status', authenticate, requireRole('ADMIN'), userController.toggleStatus);
 router.put('/users/:id/reset-password', authenticate, requireRole('ADMIN'), userController.resetPassword);
 
+// =========================================================================
+// 4. NEON CLOUD SERVICES (Postgres, Auth, Object Storage, Functions, Realtime)
+// =========================================================================
+const neonController = require('../controllers/neonController');
+router.get('/neon/status', neonController.getStatus);
+router.post('/neon/realtime/seal', neonController.sealQuery);
+router.post('/neon/functions/invoke', neonController.invokeFunction);
+
 module.exports = router;
 

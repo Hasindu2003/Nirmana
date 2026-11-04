@@ -159,8 +159,15 @@ async function ensureDbInitialized() {
     initPromise = (async () => {
       try {
         await sequelize.authenticate();
-        await sequelize.sync();
+        const { User } = require('./src/models');
+        const adminAlreadyExists = await User.findOne({ where: { role: 'ADMIN' } }).catch(() => null);
 
+        if (!adminAlreadyExists) {
+          await sequelize.sync();
+        }
+
+        // Run non-destructive column checks only on initial setup or local sqlite
+        if (!adminAlreadyExists || config.db.dialect === 'sqlite') {
         // Ensure new Google Drive columns exist in quick_print_files
         try {
           const qi = sequelize.getQueryInterface();
@@ -401,10 +408,10 @@ async function ensureDbInitialized() {
         } catch (cleanErr) {
           // Non-fatal
         }
+        } // End of conditional schema migration block
 
         // Seed default admin if no ADMIN user exists (e.g. fresh DB or only customer accounts exist)
-        const { User } = require('./src/models');
-        const adminExists = await User.findOne({ where: { role: 'ADMIN' } }).catch(() => null);
+        const adminExists = adminAlreadyExists || await User.findOne({ where: { role: 'ADMIN' } }).catch(() => null);
         if (!adminExists) {
           await User.create({
             username: 'admin',
@@ -473,7 +480,8 @@ app.use(errorHandler);
 const startServer = async () => {
   try {
     await ensureDbInitialized();
-    console.log(`✓ Database connection established successfully (${config.db.dialect}).`);
+    const activeDialect = sequelize && typeof sequelize.getDialect === 'function' ? sequelize.getDialect() : config.db.dialect;
+    console.log(`✓ Database connection established successfully (${activeDialect}).`);
 
     const { getPrimaryLanIp } = require('./src/utils/network');
     const lanIp = getPrimaryLanIp();
@@ -486,7 +494,7 @@ const startServer = async () => {
         console.log(`📱 Wi-Fi/LAN:  http://${lanIp}:${config.port}`);
       }
       console.log(`⚙️  Environment: ${config.nodeEnv}`);
-      console.log(`📦 Database:    ${config.db.dialect}`);
+      console.log(`📦 Database:    ${activeDialect}`);
       console.log(`=======================================================`);
     });
   } catch (error) {

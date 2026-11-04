@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "build": "node -c server.js",
     "seed": "node src/seeders/initialSeed.js",
     "seed:demo": "node src/seeders/demoSeed.js",
     "clear": "node src/seeders/clearData.js",
@@ -24,6 +25,11 @@
   "author": "Nirmana Team",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1161.0",
+    "@aws-sdk/s3-request-presigner": "^3.1161.0",
+    "@neon/config": "^1.10.1",
+    "@neon/env": "^1.6.9",
+    "@neon/realtime": "^0.1.2",
     "bcryptjs": "^2.4.3",
     "compression": "^1.8.2",
     "cookie-parser": "^1.4.6",
