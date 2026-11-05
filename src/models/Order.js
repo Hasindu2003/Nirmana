@@ -86,7 +86,7 @@ const Order = sequelize.define('Order', {
     allowNull: true,
   },
   paymentSlipUrl: {
-    type: DataTypes.STRING(500),
+    type: DataTypes.TEXT,
     allowNull: true,
   },
   paymentSlipStatus: {

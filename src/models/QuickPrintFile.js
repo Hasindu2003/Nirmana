@@ -38,7 +38,7 @@ const QuickPrintFile = sequelize.define('QuickPrintFile', {
     allowNull: false,
   },
   fileUrl: {
-    type: DataTypes.STRING(255),
+    type: DataTypes.TEXT,
     allowNull: false,
   },
   driveFileId: {
