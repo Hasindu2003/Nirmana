@@ -129,6 +129,11 @@
           <i class="bi bi-bell-fill text-warning me-1"></i> Sound: <strong id="soundStateText">ON</strong>
         </button>
 
+        <!-- Clean Abandoned Walk-in Tokens (>24h) -->
+        <button class="btn btn-serene-secondary text-danger d-inline-flex align-items-center gap-1" id="clearAbandonedBtn" onclick="openClearAbandonedModal()" title="Sweep and clean uncollected walk-in tokens older than 24 hours">
+          <i class="bi bi-magic text-danger"></i> Clean Abandoned (>24h)
+        </button>
+
         <!-- Refresh button -->
         <button class="btn btn-serene-secondary" id="manualRefreshBtn" title="Refresh queue">
           <i class="bi bi-arrow-clockwise"></i> Refresh
@@ -190,7 +195,7 @@
       </div>
     </div>
 
-    <!-- 2 Primary Filter Tabs: Pending vs Completed -->
+    <!-- 3 Primary Filter Tabs: Pending vs Completed vs Cancelled -->
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
       <ul class="nav nav-pills custom-pills gap-2" id="quickPrintTabs">
         <li class="nav-item">
@@ -203,6 +208,12 @@
           <button type="button" class="nav-link <%= currentStatus === 'COMPLETED' ? 'active' : '' %>" id="tabCompletedBtn" onclick="switchQuickPrintTab('COMPLETED')">
             <i class="bi bi-check2-all me-1"></i> Completed Orders 
             <span class="badge rounded-pill bg-secondary ms-1" id="tabCompletedBadge"><%= stats.completedToday %></span>
+          </button>
+        </li>
+        <li class="nav-item">
+          <button type="button" class="nav-link <%= currentStatus === 'CANCELLED' ? 'active' : '' %>" id="tabCancelledBtn" onclick="switchQuickPrintTab('CANCELLED')">
+            <i class="bi bi-x-circle me-1"></i> Cancelled / Unprinted 
+            <span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle ms-1" id="tabCancelledBadge"><%= stats.cancelled || 0 %></span>
           </button>
         </li>
       </ul>
@@ -246,7 +257,7 @@
       <div class="d-flex flex-column gap-2" id="ordersListWrapper">
         <% if (jobs && jobs.length > 0) { %>
           <% jobs.forEach(job => { %>
-            <% const isInitiallyActive = (currentStatus === 'PENDING' && job.status !== 'COMPLETED' && job.status !== 'CANCELLED') || (currentStatus === 'COMPLETED' && job.status === 'COMPLETED'); %>
+            <% const isInitiallyActive = (currentStatus === 'PENDING' && job.status !== 'COMPLETED' && job.status !== 'CANCELLED') || (currentStatus === 'COMPLETED' && job.status === 'COMPLETED') || (currentStatus === 'CANCELLED' && job.status === 'CANCELLED'); %>
             <div class="job-card-wrapper w-100 transition-all position-relative" 
                  id="job-card-<%= job.id %>" 
                  data-id="<%= job.id %>"
@@ -353,6 +364,14 @@
                         <i class="bi bi-check2-circle fs-6"></i>
                         <span>Mark Completed</span>
                       </button>
+                    <% } else if (job.status === 'CANCELLED') { %>
+                      <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" style="font-size: 0.75rem;">
+                        <i class="bi bi-x-circle me-1"></i> Cancelled
+                      </span>
+                      <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" style="font-size: 0.75rem; height: 28px;"
+                              onclick="reopenJob(<%= job.id %>, '<%= job.tokenNumber %>')" title="Move back to Pending">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                      </button>
                     <% } else { %>
                       <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 0.75rem;">
                         <i class="bi bi-check2-all me-1"></i> Completed
@@ -400,6 +419,19 @@
                           </li>
                         <% } %>
                         <li><hr class="dropdown-divider my-1"></li>
+                        <% if (job.status !== 'CANCELLED') { %>
+                          <li>
+                            <a class="dropdown-item py-2 text-warning-emphasis d-flex align-items-center" href="javascript:void(0)" onclick="openCancelJobModal(<%= job.id %>, '<%= job.tokenNumber %>')">
+                              <i class="bi bi-x-circle me-2 text-warning"></i> Cancel / Reject Job
+                            </a>
+                          </li>
+                        <% } else { %>
+                          <li>
+                            <a class="dropdown-item py-2 text-success d-flex align-items-center" href="javascript:void(0)" onclick="reopenJob(<%= job.id %>, '<%= job.tokenNumber %>')">
+                              <i class="bi bi-arrow-counterclockwise me-2 text-success"></i> Restore to Pending
+                            </a>
+                          </li>
+                        <% } %>
                         <li>
                           <a class="dropdown-item py-2 text-danger d-flex align-items-center" href="javascript:void(0)" onclick="deleteJob(<%= job.id %>)">
                             <i class="bi bi-trash me-2"></i> Delete Order & Files
@@ -752,6 +784,95 @@
         <button type="button" class="btn btn-serene-secondary btn-sm px-3" data-bs-dismiss="modal">Cancel</button>
         <button type="button" class="btn btn-danger btn-sm px-3 fw-bold shadow-xs" id="executeBatchDeleteBtn" onclick="executeBatchDelete()">
           <i class="bi bi-trash-fill me-1"></i> Yes, Delete Orders
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- CANCEL / REJECT QUICK PRINT JOB MODAL -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="cancelJobModal" tabindex="-1" aria-labelledby="cancelJobModalLabel" aria-hidden="true" style="z-index: 1080;">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 460px;">
+    <div class="modal-content shadow-lg border-0">
+      <div class="modal-header py-2 px-3 border-bottom bg-warning text-dark">
+        <h6 class="modal-title fw-bold mb-0" id="cancelJobModalLabel">
+          <i class="bi bi-x-circle-fill me-2 text-danger"></i> Cancel / Reject Quick Print Job
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-3">
+        <input type="hidden" id="cancelJobModalId">
+        <div class="d-flex align-items-center gap-2 mb-3 p-2 bg-light rounded border">
+          <span class="badge bg-danger text-white px-2 py-1 font-monospace fs-6" id="cancelJobModalToken">#QP-000000</span>
+          <span class="text-muted small">This job will be moved to <strong>Cancelled / Unprinted</strong> and removed from the active queue.</span>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold small text-dark mb-1">Reason for Cancellation / Rejection:</label>
+          <select class="form-select form-select-sm" id="cancelJobReasonSelect" onchange="toggleCancelOtherReason(this.value)">
+            <option value="Customer walked out / didn't show up (Abandoned)">Customer walked out / didn't show up (Abandoned)</option>
+            <option value="Customer requested cancellation (Changed mind)">Customer requested cancellation (Changed mind)</option>
+            <option value="Unprintable file / corrupted or password protected">Unprintable file / corrupted or password protected</option>
+            <option value="Out of stock / paper material unavailable">Out of stock / paper material unavailable</option>
+            <option value="Duplicate or test upload">Duplicate or test upload</option>
+            <option value="OTHER">Other specific reason...</option>
+          </select>
+        </div>
+
+        <div class="mb-2 d-none" id="cancelJobOtherReasonGroup">
+          <label class="form-label fw-semibold small text-dark mb-1">Specify Reason:</label>
+          <input type="text" class="form-control form-control-sm" id="cancelJobCustomReason" placeholder="Enter reason...">
+        </div>
+      </div>
+      <div class="modal-footer py-2 px-3 bg-light border-top d-flex justify-content-between">
+        <button type="button" class="btn btn-serene-secondary btn-sm px-3" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-danger btn-sm px-3 fw-bold shadow-xs" id="confirmCancelJobBtn" onclick="confirmCancelJob()">
+          <i class="bi bi-x-circle me-1"></i> Confirm Cancellation
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- CLEAR ABANDONED TOKENS MODAL -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="clearAbandonedModal" tabindex="-1" aria-labelledby="clearAbandonedModalLabel" aria-hidden="true" style="z-index: 1080;">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 460px;">
+    <div class="modal-content shadow-lg border-0">
+      <div class="modal-header py-2 px-3 border-bottom bg-danger text-white">
+        <h6 class="modal-title fw-bold mb-0" id="clearAbandonedModalLabel">
+          <i class="bi bi-magic me-2"></i> Clean Abandoned Walk-in Tokens
+        </h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4 text-center">
+        <div class="mb-3">
+          <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-danger-subtle text-danger" style="width: 60px; height: 60px;">
+            <i class="bi bi-clock-history fs-2"></i>
+          </span>
+        </div>
+        <h5 class="fw-bold mb-2">Sweep Uncollected Tokens</h5>
+        <p class="text-muted small mb-3">
+          Walk-in customers often scan the QR code and upload files but leave without visiting the counter. This sweeps all unprinted pending tokens into <strong>Cancelled</strong>.
+        </p>
+
+        <div class="text-start bg-light p-3 rounded border mb-2">
+          <label class="form-label fw-semibold small text-dark mb-1">Age of uncollected tokens to clean:</label>
+          <select class="form-select form-select-sm" id="clearAbandonedHoursSelect">
+            <option value="24" selected>Older than 24 hours (Recommended)</option>
+            <option value="48">Older than 48 hours (2 days)</option>
+            <option value="72">Older than 72 hours (3 days)</option>
+            <option value="12">Older than 12 hours (Today's morning ghost uploads)</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer py-2 px-3 bg-light border-top d-flex justify-content-between">
+        <button type="button" class="btn btn-serene-secondary btn-sm px-3" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger btn-sm px-3 fw-bold shadow-xs" id="confirmClearAbandonedBtn" onclick="confirmClearAbandoned()">
+          <i class="bi bi-brush me-1"></i> Clean Abandoned Now
         </button>
       </div>
     </div>
@@ -1572,6 +1693,108 @@
     }
   }
 
+  // Open Cancel Job Modal
+  function openCancelJobModal(jobId, tokenNumber) {
+    document.getElementById('cancelJobModalId').value = jobId;
+    document.getElementById('cancelJobModalToken').textContent = '#' + tokenNumber;
+    document.getElementById('cancelJobReasonSelect').value = "Customer walked out / didn't show up (Abandoned)";
+    document.getElementById('cancelJobCustomReason').value = '';
+    document.getElementById('cancelJobOtherReasonGroup').classList.add('d-none');
+    const modal = new bootstrap.Modal(document.getElementById('cancelJobModal'));
+    modal.show();
+  }
+
+  function toggleCancelOtherReason(val) {
+    const group = document.getElementById('cancelJobOtherReasonGroup');
+    if (group) {
+      if (val === 'OTHER') {
+        group.classList.remove('d-none');
+        document.getElementById('cancelJobCustomReason').focus();
+      } else {
+        group.classList.add('d-none');
+      }
+    }
+  }
+
+  // Confirm Cancel Quick Print Job
+  async function confirmCancelJob() {
+    const jobId = document.getElementById('cancelJobModalId').value;
+    const reasonSelect = document.getElementById('cancelJobReasonSelect').value;
+    const customReason = document.getElementById('cancelJobCustomReason').value.trim();
+    const finalReason = reasonSelect === 'OTHER' ? (customReason || 'Cancelled by staff') : reasonSelect;
+
+    const btn = document.getElementById('confirmCancelJobBtn');
+    if (btn) btn.disabled = true;
+
+    try {
+      const res = await fetch(`/api/quick-print/jobs/${jobId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'CANCELLED', reason: finalReason })
+      });
+      const data = await res.json();
+      if (data.success) {
+        const modalEl = document.getElementById('cancelJobModal');
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+        if (modalInstance) modalInstance.hide();
+
+        const card = document.getElementById(`job-card-${jobId}`);
+        if (card) {
+          card.setAttribute('data-status', 'CANCELLED');
+          const innerCard = card.querySelector('.serene-card');
+          if (innerCard) {
+            innerCard.classList.remove('border-start-danger');
+            innerCard.classList.remove('border-start-success');
+            innerCard.classList.add('border-start-secondary');
+          }
+        }
+        applyRealtimeSearch();
+        updateQueueCounts();
+      } else {
+        alert(data.message || 'Could not cancel job.');
+      }
+    } catch (err) {
+      alert('Network error while cancelling job.');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  // Clear Abandoned Tokens Modal
+  function openClearAbandonedModal() {
+    const modal = new bootstrap.Modal(document.getElementById('clearAbandonedModal'));
+    modal.show();
+  }
+
+  async function confirmClearAbandoned() {
+    const hours = document.getElementById('clearAbandonedHoursSelect').value;
+    const btn = document.getElementById('confirmClearAbandonedBtn');
+    if (btn) btn.disabled = true;
+
+    try {
+      const res = await fetch('/api/quick-print/clear-abandoned', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hours })
+      });
+      const data = await res.json();
+      if (data.success) {
+        const modalEl = document.getElementById('clearAbandonedModal');
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+        if (modalInstance) modalInstance.hide();
+
+        alert(data.message);
+        window.location.reload();
+      } else {
+        alert(data.message || 'Could not clear abandoned tokens.');
+      }
+    } catch (err) {
+      alert('Network error while clearing abandoned tokens.');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
   // Convert to Formal Order
   async function convertToFormalOrder(jobId) {
     try {
@@ -1615,6 +1838,8 @@
         if (statCompletedToday) statCompletedToday.textContent = stats.completedToday;
         if (tabPendingBadge) tabPendingBadge.textContent = stats.pending;
         if (tabCompletedBadge) tabCompletedBadge.textContent = stats.completedToday;
+        const tabCancelledBadge = document.getElementById('tabCancelledBadge');
+        if (tabCancelledBadge && typeof stats.cancelled !== 'undefined') tabCancelledBadge.textContent = stats.cancelled;
         if (activeBadge) activeBadge.textContent = `${stats.pending} Pending`;
         
         if (sidebarBadge) {
@@ -1638,8 +1863,10 @@
     // 1. Toggle Tab Button classes instantly (0ms)
     const tabPendingBtn = document.getElementById('tabPendingBtn');
     const tabCompletedBtn = document.getElementById('tabCompletedBtn');
+    const tabCancelledBtn = document.getElementById('tabCancelledBtn');
     if (tabPendingBtn) tabPendingBtn.classList.toggle('active', newStatus === 'PENDING');
     if (tabCompletedBtn) tabCompletedBtn.classList.toggle('active', newStatus === 'COMPLETED');
+    if (tabCancelledBtn) tabCancelledBtn.classList.toggle('active', newStatus === 'CANCELLED');
 
     // 2. Update URL silently in browser history (0ms, no reload)
     if (updateUrl) {
@@ -1656,11 +1883,13 @@
   if (!window._qpTabDelegationAttached) {
     window._qpTabDelegationAttached = true;
     document.addEventListener('click', function(e) {
-      const btn = e.target.closest('#tabPendingBtn, #tabCompletedBtn');
+      const btn = e.target.closest('#tabPendingBtn, #tabCompletedBtn, #tabCancelledBtn');
       if (btn) {
-        const isPending = btn.id === 'tabPendingBtn';
+        let targetStatus = 'PENDING';
+        if (btn.id === 'tabCompletedBtn') targetStatus = 'COMPLETED';
+        else if (btn.id === 'tabCancelledBtn') targetStatus = 'CANCELLED';
         if (typeof window.switchQuickPrintTab === 'function') {
-          window.switchQuickPrintTab(isPending ? 'PENDING' : 'COMPLETED');
+          window.switchQuickPrintTab(targetStatus);
         }
       }
     });
@@ -1701,7 +1930,7 @@
       const jobStatus = card.getAttribute('data-status') || 'PENDING';
       const isStatusMatch = currentViewStatus === 'PENDING'
         ? (jobStatus === 'PENDING' || jobStatus === 'PRINTING' || jobStatus === 'READY')
-        : (jobStatus === 'COMPLETED');
+        : (currentViewStatus === 'CANCELLED' ? (jobStatus === 'CANCELLED') : (jobStatus === 'COMPLETED'));
 
       if (!isStatusMatch) {
         card.style.setProperty('display', 'none', 'important');

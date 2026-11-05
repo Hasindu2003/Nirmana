@@ -436,6 +436,29 @@ class OrderService {
   }
 
   /**
+   * Customer cancels their order request before PRINTING commences.
+   */
+  async customerCancelOrder(orderId, customerId, reason = null) {
+    const order = await Order.findByPk(orderId);
+    if (!order) throw new Error('Order not found.');
+
+    if (customerId && order.customerId && order.customerId !== customerId) {
+      throw new Error('Access denied: You can only cancel your own orders.');
+    }
+
+    if (order.status !== 'RECEIVED') {
+      throw new Error(`Production has already commenced (${order.status}). Online cancellation is locked. Please contact our print shop counter directly.`);
+    }
+
+    order.status = 'CANCELLED';
+    const auditStr = `\n[Customer Cancelled on ${new Date().toLocaleString('en-LK')}]: ${reason ? reason.trim() : 'Cancelled via customer portal'}`;
+    order.notes = (order.notes || '') + auditStr;
+
+    await order.save();
+    return order;
+  }
+
+  /**
    * Customer uploads a bank transfer payment receipt / slip.
    */
   async uploadPaymentSlip(orderId, customerId, { slipUrl, amount, ref, notes }) {

@@ -315,24 +315,32 @@
                 <!-- Order Card Footer: Action Controls -->
                 <div class="card-footer bg-white border-top py-2 px-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
                   <div class="d-flex align-items-center gap-2">
-                    <!-- Edit Request Button (Available ONLY before printing starts: RECEIVED) -->
+                    <!-- Edit & Cancel Controls -->
                     <% if (isEditable) { %>
                       <button type="button" class="btn btn-sm btn-outline-primary"
                               onclick="openCustomerEditModal(<%= o.id %>, '<%= o.orderNumber %>', <%= o.quantity %>, `<%= (o.specifications || '').replace(/`/g, '\\`').replace(/\\/g, '\\\\') %>`)">
                         <i class="bi bi-pencil-square me-1"></i> Edit Request
                       </button>
+                      <button type="button" class="btn btn-sm btn-outline-danger"
+                              onclick="openCustomerDirectCancelModal(<%= o.id %>, '<%= o.orderNumber %>')">
+                        <i class="bi bi-x-circle me-1"></i> Cancel Order
+                      </button>
+                    <% } else if (o.status === 'CANCELLED') { %>
+                      <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 small">
+                        <i class="bi bi-x-circle me-1"></i> Cancelled
+                      </span>
                     <% } else { %>
                       <button type="button" class="btn btn-sm btn-light border text-muted" disabled
                               title="Production has started (<%= o.status %>). Requests can no longer be edited online.">
                         <i class="bi bi-lock-fill me-1"></i> In Print / Production (Locked)
                       </button>
-                    <% } %>
 
-                    <!-- Cancellation Help Link (Customers cannot delete; must contact store) -->
-                    <button type="button" class="btn btn-sm btn-link text-secondary text-decoration-none"
-                            onclick="openCustomerCancelModal('<%= o.orderNumber %>')">
-                      <i class="bi bi-telephone-outbound text-danger me-1"></i> Need to cancel?
-                    </button>
+                      <!-- Cancellation Help Link (Late cancellation must contact store) -->
+                      <button type="button" class="btn btn-sm btn-link text-secondary text-decoration-none"
+                              onclick="openCustomerCancelModal('<%= o.orderNumber %>')">
+                        <i class="bi bi-telephone-outbound text-danger me-1"></i> Need to cancel?
+                      </button>
+                    <% } %>
                   </div>
 
                   <!-- Bank Slip Upload / Preview Buttons & Bill View -->
@@ -540,10 +548,20 @@
                       <span class="badge bg-light text-muted border fw-semibold">
                         <i class="bi bi-check2-all me-1"></i> Completed
                       </span>
-                    <% } else { %>
-                      <span class="badge bg-warning-subtle text-warning border border-warning-subtle fw-semibold">
-                        <i class="bi bi-hourglass-split me-1"></i> In Queue (Pending)
+                    <% } else if (job.status === 'CANCELLED') { %>
+                      <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-semibold">
+                        <i class="bi bi-x-circle me-1"></i> Cancelled
                       </span>
+                    <% } else { %>
+                      <div class="d-flex align-items-center gap-1">
+                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle fw-semibold">
+                          <i class="bi bi-hourglass-split me-1"></i> In Queue (Pending)
+                        </span>
+                        <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size: 0.72rem;"
+                                onclick="cancelCustomerQuickPrint(<%= job.id %>, '<%= job.tokenNumber %>')" title="Cancel pending print">
+                          <i class="bi bi-x-circle me-1"></i> Cancel
+                        </button>
+                      </div>
                     <% } %>
                   </td>
                 </tr>
@@ -659,6 +677,42 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Direct Pre-Production Cancellation -->
+  <div class="modal fade" id="customerDirectCancelModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+      <div class="modal-content shadow-lg border-0 rounded-4">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title fw-bold">
+            <i class="bi bi-x-circle-fill me-2"></i> Cancel Order
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4 text-center">
+          <input type="hidden" id="directCancelOrderId">
+          <div class="mb-3">
+            <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-danger-subtle text-danger" style="width: 60px; height: 60px;">
+              <i class="bi bi-exclamation-triangle-fill fs-2"></i>
+            </span>
+          </div>
+          <h5 class="fw-bold mb-2">Cancel Order <span id="directCancelOrderNum"></span>?</h5>
+          <p class="text-muted small mb-3">
+            Since printing has not yet started (Status: <strong>Received</strong>), you can safely cancel this order now.
+          </p>
+          <div class="text-start mb-2">
+            <label class="form-label fw-semibold small text-dark mb-1">Reason for Cancellation (Optional):</label>
+            <input type="text" class="form-control form-control-sm" id="directCancelReason" placeholder="e.g. Changed mind, placed by mistake...">
+          </div>
+        </div>
+        <div class="modal-footer bg-light p-3 d-flex justify-content-between">
+          <button type="button" class="btn btn-serene-secondary" data-bs-dismiss="modal">Keep Order</button>
+          <button type="button" class="btn btn-danger fw-bold" id="btnConfirmDirectCancel" onclick="confirmCustomerOrderCancel()">
+            <i class="bi bi-x-circle me-1"></i> Yes, Cancel Order
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -915,6 +969,70 @@
     } finally {
       btn.disabled = false;
       btn.innerHTML = '<i class="bi bi-cloud-arrow-up me-1"></i> Upload & Submit Slip';
+    }
+  }
+
+  // Direct Customer Order Cancellation (Pre-Production)
+  function openCustomerDirectCancelModal(orderId, orderNum) {
+    document.getElementById('directCancelOrderId').value = orderId;
+    document.getElementById('directCancelOrderNum').textContent = '#' + orderNum;
+    document.getElementById('directCancelReason').value = '';
+    const modal = new bootstrap.Modal(document.getElementById('customerDirectCancelModal'));
+    modal.show();
+  }
+
+  async function confirmCustomerOrderCancel() {
+    const orderId = document.getElementById('directCancelOrderId').value;
+    const reason = document.getElementById('directCancelReason').value.trim();
+    const btn = document.getElementById('btnConfirmDirectCancel');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Cancelling...';
+
+    try {
+      const res = await fetch(`/api/orders/${orderId}/customer-cancel`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ reason })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to cancel order');
+      }
+      alert('Order cancelled successfully.');
+      window.location.reload();
+    } catch (err) {
+      alert('Error cancelling order: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-x-circle me-1"></i> Yes, Cancel Order';
+    }
+  }
+
+  // Cancel Customer Quick Print Job
+  async function cancelCustomerQuickPrint(jobId, tokenNumber) {
+    if (!confirm(`Are you sure you want to cancel your walk-in print token #${tokenNumber}?`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/quick-print/jobs/${jobId}/customer-cancel`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ reason: 'Cancelled by customer via portal' })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to cancel print job');
+      }
+      alert(`Print token #${tokenNumber} cancelled successfully.`);
+      window.location.reload();
+    } catch (err) {
+      alert('Error cancelling print job: ' + err.message);
     }
   }
 </script>

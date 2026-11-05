@@ -122,6 +122,9 @@
         <button type="button" class="btn btn-sm order-tab-btn <%= currentStatus === 'COMPLETED' ? 'btn-serene-primary' : 'btn-serene-secondary' %>" data-status="COMPLETED" onclick="switchOrderStatusTab('COMPLETED')">
           Completed
         </button>
+        <button type="button" class="btn btn-sm order-tab-btn <%= currentStatus === 'CANCELLED' ? 'btn-serene-primary' : 'btn-serene-secondary' %>" data-status="CANCELLED" onclick="switchOrderStatusTab('CANCELLED')">
+          Cancelled (<span id="cancelledOrdersCount"><%= orders.filter(o => o.status === 'CANCELLED').length %></span>)
+        </button>
       </div>
 
       <div class="d-flex align-items-center gap-2 flex-grow-1 flex-sm-grow-0" style="min-width: 260px; max-width: 100%;">

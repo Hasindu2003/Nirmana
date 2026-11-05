@@ -70,6 +70,7 @@ router.put('/orders/:id/status', authenticate, requireStaff, orderController.upd
 router.post('/orders/:id/payment', authenticate, requireStaff, orderController.recordPayment);
 router.put('/orders/:id/discount', authenticate, requireStaff, orderController.updateDiscount);
 router.put('/orders/:id/customer-edit', authenticate, orderController.customerEditOrder);
+router.put('/orders/:id/customer-cancel', authenticate, orderController.customerCancelOrder);
 router.post('/orders/:id/payment-slip', authenticate, uploadPaymentSlip, orderController.uploadPaymentSlip);
 router.put('/orders/:id/verify-slip', authenticate, requireStaff, orderController.verifyPaymentSlip);
 
@@ -81,6 +82,8 @@ router.get('/customers/:id', authenticate, requireStaff, customerController.getC
 // Quick Print Counter Queue (Shopkeeper Operations)
 router.get('/quick-print/jobs', authenticate, requireStaff, quickPrintController.listJobs);
 router.put('/quick-print/jobs/:id/status', authenticate, requireStaff, quickPrintController.updateStatus);
+router.put('/quick-print/jobs/:id/customer-cancel', authenticate, quickPrintController.customerCancelJob);
+router.post('/quick-print/clear-abandoned', authenticate, requireStaff, quickPrintController.clearAbandoned);
 router.delete('/quick-print/jobs/:id', authenticate, requireStaff, quickPrintController.deleteJob);
 router.post('/quick-print/jobs/batch-delete', authenticate, requireStaff, quickPrintController.batchDeleteJobs);
 router.post('/quick-print/jobs/:id/convert', authenticate, requireStaff, quickPrintController.convertToOrder);

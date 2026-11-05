@@ -117,23 +117,68 @@ class QuickPrintController {
   }
 
   /**
-   * Update status (e.g. PRINTING, READY, COMPLETED)
+   * Update status (e.g. PRINTING, READY, COMPLETED, CANCELLED)
    */
   async updateStatus(req, res) {
     try {
       const { id } = req.params;
-      const { status } = req.body;
+      const { status, reason } = req.body;
 
       if (!status) {
         return res.status(400).json({ success: false, message: 'Status is required.' });
       }
 
-      const updatedJob = await quickPrintService.updateJobStatus(id, status);
+      const updatedJob = await quickPrintService.updateJobStatus(id, status, reason);
 
       return res.json({
         success: true,
         message: `Token #${updatedJob.tokenNumber} marked as ${status}.`,
         data: updatedJob,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  /**
+   * Sweep and cancel all abandoned pending walk-in print jobs older than X hours
+   */
+  async clearAbandoned(req, res) {
+    try {
+      const hours = parseInt(req.body.hours, 10) || 24;
+      const result = await quickPrintService.cancelAbandonedJobs(hours);
+
+      return res.json({
+        success: true,
+        message: `Successfully cleared ${result.cancelledCount} abandoned walk-in token(s) older than ${hours} hours.`,
+        data: result,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  /**
+   * Customer cancels their own pending quick print job
+   */
+  async customerCancelJob(req, res) {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+      const customerId = req.user ? req.user.customerId : null;
+
+      const job = await quickPrintService.customerCancelJob(id, customerId, reason);
+
+      return res.json({
+        success: true,
+        message: `Quick print token #${job.tokenNumber} has been cancelled.`,
+        data: job,
       });
     } catch (error) {
       return res.status(400).json({

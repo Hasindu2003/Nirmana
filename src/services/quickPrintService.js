@@ -478,7 +478,7 @@ class QuickPrintService {
   /**
    * Update status of a quick print job
    */
-  async updateJobStatus(id, newStatus) {
+  async updateJobStatus(id, newStatus, reason = null) {
     const validStatuses = ['PENDING', 'PRINTING', 'READY', 'COMPLETED', 'CANCELLED'];
     if (!validStatuses.includes(newStatus)) {
       throw new Error(`Invalid status "${newStatus}". Must be one of: ${validStatuses.join(', ')}`);
@@ -499,6 +499,61 @@ class QuickPrintService {
     if (newStatus === 'COMPLETED' && !job.completedAt) {
       job.completedAt = new Date();
     }
+    if (newStatus === 'CANCELLED') {
+      const reasonTag = reason ? `[CANCELLED: ${reason.trim()}]` : '[CANCELLED]';
+      job.customerMessage = job.customerMessage ? `${job.customerMessage} ${reasonTag}` : reasonTag;
+    }
+
+    await job.save();
+    return job;
+  }
+
+  /**
+   * Automatically sweep and cancel abandoned pending walk-in tokens
+   */
+  async cancelAbandonedJobs(olderThanHours = 24) {
+    const cutoffDate = new Date(Date.now() - olderThanHours * 60 * 60 * 1000);
+    const abandonedJobs = await QuickPrintJob.findAll({
+      where: {
+        status: 'PENDING',
+        createdAt: { [Op.lte]: cutoffDate },
+      },
+    });
+
+    let count = 0;
+    for (const job of abandonedJobs) {
+      job.status = 'CANCELLED';
+      const reasonTag = `[AUTO-CANCELLED: Abandoned by walk-in customer (> ${olderThanHours} hours without collection)]`;
+      job.customerMessage = job.customerMessage ? `${job.customerMessage} ${reasonTag}` : reasonTag;
+      await job.save();
+      count++;
+    }
+
+    return {
+      cancelledCount: count,
+      cutoffDate,
+      olderThanHours,
+    };
+  }
+
+  /**
+   * Customer cancels their quick print job before PRINTING begins.
+   */
+  async customerCancelJob(jobId, customerId, reason = null) {
+    const job = await QuickPrintJob.findByPk(jobId);
+    if (!job) throw new Error('Quick print job not found.');
+
+    if (customerId && job.customerId && job.customerId !== customerId) {
+      throw new Error('Access denied: You can only cancel your own print jobs.');
+    }
+
+    if (job.status !== 'PENDING') {
+      throw new Error(`Print job is already in progress (${job.status}). Online cancellation is locked. Please contact our print shop counter directly.`);
+    }
+
+    job.status = 'CANCELLED';
+    const reasonTag = `[Customer Cancelled: ${reason ? reason.trim() : 'Requested via customer portal'}]`;
+    job.customerMessage = job.customerMessage ? `${job.customerMessage} ${reasonTag}` : reasonTag;
 
     await job.save();
     return job;
@@ -642,7 +697,7 @@ class QuickPrintService {
   async getQueueStats() {
     const { startOfDay, endOfDay } = getSriLankaDayBounds();
 
-    const [pendingCount, completedTodayCount, allCompletedCount, totalTodayCount] = await Promise.all([
+    const [pendingCount, completedTodayCount, allCompletedCount, totalTodayCount, cancelledCount] = await Promise.all([
       QuickPrintJob.count({ where: { status: 'PENDING' } }),
       QuickPrintJob.count({
         where: {
@@ -656,6 +711,7 @@ class QuickPrintService {
           createdAt: { [Op.gte]: startOfDay, [Op.lte]: endOfDay },
         },
       }),
+      QuickPrintJob.count({ where: { status: 'CANCELLED' } }),
     ]);
 
     return {
@@ -663,6 +719,7 @@ class QuickPrintService {
       completedToday: completedTodayCount,
       completedTotal: allCompletedCount,
       totalToday: totalTodayCount,
+      cancelled: cancelledCount,
     };
   }
 }

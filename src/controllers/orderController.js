@@ -235,6 +235,26 @@ class OrderController {
   }
 
   /**
+   * Customer cancels their own pending order strictly before PRINTING starts.
+   */
+  async customerCancelOrder(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+      const customerId = req.user ? req.user.customerId : null;
+
+      const updated = await orderService.customerCancelOrder(id, customerId, reason);
+      return res.json({
+        success: true,
+        message: `Order #${updated.orderNumber} has been cancelled successfully.`,
+        data: updated,
+      });
+    } catch (error) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
+  /**
    * Customer uploads bank payment slip image/PDF.
    */
   async uploadPaymentSlip(req, res, next) {
