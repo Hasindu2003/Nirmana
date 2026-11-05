@@ -53,8 +53,11 @@ router.get('/dashboard/stats', authenticate, requireStaff, dashboardController.g
 // Stock Management (Staff only)
 router.get('/stock', authenticate, requireStaff, stockController.listItems);
 router.post('/stock', authenticate, requireStaff, stockController.createItem);
+router.delete('/stock/items/:id', authenticate, requireStaff, stockController.deleteItem);
 router.post('/stock/in', authenticate, requireStaff, stockController.recordStockIn);
 router.post('/stock/out', authenticate, requireStaff, stockController.recordStockOut);
+router.post('/stock/remove', authenticate, requireStaff, stockController.recordStockRemoval);
+router.get('/stock/removed', authenticate, requireStaff, stockController.listRemoved);
 router.post('/stock/office-use', authenticate, requireStaff, stockController.recordOfficeUse);
 router.get('/stock/office-use', authenticate, requireStaff, stockController.listOfficeUse);
 router.get('/stock/transactions', authenticate, requireStaff, stockController.listTransactions);

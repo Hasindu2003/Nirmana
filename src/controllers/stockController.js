@@ -166,6 +166,79 @@ class StockController {
       next(error);
     }
   }
+
+  /**
+   * Record Stock Removal / Write-off / Wastage / Damage
+   */
+  async recordStockRemoval(req, res, next) {
+    try {
+      const { stockItemId, quantity, reason, reference, notes, date } = req.body;
+      if (!stockItemId || !quantity) {
+        return res.status(400).json({
+          success: false,
+          message: 'stockItemId and quantity are required.',
+        });
+      }
+
+      const result = await stockService.recordStockRemoval({
+        stockItemId: parseInt(stockItemId, 10),
+        quantity: parseFloat(quantity),
+        reason,
+        reference,
+        notes,
+        date,
+      });
+
+      return res.json({
+        success: true,
+        message: `Successfully removed ${result.removedQty} ${result.item.unit} (${result.reasonLabel}) from stock.`,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Delete or archive a stock item
+   */
+  async deleteItem(req, res, next) {
+    try {
+      const { id } = req.params;
+      const result = await stockService.deleteStockItem(id);
+      return res.json({
+        success: true,
+        message: result.message,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * List removed / damaged / written-off stock transactions
+   */
+  async listRemoved(req, res, next) {
+    try {
+      const { page, limit, reason, date } = req.query;
+      const result = await stockService.getRemovedStockTransactions({
+        page: page ? parseInt(page, 10) : 1,
+        limit: limit ? parseInt(limit, 10) : 10,
+        reason,
+        date,
+        paginate: true,
+      });
+      return res.json({
+        success: true,
+        data: result.transactions,
+        pagination: result.pagination,
+        summary: result.summary,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new StockController();

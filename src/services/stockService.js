@@ -574,6 +574,190 @@ class StockService {
       pagination,
     };
   }
+
+  /**
+   * Record Stock Removal / Write-off / Damage / Wastage / Expired / Return
+   */
+  async recordStockRemoval({ stockItemId, quantity, reason, reference, notes, date }) {
+    return await sequelize.transaction(async (t) => {
+      const item = await StockItem.findByPk(stockItemId, { transaction: t });
+      if (!item) throw new Error('Stock item not found.');
+
+      const qty = parseFloat(quantity);
+      if (isNaN(qty) || qty <= 0) {
+        throw new Error('Removal quantity must be greater than zero.');
+      }
+
+      const current = parseFloat(item.currentStock) || 0;
+      if (qty > current) {
+        throw new Error(`Cannot remove ${qty} ${item.unit}. Only ${current} ${item.unit} available in stock!`);
+      }
+
+      const validReasons = [
+        'DAMAGED',
+        'WASTAGE',
+        'EXPIRED',
+        'SUPPLIER_RETURN',
+        'CORRECTION',
+        'DISPOSAL',
+        'REMOVED',
+        'OTHER',
+      ];
+      const category = reason && validReasons.includes(reason.toUpperCase())
+        ? reason.toUpperCase()
+        : 'REMOVED';
+
+      const reasonLabels = {
+        DAMAGED: 'Damaged / Broken',
+        WASTAGE: 'Print Trial / Scrap Wastage',
+        EXPIRED: 'Expired Chemicals / Inks',
+        SUPPLIER_RETURN: 'Returned to Supplier',
+        CORRECTION: 'Physical Count Adjustment',
+        DISPOSAL: 'Obsolete / Disposed',
+        REMOVED: 'Manual Stock Removal',
+        OTHER: 'Other Write-off',
+      };
+
+      const newBalance = current - qty;
+      item.currentStock = newBalance;
+      await item.save({ transaction: t });
+
+      const uCost = parseFloat(item.unitCost) || 0.00;
+      const totalLoss = parseFloat((uCost * qty).toFixed(2));
+
+      const refText = reference && reference.trim() ? reference.trim() : `${reasonLabels[category] || 'Removal'} #${item.code}`;
+      const noteText = notes && notes.trim() ? notes.trim() : `Stock reduced: ${qty} ${item.unit} (${reasonLabels[category] || category})`;
+
+      const transaction = await StockTransaction.create({
+        stockItemId: item.id,
+        type: 'OUT',
+        category: category,
+        quantity: qty,
+        balanceAfter: newBalance,
+        unitCost: uCost,
+        totalCost: totalLoss,
+        reference: refText,
+        notes: noteText,
+        date: date || getSriLankaTodayString(),
+      }, { transaction: t });
+
+      return {
+        item,
+        transaction,
+        removedQty: qty,
+        lossValue: totalLoss,
+        category,
+        reasonLabel: reasonLabels[category] || category,
+      };
+    });
+  }
+
+  /**
+   * Get all removed / damaged / written-off stock transactions
+   */
+  async getRemovedStockTransactions(options = {}) {
+    let page = 1;
+    let limit = 10;
+    let paginate = true;
+    let reason = null;
+
+    if (typeof options === 'object') {
+      page = options.page || 1;
+      limit = options.limit || 10;
+      paginate = options.paginate !== false;
+      reason = options.reason || null;
+    }
+
+    const removalCategories = ['DAMAGED', 'WASTAGE', 'EXPIRED', 'SUPPLIER_RETURN', 'CORRECTION', 'DISPOSAL', 'REMOVED', 'OTHER'];
+    const where = {
+      type: 'OUT',
+      category: reason && reason !== 'ALL' ? reason : { [Op.in]: removalCategories },
+    };
+
+    if (options.date) where.date = options.date;
+
+    const queryOptions = {
+      where,
+      order: [['date', 'DESC'], ['id', 'DESC']],
+      include: [
+        {
+          model: StockItem,
+          as: 'stockItem',
+          attributes: ['id', 'code', 'name', 'unit', 'category', 'unitCost'],
+        },
+      ],
+    };
+
+    // Overall summary metrics for removed stock
+    const allRemoved = await StockTransaction.findAll({
+      where: {
+        type: 'OUT',
+        category: { [Op.in]: removalCategories },
+      },
+      attributes: ['quantity', 'totalCost'],
+      raw: true,
+    }).catch(() => []);
+
+    let totalQuantity = 0;
+    let totalLossValue = 0;
+    allRemoved.forEach(r => {
+      totalQuantity += parseFloat(r.quantity) || 0;
+      totalLossValue += parseFloat(r.totalCost) || 0;
+    });
+
+    const summary = {
+      totalCount: allRemoved.length,
+      totalQuantity: parseFloat(totalQuantity.toFixed(2)),
+      totalLossValue: parseFloat(totalLossValue.toFixed(2)),
+    };
+
+    if (!paginate) {
+      const transactions = await StockTransaction.findAll(queryOptions);
+      return { transactions, summary };
+    }
+
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, parseInt(limit, 10) || 10);
+    const offset = (pageNum - 1) * limitNum;
+
+    queryOptions.limit = limitNum;
+    queryOptions.offset = offset;
+
+    const { count, rows: transactions } = await StockTransaction.findAndCountAll(queryOptions);
+    const pagination = buildPagination(count, pageNum, limitNum);
+
+    return {
+      transactions,
+      pagination,
+      summary,
+    };
+  }
+
+  /**
+   * Delete or archive a stock item
+   */
+  async deleteStockItem(id) {
+    const item = await StockItem.findByPk(id);
+    if (!item) throw new Error('Stock item not found.');
+
+    const txCount = await StockTransaction.count({ where: { stockItemId: id } });
+    if (txCount > 0) {
+      item.isActive = false;
+      await item.save();
+      return {
+        item,
+        softDeleted: true,
+        message: `Stock item "${item.name}" has been archived and removed from active inventory. Historical transactions remain preserved.`,
+      };
+    } else {
+      await item.destroy();
+      return {
+        item,
+        softDeleted: false,
+        message: `Stock item "${item.name}" has been permanently removed.`,
+      };
+    }
+  }
 }
 
 module.exports = new StockService();

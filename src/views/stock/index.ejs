@@ -19,6 +19,9 @@
         <button class="btn btn-warning text-dark fw-semibold shadow-xs" data-bs-toggle="modal" data-bs-target="#stockOutModal">
           <i class="bi bi-box-arrow-up-right me-1"></i> Record Material Usage (Job / Office)
         </button>
+        <button class="btn btn-danger text-white fw-semibold shadow-xs" data-bs-toggle="modal" data-bs-target="#stockRemoveModal">
+          <i class="bi bi-dash-circle me-1"></i> Remove Stock
+        </button>
       </div>
     </div>
 
@@ -132,6 +135,12 @@
           <span class="badge bg-light text-dark border ms-1"><%= typeof transactionsPagination !== 'undefined' && transactionsPagination ? transactionsPagination.totalItems : transactions.length %></span>
         </button>
       </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link <%= currentTab === 'removed' ? 'active' : '' %> fw-semibold d-flex align-items-center gap-2 px-3 py-2 text-danger" id="removed-tab" data-bs-toggle="tab" data-bs-target="#removed-pane" type="button" role="tab">
+          <i class="bi bi-trash3 text-danger"></i> Removed & Damaged Stock
+          <span class="badge bg-danger-subtle text-danger border border-danger-subtle ms-1"><%= (typeof removedSummary !== 'undefined' && removedSummary) ? removedSummary.totalCount : (typeof removedTransactions !== 'undefined' ? removedTransactions.length : 0) %></span>
+        </button>
+      </li>
     </ul>
 
     <!-- Tab Content -->
@@ -241,9 +250,15 @@
                           <button class="btn btn-sm btn-warning py-1 px-2 text-dark fw-semibold shadow-xs" onclick="quickStockOut(<%= item.id %>, '<%= escape(item.name) %>')" title="Record Material Usage (Job or Office)">
                             <i class="bi bi-box-arrow-up-right"></i> Use
                           </button>
+                          <button class="btn btn-sm btn-outline-danger py-1 px-2" onclick="quickStockRemove(<%= item.id %>, '<%= escape(item.name) %>', <%= item.currentStock %>, '<%= item.unit %>')" title="Remove / Deduct Stock (Damage/Waste)">
+                            <i class="bi bi-dash-circle"></i> Remove
+                          </button>
                           <a href="/stock/<%= item.id %>" class="btn btn-sm btn-serene-secondary py-1 px-2" title="View Full Details">
                             <i class="bi bi-eye"></i>
                           </a>
+                          <button class="btn btn-sm btn-light text-danger border py-1 px-2" onclick="confirmDeleteStockItem(<%= item.id %>, '<%= escape(item.name) %>')" title="Delete / Archive Item">
+                            <i class="bi bi-trash"></i>
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -461,9 +476,176 @@
               search: (typeof search !== 'undefined' && search) ? search : undefined, 
               page: typeof currentPage !== 'undefined' ? currentPage : undefined,
               officePage: typeof currentOfficePage !== 'undefined' ? currentOfficePage : undefined,
+              removedPage: typeof currentRemovedPage !== 'undefined' ? currentRemovedPage : undefined,
               tab: 'movements'
             }, 
             pageParam: 'txPage' 
+          }) %>
+        </div>
+      </div>
+
+      <!-- 4. Removed & Damaged Stock Pane (Dedicated Section) -->
+      <div class="tab-pane fade <%= currentTab === 'removed' ? 'show active' : '' %>" id="removed-pane" role="tabpanel">
+        <div class="serene-card mb-4">
+          <div class="serene-card-header d-flex flex-wrap align-items-center justify-content-between gap-2" style="background: #fef2f2;">
+            <div>
+              <h3 class="serene-card-title mb-0 text-danger d-flex align-items-center gap-2">
+                <i class="bi bi-trash3-fill"></i> Removed & Damaged Stock Ledger
+              </h3>
+              <div class="text-muted small mt-1">Audit log of damaged materials, scrap wastage, expired chemicals, defective supplier returns, and write-offs</div>
+            </div>
+            <button class="btn btn-danger text-white btn-sm shadow-xs fw-semibold" data-bs-toggle="modal" data-bs-target="#stockRemoveModal">
+              <i class="bi bi-dash-circle me-1"></i> Remove Stock
+            </button>
+          </div>
+
+          <!-- KPI Summary Cards for Removals -->
+          <div class="p-3 border-bottom bg-light">
+            <div class="row g-2">
+              <div class="col-md-4">
+                <div class="p-2-5 bg-white border rounded-2 d-flex align-items-center justify-content-between">
+                  <div>
+                    <span class="text-muted small d-block">Removal Incidents</span>
+                    <strong class="fs-5 text-dark tabular-nums"><%= (typeof removedSummary !== 'undefined' && removedSummary) ? removedSummary.totalCount : 0 %></strong>
+                  </div>
+                  <div class="p-2 rounded bg-danger-subtle text-danger"><i class="bi bi-journal-x fs-5"></i></div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="p-2-5 bg-white border rounded-2 d-flex align-items-center justify-content-between">
+                  <div>
+                    <span class="text-muted small d-block">Total Units Removed</span>
+                    <strong class="fs-5 text-dark tabular-nums"><%= (typeof removedSummary !== 'undefined' && removedSummary) ? removedSummary.totalQuantity : 0 %></strong>
+                  </div>
+                  <div class="p-2 rounded bg-warning-subtle text-warning-emphasis"><i class="bi bi-boxes fs-5"></i></div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="p-2-5 bg-white border rounded-2 d-flex align-items-center justify-content-between">
+                  <div>
+                    <span class="text-muted small d-block">Total Financial Loss (Write-off)</span>
+                    <strong class="fs-5 text-danger tabular-nums"><%= currencySymbol %> <%= (typeof removedSummary !== 'undefined' && removedSummary) ? parseFloat(removedSummary.totalLossValue || 0).toLocaleString('en-LK', { minimumFractionDigits: 2 }) : '0.00' %></strong>
+                  </div>
+                  <div class="p-2 rounded bg-danger-subtle text-danger"><i class="bi bi-currency-dollar fs-5"></i></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Reason Filter Bar -->
+          <div class="p-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div class="d-flex flex-wrap gap-1">
+              <% const curReason = typeof currentRemovedReason !== 'undefined' ? currentRemovedReason : 'ALL'; %>
+              <a href="/stock?tab=removed&removedReason=ALL" class="btn btn-xs <%= curReason === 'ALL' ? 'btn-danger text-white' : 'btn-light border' %>">All (<%= (typeof removedSummary !== 'undefined' && removedSummary) ? removedSummary.totalCount : 0 %>)</a>
+              <a href="/stock?tab=removed&removedReason=DAMAGED" class="btn btn-xs <%= curReason === 'DAMAGED' ? 'btn-danger text-white' : 'btn-light border' %>">💥 Damaged</a>
+              <a href="/stock?tab=removed&removedReason=WASTAGE" class="btn btn-xs <%= curReason === 'WASTAGE' ? 'btn-danger text-white' : 'btn-light border' %>">🗑️ Wastage</a>
+              <a href="/stock?tab=removed&removedReason=EXPIRED" class="btn btn-xs <%= curReason === 'EXPIRED' ? 'btn-danger text-white' : 'btn-light border' %>">⏳ Expired</a>
+              <a href="/stock?tab=removed&removedReason=SUPPLIER_RETURN" class="btn btn-xs <%= curReason === 'SUPPLIER_RETURN' ? 'btn-danger text-white' : 'btn-light border' %>">🔄 Supplier Return</a>
+              <a href="/stock?tab=removed&removedReason=DISPOSAL" class="btn btn-xs <%= curReason === 'DISPOSAL' ? 'btn-danger text-white' : 'btn-light border' %>">🚮 Disposal</a>
+              <a href="/stock?tab=removed&removedReason=OTHER" class="btn btn-xs <%= curReason === 'OTHER' ? 'btn-danger text-white' : 'btn-light border' %>">📝 Other</a>
+            </div>
+          </div>
+
+          <!-- Removed Stock Table -->
+          <div class="table-responsive">
+            <table class="serene-table mb-0">
+              <thead>
+                <tr>
+                  <th>Date & Time</th>
+                  <th>Material / Item</th>
+                  <th>Qty Removed</th>
+                  <th>Removal Reason</th>
+                  <th>Unit Buying Cost</th>
+                  <th>Financial Loss Value</th>
+                  <th>Remaining Stock</th>
+                  <th>Reference & Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (typeof removedTransactions !== 'undefined' && removedTransactions && removedTransactions.length > 0) { %>
+                  <% removedTransactions.forEach(t => { %>
+                    <tr>
+                      <td class="text-nowrap small text-muted">
+                        <div><%= t.date %></div>
+                        <div style="font-size: 0.72rem;"><%= new Date(t.createdAt).toLocaleTimeString('en-LK', { hour: '2-digit', minute: '2-digit' }) %></div>
+                      </td>
+                      <td>
+                        <div class="fw-bold text-dark">
+                          <% if (t.stockItem) { %>
+                            <a href="/stock/<%= t.stockItem.id %>" class="text-dark text-decoration-none hover-primary"><%= t.stockItem.name %></a>
+                          <% } else { %>
+                            <span class="text-muted">Item #<%= t.stockItemId %> (Archived)</span>
+                          <% } %>
+                        </div>
+                        <div class="text-muted small font-monospace" style="font-size: 0.72rem;">
+                          <%= t.stockItem ? t.stockItem.code : '' %>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="fw-bold text-danger tabular-nums">
+                          - <%= parseFloat(t.quantity) %> <span class="fw-normal text-muted small"><%= t.stockItem ? t.stockItem.unit : '' %></span>
+                        </div>
+                      </td>
+                      <td>
+                        <% if (t.category === 'DAMAGED') { %>
+                          <span class="badge bg-danger">💥 Damaged</span>
+                        <% } else if (t.category === 'WASTAGE') { %>
+                          <span class="badge bg-warning text-dark">🗑️ Wastage</span>
+                        <% } else if (t.category === 'EXPIRED') { %>
+                          <span class="badge bg-secondary">⏳ Expired</span>
+                        <% } else if (t.category === 'SUPPLIER_RETURN') { %>
+                          <span class="badge bg-info text-dark">🔄 Return</span>
+                        <% } else if (t.category === 'CORRECTION') { %>
+                          <span class="badge bg-dark">⚖️ Count Adj</span>
+                        <% } else if (t.category === 'DISPOSAL') { %>
+                          <span class="badge bg-danger-subtle text-danger border">🚮 Disposal</span>
+                        <% } else { %>
+                          <span class="badge bg-light text-dark border">📦 <%= t.category || 'Removed' %></span>
+                        <% } %>
+                      </td>
+                      <td class="tabular-nums small">
+                        <%= currencySymbol %> <%= parseFloat(t.unitCost || (t.stockItem ? t.stockItem.unitCost : 0)).toFixed(2) %>
+                      </td>
+                      <td class="tabular-nums fw-bold text-danger">
+                        <%= currencySymbol %> <%= parseFloat(t.totalCost || 0).toFixed(2) %>
+                      </td>
+                      <td class="tabular-nums text-muted small">
+                        <%= parseFloat(t.balanceAfter) %> <%= t.stockItem ? t.stockItem.unit : '' %>
+                      </td>
+                      <td>
+                        <div class="fw-medium text-dark small"><%= t.reference || '-' %></div>
+                        <% if (t.notes) { %>
+                          <div class="text-muted small" style="font-size: 0.75rem;"><%= t.notes %></div>
+                        <% } %>
+                      </td>
+                    </tr>
+                  <% }) %>
+                <% } else { %>
+                  <tr>
+                    <td colspan="8" class="text-center py-5 text-muted">
+                      <div class="text-success fs-3 mb-1"><i class="bi bi-shield-check"></i></div>
+                      <div class="fw-semibold">No stock removals or damaged goods recorded!</div>
+                      <div class="small">Click "+ Remove Stock" whenever materials are damaged, scrapped, expired, or returned.</div>
+                    </td>
+                  </tr>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+
+          <%- include('../partials/pagination', { 
+            pagination: typeof removedPagination !== 'undefined' ? removedPagination : null, 
+            baseUrl: '/stock', 
+            queryParams: { 
+              category: typeof currentCategory !== 'undefined' && currentCategory !== 'ALL' ? currentCategory : undefined, 
+              search: (typeof search !== 'undefined' && search) ? search : undefined, 
+              page: typeof currentPage !== 'undefined' ? currentPage : undefined,
+              officePage: typeof currentOfficePage !== 'undefined' ? currentOfficePage : undefined,
+              txPage: typeof currentTxPage !== 'undefined' ? currentTxPage : undefined,
+              removedReason: typeof currentRemovedReason !== 'undefined' && currentRemovedReason !== 'ALL' ? currentRemovedReason : undefined,
+              tab: 'removed'
+            }, 
+            pageParam: 'removedPage' 
           }) %>
         </div>
       </div>

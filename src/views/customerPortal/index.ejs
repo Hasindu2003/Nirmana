@@ -335,8 +335,12 @@
                     </button>
                   </div>
 
-                  <!-- Bank Slip Upload / Preview Buttons -->
+                  <!-- Bank Slip Upload / Preview Buttons & Bill View -->
                   <div class="d-flex align-items-center gap-2">
+                    <a href="/orders/<%= o.id %>/invoice" target="_blank" class="btn btn-sm btn-outline-dark fw-semibold" title="View or Print Official Bill">
+                      <i class="bi bi-printer me-1"></i> View Bill
+                    </a>
+
                     <% if (o.paymentSlipUrl) { %>
                       <a href="<%= o.paymentSlipUrl %>" target="_blank" class="btn btn-sm btn-outline-secondary">
                         <i class="bi bi-file-earmark-image me-1"></i> View Bank Slip

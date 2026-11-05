@@ -22,6 +22,10 @@
 
       <!-- Quick Status Actions -->
       <div class="d-flex flex-wrap align-items-center gap-2 mt-3 mt-sm-0">
+        <a href="/orders/<%= order.id %>/invoice" target="_blank" class="btn btn-warning text-dark fw-bold shadow-xs">
+          <i class="bi bi-printer-fill me-1"></i> Print Bill (Invoice)
+        </a>
+
         <% if (order.status === 'RECEIVED') { %>
           <button class="btn btn-serene-primary" onclick="setOrderStatus(<%= order.id %>, 'PRINTING')">
             <i class="bi bi-printer"></i> Send to Printing

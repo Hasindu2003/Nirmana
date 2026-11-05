@@ -437,14 +437,69 @@ router.get('/orders/:id', requireStaff, async (req, res, next) => {
   }
 });
 
-// 5. Stock Management (Live Inventory, Stock In/Out, Office Use, History)
+// 4b. Order Printable Bill / Invoice (matches Nirmana Printing official PDF format)
+router.get('/orders/:id/invoice', async (req, res, next) => {
+  try {
+    const order = await orderService.getOrderById(req.params.id);
+    const currencySymbol = config.currencySymbol || 'Rs.';
+
+    let items = [];
+    if (order.items && order.items.length > 0) {
+      items = order.items.map(i => ({
+        description: i.itemDescription || i.productName || 'Printing Service',
+        subtext: i.specifications || null,
+        quantity: i.quantity,
+        unitPrice: i.unitPrice,
+        totalPrice: i.totalPrice,
+      }));
+    } else {
+      let subtext = [];
+      if (order.paperMaterial) subtext.push(`Material: ${order.paperMaterial}`);
+      if (order.specifications) subtext.push(`Specs: ${order.specifications}`);
+      const unitPrice = order.quantity > 0 ? (parseFloat(order.totalAmount) / order.quantity) : parseFloat(order.totalAmount);
+      items.push({
+        description: order.jobTitle || 'Custom Printing Work',
+        subtext: subtext.join(' · ') || null,
+        quantity: order.quantity || 1,
+        unitPrice: unitPrice,
+        totalPrice: order.totalAmount,
+      });
+    }
+
+    const customer = order.customer;
+    const billedTo = customer
+      ? `${customer.name || customer.fullName || 'Valued Customer'}${customer.phone ? ' - ' + customer.phone : ''}`
+      : 'Counter Customer';
+
+    const invoiceData = {
+      date: new Date(order.createdAt || order.orderDate).toLocaleDateString('en-GB'),
+      invoiceNumber: order.orderNumber,
+      billedTo: billedTo,
+      items: items,
+      totalAmount: order.totalAmount,
+      advancePaid: order.advancePaid,
+      balanceAmount: order.balanceAmount,
+      currencySymbol: currencySymbol,
+    };
+
+    res.render('invoices/billPrint', {
+      title: `Invoice #${order.orderNumber} · Nirmana Printing`,
+      invoiceData,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 5. Stock Management (Live Inventory, Stock In/Out, Stock Removal, Office Use, History)
 router.get('/stock', requireStaff, async (req, res, next) => {
   try {
-    const { search, category, page, txPage, usagePage, officePage, usageCategory, tab } = req.query;
+    const { search, category, page, txPage, usagePage, officePage, usageCategory, removedPage, removedReason, tab } = req.query;
     const [
       stockResult,
       { transactions, pagination: transactionsPagination },
       usageResult,
+      removedResult,
       allItems
     ] = await Promise.all([
       stockService.getAllStockItems({
@@ -465,6 +520,12 @@ router.get('/stock', requireStaff, async (req, res, next) => {
         category: usageCategory || null,
         paginate: true,
       }),
+      stockService.getRemovedStockTransactions({
+        page: parseInt(removedPage, 10) || 1,
+        limit: 10,
+        reason: removedReason || null,
+        paginate: true,
+      }),
       stockService.getAllStockItems({ paginate: false }),
     ]);
 
@@ -479,6 +540,9 @@ router.get('/stock', requireStaff, async (req, res, next) => {
     };
     const usageTransactions = usageResult.transactions || [];
     const usagePagination = usageResult.pagination || null;
+    const removedTransactions = removedResult.transactions || [];
+    const removedPagination = removedResult.pagination || null;
+    const removedSummary = removedResult.summary || { totalCount: 0, totalQuantity: 0, totalLossValue: 0 };
 
     // Extract unique categories for filter
     const categories = [...new Set(allItems.map(i => i.category))];
@@ -495,6 +559,9 @@ router.get('/stock', requireStaff, async (req, res, next) => {
       usagePagination,
       officeTransactions: usageTransactions, // for backward compatibility
       officePagination: usagePagination,
+      removedTransactions,
+      removedPagination,
+      removedSummary,
       categories,
       currentCategory: category || 'ALL',
       search: search || '',
@@ -502,8 +569,38 @@ router.get('/stock', requireStaff, async (req, res, next) => {
       currentTxPage: parseInt(txPage, 10) || 1,
       currentUsagePage: parseInt(usagePage || officePage, 10) || 1,
       currentUsageCategory: usageCategory || 'ALL',
+      currentRemovedPage: parseInt(removedPage, 10) || 1,
+      currentRemovedReason: removedReason || 'ALL',
       currentTab: tab || 'inventory',
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 5c. Record Stock Removal (View Form Submission)
+router.post('/stock/remove', requireStaff, async (req, res, next) => {
+  try {
+    const { stockItemId, quantity, reason, reference, notes, date } = req.body;
+    await stockService.recordStockRemoval({
+      stockItemId: parseInt(stockItemId, 10),
+      quantity: parseFloat(quantity),
+      reason,
+      reference,
+      notes,
+      date,
+    });
+    res.redirect('/stock?tab=removed');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 5d. Delete / Archive Stock Item (View Form Submission)
+router.post('/stock/delete/:id', requireStaff, async (req, res, next) => {
+  try {
+    await stockService.deleteStockItem(req.params.id);
+    res.redirect('/stock?tab=inventory');
   } catch (err) {
     next(err);
   }
@@ -639,6 +736,40 @@ router.get('/pos', requireStaff, async (req, res, next) => {
       dateFrom: dateFrom || '',
       dateTo: dateTo || '',
       paymentMethod: paymentMethod || 'ALL',
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 8b. POS Sale Printable Bill / Invoice (matches Nirmana Printing official PDF format)
+router.get('/pos/sales/:id/invoice', requireStaff, async (req, res, next) => {
+  try {
+    const sale = await posService.getSaleById(req.params.id);
+    const currencySymbol = config.currencySymbol || 'Rs.';
+
+    const items = (sale.items || []).map(i => ({
+      description: i.itemName,
+      subtext: null,
+      quantity: parseFloat(i.quantity),
+      unitPrice: parseFloat(i.unitPrice),
+      totalPrice: parseFloat(i.totalPrice),
+    }));
+
+    const invoiceData = {
+      date: new Date(sale.createdAt || sale.saleDate).toLocaleDateString('en-GB'),
+      invoiceNumber: sale.receiptNumber,
+      billedTo: sale.customerName || (sale.customer ? (sale.customer.name || sale.customer.fullName) : 'Counter Walk-in Customer'),
+      items: items,
+      totalAmount: sale.finalAmount || sale.totalAmount,
+      advancePaid: undefined,
+      balanceAmount: undefined,
+      currencySymbol: currencySymbol,
+    };
+
+    res.render('invoices/billPrint', {
+      title: `Invoice #${sale.receiptNumber} · Nirmana Printing`,
+      invoiceData,
     });
   } catch (err) {
     next(err);
