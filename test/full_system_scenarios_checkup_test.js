@@ -202,12 +202,12 @@ async function runFullSystemCheckup() {
   assert(generalOrderIdsInDash.includes(generalOrder.id), 'General order in recentOrdinaryOrders');
   assert(!frameOrderIdsInDash.includes(generalOrder.id), 'General order NOT in recentFrameOrders');
 
-  // Check UI elements
-  assert(dashHtml.raw.includes('id="photoFramesStatusBar"'), 'Photo frames status bar present on dashboard');
-  assert(dashHtml.raw.includes('id="dashboardQueueSwitcher"'), 'Queue switcher present on dashboard');
-  assert(dashHtml.raw.includes('id="photoFramesSection"'), 'Photo frames section present on dashboard');
-  assert(dashHtml.raw.includes('id="generalPrintingSection"'), 'General printing section present on dashboard');
-  console.log('  ✓ Dashboard queues and UI cards confirmed strictly partitioned.');
+  // Check streamlined UI elements
+  assert(dashHtml.raw.includes('Essential Shortcuts & Workspaces'), 'Essential shortcuts present on dashboard');
+  assert(dashHtml.raw.includes('/orders?type=frame'), 'Photo frames studio shortcut link present on dashboard');
+  assert(!dashHtml.raw.includes('id="photoFramesStatusBar"'), 'Photo frames status bar removed from dashboard as requested');
+  assert(!dashHtml.raw.includes('id="dashboardQueueSwitcher"'), 'Complex queue switcher removed from dashboard as requested');
+  console.log('  ✓ Dashboard streamlined UI and essential shortcuts confirmed.');
   reportResults.push({ scenario: '4. Dashboard Queue Partitioning', status: 'PASSED' });
 
   // -------------------------------------------------------------------------

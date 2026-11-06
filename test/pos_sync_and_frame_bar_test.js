@@ -236,17 +236,15 @@ async function runTest() {
   // A. Dashboard (/dashboard)
   const dashRes = await get('/dashboard', token);
   console.log('Dashboard status:', dashRes.status);
-  const hasPhotoFramesTopBar = dashRes.body.includes('id="photoFramesStatusBar"');
-  const hasQueueSwitcher = dashRes.body.includes('id="dashboardQueueSwitcher"');
-  const hasPhotoFramesSection = dashRes.body.includes('id="photoFramesSection"');
+  const hasShortcuts = dashRes.body.includes('Essential Shortcuts & Workspaces');
+  const hasFrameShortcut = dashRes.body.includes('/orders?type=frame');
   const hasSidebarFrames = dashRes.body.includes('Photo Frames Studio');
-  console.log(`✓ Photo Frames Top Bar on Dashboard: ${hasPhotoFramesTopBar}`);
-  console.log(`✓ Queue Switcher on Dashboard: ${hasQueueSwitcher}`);
-  console.log(`✓ Photo Frames Section on Dashboard: ${hasPhotoFramesSection}`);
+  console.log(`✓ Essential Shortcuts on Dashboard: ${hasShortcuts}`);
+  console.log(`✓ Photo Frames Shortcut on Dashboard: ${hasFrameShortcut}`);
   console.log(`✓ Sidebar Photo Frames Studio Link: ${hasSidebarFrames}`);
 
-  if (!hasPhotoFramesTopBar || !hasQueueSwitcher || !hasPhotoFramesSection || !hasSidebarFrames) {
-    throw new Error('Dashboard or Sidebar missing Photo Frames Studio components!');
+  if (!hasShortcuts || !hasFrameShortcut || !hasSidebarFrames) {
+    throw new Error('Dashboard or Sidebar missing Photo Frames Studio navigation!');
   }
 
   // B. Printing Orders (/orders)

@@ -53,9 +53,9 @@ async function verify() {
   // Dashboard check
   const dash = await get('https://nirmanaprinting-eta.vercel.app/dashboard', token);
   console.log('✓ Vercel Dashboard HTTP Status:', dash.status);
-  console.log('✓ Photo Frames Status Bar on Dashboard:', dash.body.includes('photoFramesStatusBar'));
+  console.log('✓ Essential Shortcuts on Dashboard:', dash.body.includes('Essential Shortcuts & Workspaces'));
+  console.log('✓ Photo Frames Studio Shortcut Link:', dash.body.includes('/orders?type=frame'));
   console.log('✓ Photo Frames Sidebar Link:', dash.body.includes('Photo Frames Studio'));
-  console.log('✓ Queue Switcher on Dashboard:', dash.body.includes('dashboardQueueSwitcher'));
 
   // Orders check
   const orders = await get('https://nirmanaprinting-eta.vercel.app/orders', token);
