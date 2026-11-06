@@ -251,6 +251,30 @@ class OrderService {
           notes: notes || `Payment recorded on order completion (${order.orderNumber})`,
           recordedById: paymentOptions.recordedById || null,
         });
+
+        // Automatically record into POS System sales transactions if money got
+        if (paymentOptions.addToPos !== false) {
+          try {
+            const posService = require('./posService');
+            await posService.createSale({
+              customerName: order.customer ? order.customer.name : 'Walk-in Customer',
+              customerPhone: order.customer ? order.customer.phone : null,
+              customerId: order.customerId || null,
+              paymentMethod: paymentOptions.paymentMethod || 'CASH',
+              amountTendered: paymentRecorded,
+              notes: `[Order Settlement #${order.orderNumber}] Job: ${order.jobTitle}`,
+              items: [{
+                name: `Print Order Settlement [${order.orderNumber}]: ${order.jobTitle}`,
+                quantity: 1,
+                unitPrice: paymentRecorded,
+                unit: 'Job',
+                stockItemId: null,
+              }],
+            }, paymentOptions.recordedById || null);
+          } catch (posErr) {
+            console.warn('Could not record POS sale on order completion:', posErr.message);
+          }
+        }
       } catch (payErr) {
         console.warn('Could not record Payment row on updateOrderStatus:', payErr.message);
       }
@@ -289,6 +313,31 @@ class OrderService {
         notes: notes || `Payment recorded for order ${order.orderNumber}`,
         recordedById: paymentOptions.recordedById || null,
       });
+
+      // Automatically record into POS System sales transactions if money got
+      if (paymentOptions.addToPos !== false) {
+        try {
+          const posService = require('./posService');
+          const customer = await Customer.findByPk(order.customerId);
+          await posService.createSale({
+            customerName: customer ? customer.name : 'Walk-in Customer',
+            customerPhone: customer ? customer.phone : null,
+            customerId: order.customerId || null,
+            paymentMethod: paymentOptions.paymentMethod || 'CASH',
+            amountTendered: amt,
+            notes: `[Order Payment #${order.orderNumber}] Job: ${order.jobTitle} - ${notes || 'Progress Payment'}`,
+            items: [{
+              name: `Print Order Payment [${order.orderNumber}]: ${order.jobTitle}`,
+              quantity: 1,
+              unitPrice: amt,
+              unit: 'Payment',
+              stockItemId: null,
+            }],
+          }, paymentOptions.recordedById || null);
+        } catch (posErr) {
+          console.warn('Could not record POS sale on order payment:', posErr.message);
+        }
+      }
     } catch (payErr) {
       console.warn('Could not record Payment row on recordPayment:', payErr.message);
     }

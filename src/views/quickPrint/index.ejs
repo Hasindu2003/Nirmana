@@ -360,7 +360,7 @@
                     <% if (job.status === 'PENDING') { %>
                       <!-- MARK COMPLETED BUTTON -->
                       <button type="button" class="btn btn-success fw-bold px-3 py-1 shadow-sm d-flex align-items-center gap-1" style="font-size: 0.8rem; height: 32px;"
-                              onclick="markJobCompleted(<%= job.id %>, '<%= job.tokenNumber %>')">
+                              onclick="openCompleteJobModal(<%= job.id %>)">
                         <i class="bi bi-check2-circle fs-6"></i>
                         <span>Mark Completed</span>
                       </button>
@@ -789,6 +789,93 @@
         <button type="button" class="btn btn-serene-secondary btn-sm px-3" data-bs-dismiss="modal">Cancel</button>
         <button type="button" class="btn btn-danger btn-sm px-3 fw-bold shadow-xs" id="executeBatchDeleteBtn" onclick="executeBatchDelete()">
           <i class="bi bi-trash-fill me-1"></i> Yes, Delete Orders
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- COMPLETE WALK-IN QUICK PRINT & RECORD PAYMENT TO POS MODAL -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="completeJobModal" tabindex="-1" aria-labelledby="completeJobModalLabel" aria-hidden="true" style="z-index: 1080;">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+    <div class="modal-content shadow-lg border-0" style="border-radius: var(--serene-radius-lg);">
+      <div class="modal-header py-3 px-4 border-bottom bg-light">
+        <div class="d-flex align-items-center gap-2">
+          <div class="p-2 rounded-2 bg-success-subtle text-success d-flex align-items-center justify-content-center">
+            <i class="bi bi-check2-circle fs-5"></i>
+          </div>
+          <div>
+            <h6 class="modal-title fw-bold fs-6 mb-0 text-dark" id="completeJobModalLabel">
+              Complete Print Job & Record Payment
+            </h6>
+            <div class="text-muted small">Walk-in counter collection & POS transaction sync</div>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body p-4">
+        <input type="hidden" id="completeJobModalId">
+        <input type="hidden" id="completeJobModalTokenNum">
+
+        <div class="p-3 bg-light rounded-3 border mb-3">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+              <span class="badge bg-danger text-white font-monospace fs-6 px-2 py-1" id="completeJobModalToken">#QP-000000</span>
+              <span class="fw-bold text-dark ms-2" id="completeJobModalCustomer">Customer Name</span>
+            </div>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle" id="completeJobModalSpecs">1 copy &bull; COLOR</span>
+          </div>
+          <div class="text-muted small" id="completeJobModalSubstrate">Substrate: A4 Paper</div>
+        </div>
+
+        <!-- Predefined Rate Indicator -->
+        <div class="d-flex justify-content-between align-items-center p-2 mb-3 rounded-2" style="background: #ecfdf5; border: 1px dashed #10b981;">
+          <div class="small fw-semibold text-success d-flex align-items-center gap-1">
+            <i class="bi bi-tag-fill"></i>
+            <span>Predefined Standard Rate:</span>
+          </div>
+          <div class="fw-bold text-success fs-6 tabular-nums" id="completeJobPredefinedText">Rs. 50.00</div>
+        </div>
+
+        <!-- Money Got / Add to POS Checkbox -->
+        <div class="form-check form-switch p-3 bg-white border rounded-3 mb-3 shadow-xs">
+          <input class="form-check-input ms-0 me-2" type="checkbox" id="completeJobMoneyGot" checked onchange="window.toggleCompletePaymentFields(this.checked)" style="cursor: pointer; transform: scale(1.2);">
+          <label class="form-check-label fw-bold text-dark" for="completeJobMoneyGot" style="cursor: pointer;">
+            💰 Money Received / Payment Collected
+          </label>
+          <div class="text-muted small ps-4 mt-1">
+            When checked, automatically creates a POS transaction receipt and adds this money to today's POS daily register.
+          </div>
+        </div>
+
+        <div id="completePaymentFields">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-dark mb-1">Amount Collected (Rs.) <span class="text-danger">*</span></label>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text bg-light fw-bold">Rs.</span>
+              <input type="number" step="0.50" min="0" class="form-control form-control-sm fw-bold fs-6 text-dark" id="completeJobAmount" placeholder="0.00">
+            </div>
+            <div class="form-text small">Pre-filled with shop standard rate. Worker/Admin can modify if discounted or customized.</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-dark mb-1">Payment Method</label>
+            <select class="form-select form-select-sm" id="completeJobPaymentMethod">
+              <option value="CASH" selected>💵 Cash Payment</option>
+              <option value="CARD">💳 Credit / Debit Card</option>
+              <option value="BANK_TRANSFER">🏦 Bank Transfer</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer py-2 px-4 border-top bg-light">
+        <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm btn-success fw-bold px-3 d-inline-flex align-items-center gap-1 shadow-xs" id="confirmCompleteJobBtn" onclick="window.submitCompleteJobWithPos()">
+          <i class="bi bi-check2-circle"></i> Confirm & Complete (+ Add to POS)
         </button>
       </div>
     </div>
@@ -1576,6 +1663,163 @@
     });
   }
 
+  // Predefined rates for quick printing substrates & specs
+  function getPredefinedQuickPrintRate(paperSize, colorMode, copies) {
+    const p = (paperSize || '').toLowerCase();
+    const c = parseInt(copies, 10) || 1;
+    const isColor = (colorMode || '').toUpperCase() === 'COLOR';
+
+    if (p.includes('12x18') || p.includes('12" x 18"')) return 1800 * c;
+    if (p.includes('10x12') || p.includes('10" x 12"')) return 1200 * c;
+    if (p.includes('8x10') || p.includes('8" x 10"') || p.includes('frame') || p.includes('රාමු')) return 850 * c;
+    if (p.includes('6x8') || p.includes('6" x 8"')) return 450 * c;
+    if (p.includes('4x6') || p.includes('4" x 6"')) return 250 * c;
+    if (p.includes('mug') || p.includes('කෝප්ප')) return 850 * c;
+    if (p.includes('a3')) return (isColor ? 100 : 40) * c;
+    return (isColor ? 50 : 20) * c;
+  }
+
+  // Open Complete Print Job & Record Payment Modal
+  let completeJobModalInstance = null;
+  window.openCompleteJobModal = function(jobId) {
+    let job = (typeof quickPrintJobsData !== 'undefined' && Array.isArray(quickPrintJobsData))
+      ? quickPrintJobsData.find(j => j.id == jobId)
+      : null;
+
+    const card = document.getElementById(`job-card-${jobId}`);
+    if (!job && card) {
+      job = {
+        id: jobId,
+        tokenNumber: card.getAttribute('data-token') || jobId,
+        customerName: card.getAttribute('data-name') || 'Walk-in Customer',
+        customerPhone: card.getAttribute('data-phone') || '',
+        paperSize: card.getAttribute('data-papersize') || 'A4',
+        colorMode: card.getAttribute('data-colorspec') || 'BW',
+        copies: 1,
+      };
+    }
+
+    if (!job) return markJobCompleted(jobId, 'JOB');
+
+    const modalEl = document.getElementById('completeJobModal');
+    if (!modalEl) return markJobCompleted(jobId, job.tokenNumber);
+    if (!completeJobModalInstance) {
+      completeJobModalInstance = new bootstrap.Modal(modalEl);
+    }
+
+    document.getElementById('completeJobModalId').value = job.id;
+    document.getElementById('completeJobModalTokenNum').value = job.tokenNumber;
+    document.getElementById('completeJobModalToken').textContent = '#' + job.tokenNumber;
+    document.getElementById('completeJobModalCustomer').textContent = job.customerName || 'Walk-in Customer';
+    document.getElementById('completeJobModalSpecs').textContent = `${job.copies || 1} copies • ${(job.colorMode || 'BW').toUpperCase()}`;
+    document.getElementById('completeJobModalSubstrate').textContent = `Substrate / Paper: ${job.paperSize || 'A4'}`;
+
+    const calculatedPrice = getPredefinedQuickPrintRate(job.paperSize, job.colorMode, job.copies);
+    document.getElementById('completeJobPredefinedText').textContent = 'Rs. ' + calculatedPrice.toFixed(2);
+    document.getElementById('completeJobAmount').value = calculatedPrice.toFixed(2);
+    document.getElementById('completeJobMoneyGot').checked = true;
+    window.toggleCompletePaymentFields(true);
+    document.getElementById('completeJobPaymentMethod').value = 'CASH';
+
+    completeJobModalInstance.show();
+  };
+
+  window.toggleCompletePaymentFields = function(show) {
+    const fields = document.getElementById('completePaymentFields');
+    if (fields) {
+      fields.style.display = show ? 'block' : 'none';
+    }
+  };
+
+  window.submitCompleteJobWithPos = async function() {
+    const jobId = document.getElementById('completeJobModalId').value;
+    const tokenNum = document.getElementById('completeJobModalTokenNum').value;
+    const moneyGot = document.getElementById('completeJobMoneyGot').checked;
+    const amountVal = parseFloat(document.getElementById('completeJobAmount').value) || 0;
+    const paymentMethod = document.getElementById('completeJobPaymentMethod').value;
+    const btn = document.getElementById('confirmCompleteJobBtn');
+
+    if (moneyGot && amountVal <= 0) {
+      alert('Please enter a valid amount collected, or uncheck "Money Received" if not collecting payment now.');
+      document.getElementById('completeJobAmount').focus();
+      return;
+    }
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Recording...';
+    }
+
+    try {
+      const res = await fetch(`/api/quick-print/jobs/${jobId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'COMPLETED',
+          moneyGot,
+          amount: amountVal,
+          paymentMethod,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (completeJobModalInstance) completeJobModalInstance.hide();
+
+        const card = document.getElementById(`job-card-${jobId}`);
+        if (card) {
+          card.setAttribute('data-status', 'COMPLETED');
+          const innerCard = card.querySelector('.serene-card');
+          if (innerCard) {
+            innerCard.classList.remove('border-start-danger');
+            innerCard.classList.add('border-start-success');
+          }
+          const badge = card.querySelector('.badge.bg-danger');
+          if (badge) {
+            badge.classList.remove('bg-danger');
+            badge.classList.add('bg-success');
+          }
+          const actionWrapper = card.querySelector('.d-flex.align-items-center.gap-2.ms-auto.flex-shrink-0');
+          if (actionWrapper) {
+            const btnCompleted = actionWrapper.querySelector('button[onclick*="openCompleteJobModal"], button[onclick*="markJobCompleted"]');
+            const btnRemove = actionWrapper.querySelector('button[onclick*="openCancelJobModal"]');
+            if (btnCompleted) {
+              btnCompleted.outerHTML = `
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 0.75rem;">
+                  <i class="bi bi-check2-all me-1"></i> Completed
+                </span>
+                <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" style="font-size: 0.75rem; height: 28px;"
+                        onclick="reopenJob(${jobId}, '${tokenNum}')" title="Move back to Pending">
+                  <i class="bi bi-arrow-counterclockwise"></i>
+                </button>
+              `;
+            }
+            if (btnRemove) btnRemove.remove();
+          }
+        }
+        applyRealtimeSearch();
+        updateQueueCounts();
+
+        let alertMsg = `Token #${tokenNum} marked as COMPLETED.`;
+        if (data.posSale) {
+          alertMsg += ` Payment recorded in POS #${data.posSale.receiptNumber} (Rs. ${parseFloat(data.posSale.totalAmount).toFixed(2)})!`;
+        }
+        alert(alertMsg);
+      } else {
+        alert(data.message || 'Could not complete job.');
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="bi bi-check2-circle"></i> Confirm & Complete (+ Add to POS)';
+        }
+      }
+    } catch (e) {
+      alert('Network error while completing job: ' + e.message);
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check2-circle"></i> Confirm & Complete (+ Add to POS)';
+      }
+    }
+  };
+
   // 1-Click Mark Completed (Smoothly updates card to Completed in-memory)
   async function markJobCompleted(jobId, tokenNumber) {
     const card = document.getElementById(`job-card-${jobId}`);
@@ -2068,7 +2312,7 @@
 
     const actionBtnHtml = isPending
       ? `<button type="button" class="btn btn-success fw-bold px-3 py-1 shadow-sm d-flex align-items-center gap-1" style="font-size: 0.8rem; height: 32px;"
-                 onclick="markJobCompleted(${job.id}, '${escapeHtml(job.tokenNumber)}')">
+                 onclick="openCompleteJobModal(${job.id})">
            <i class="bi bi-check2-circle fs-6"></i>
            <span>Mark Completed</span>
          </button>

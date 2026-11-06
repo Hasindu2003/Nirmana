@@ -125,6 +125,10 @@
         <button type="button" class="btn btn-sm order-tab-btn <%= currentStatus === 'CANCELLED' ? 'btn-serene-primary' : 'btn-serene-secondary' %>" data-status="CANCELLED" onclick="switchOrderStatusTab('CANCELLED')">
           Cancelled (<span id="cancelledOrdersCount"><%= orders.filter(o => o.status === 'CANCELLED').length %></span>)
         </button>
+        <% const frameCount = orders.filter(o => /frame|රාමු|fream|framing/i.test([o.jobTitle||'', o.paperMaterial||'', o.specifications||'', o.notes||''].join(' '))).length; %>
+        <button type="button" class="btn btn-sm order-tab-btn <%= (typeof typeFilter !== 'undefined' && typeFilter === 'frame') ? 'btn-warning text-dark fw-bold' : 'btn-outline-warning text-dark' %>" data-status="FRAME" onclick="switchOrderStatusTab('FRAME')">
+          <i class="bi bi-image"></i> Photo Frames (<span id="framesCount"><%= frameCount %></span>)
+        </button>
       </div>
 
       <div class="d-flex align-items-center gap-2 flex-grow-1 flex-sm-grow-0" style="min-width: 260px; max-width: 100%;">
@@ -155,9 +159,13 @@
           <tbody>
             <% if (orders && orders.length > 0) { %>
               <% orders.forEach(o => { %>
-                <% const isInitiallyActive = currentStatus === 'ALL' || o.status === currentStatus; %>
+                <% 
+                  const isFrame = /frame|රාමු|fream|framing/i.test([o.jobTitle||'', o.paperMaterial||'', o.specifications||'', o.notes||''].join(' ')); 
+                  const isInitiallyActive = (currentStatus === 'FRAME' ? isFrame : (currentStatus === 'ALL' || o.status === currentStatus));
+                %>
                 <tr class="order-table-row" 
                     data-status="<%= o.status %>"
+                    data-is-frame="<%= isFrame ? 'true' : 'false' %>"
                     data-search="<%= [o.orderNumber, o.customer ? o.customer.name : '', o.customer ? o.customer.phone : '', o.jobTitle, o.paperMaterial || ''].join(' ').toLowerCase() %>"
                     style="<%= isInitiallyActive ? '' : 'display: none !important;' %>">
                   <td>
@@ -172,12 +180,17 @@
                     <% } %>
                   </td>
                   <td>
-                    <div class="fw-semibold text-dark"><%= o.jobTitle %></div>
+                    <div class="fw-semibold text-dark">
+                      <% if (isFrame) { %>
+                        <i class="bi bi-aspect-ratio text-warning me-1"></i>
+                      <% } %>
+                      <%= o.jobTitle %>
+                    </div>
                     <div class="d-flex align-items-center flex-wrap gap-1 mt-1">
                       <span class="badge bg-light text-muted border small"><%= o.quantity %> units</span>
                       <% if (o.paperMaterial) { %>
-                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle small fw-semibold">
-                          <i class="bi bi-box-seam me-1"></i><%= o.paperMaterial %>
+                        <span class="badge <%= isFrame ? 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' : 'bg-primary-subtle text-primary border border-primary-subtle' %> small fw-semibold">
+                          <i class="bi <%= isFrame ? 'bi-image' : 'bi-box-seam' %> me-1"></i><%= o.paperMaterial %>
                         </span>
                       <% } %>
                     </div>
@@ -212,9 +225,18 @@
                     <% } %>
                   </td>
                   <td>
-                    <a href="/orders/<%= o.id %>" class="btn btn-sm btn-serene-secondary py-1 px-2" title="View Details">
-                      <i class="bi bi-eye"></i> View
-                    </a>
+                    <div class="d-inline-flex align-items-center gap-1">
+                      <a href="/orders/<%= o.id %>" class="btn btn-sm btn-serene-secondary py-1 px-2 d-inline-flex align-items-center gap-1 shadow-xs" title="View Details">
+                        <i class="bi bi-eye"></i> View
+                      </a>
+                      <% if (o.status !== 'COMPLETED' && o.status !== 'CANCELLED') { %>
+                        <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2 d-inline-flex align-items-center gap-1 shadow-xs" 
+                                onclick="openOrderCancelModal(<%= o.id %>, '<%= o.orderNumber %>', '<%= escape(o.jobTitle) %>')" 
+                                title="Cancel and remove this order from queue">
+                          <i class="bi bi-x-circle"></i> Remove
+                        </button>
+                      <% } %>
+                    </div>
                   </td>
                 </tr>
               <% }) %>
@@ -233,6 +255,63 @@
     </div>
   </div>
 </main>
+
+<!-- ========================================================================= -->
+<!-- MODAL: REMOVE ORDER FROM ORDERS QUEUE -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="orderCancelModal" tabindex="-1" aria-labelledby="orderCancelModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg border-0" style="border-radius: var(--serene-radius-lg);">
+      <div class="modal-header py-3 px-4 border-bottom bg-light">
+        <div class="d-flex align-items-center gap-2">
+          <div class="p-2 rounded-2 bg-danger-subtle text-danger d-flex align-items-center justify-content-center">
+            <i class="bi bi-x-octagon-fill fs-5"></i>
+          </div>
+          <div>
+            <h5 class="modal-title fw-bold fs-6 mb-0 text-dark" id="orderCancelModalLabel">Remove Order from Queue</h5>
+            <div class="text-muted small">Cancel production and remove order from active queue</div>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body p-4">
+        <div class="alert alert-warning py-2 px-3 mb-3 border-warning-subtle small d-flex align-items-start gap-2">
+          <i class="bi bi-exclamation-triangle-fill text-warning flex-shrink-0 mt-1"></i>
+          <div>
+            You are about to cancel order <strong id="orderCancelOrderNum" class="font-monospace text-dark"></strong> (<span id="orderCancelJobTitle"></span>). This will mark it as <strong>CANCELLED</strong> and remove it from active production queues.
+          </div>
+        </div>
+
+        <input type="hidden" id="orderCancelModalId" value="">
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold small text-dark mb-1">Reason for Removal / Cancellation <span class="text-danger">*</span></label>
+          <select class="form-select form-select-sm" id="orderCancelReasonSelect" onchange="window.handleOrderCancelReasonChange(this.value)">
+            <option value="Customer requested cancellation / changed mind" selected>Customer requested cancellation / changed mind</option>
+            <option value="Frame size / substrate material currently out of stock">Frame size / substrate material currently out of stock</option>
+            <option value="Customer walked out / did not confirm specifications">Customer walked out / did not confirm specifications</option>
+            <option value="Wrong dimensions or artwork resolution entered">Wrong dimensions or artwork resolution entered</option>
+            <option value="Duplicate order entry created by mistake">Duplicate order entry created by mistake</option>
+            <option value="OTHER">Other Reason (Specify below)...</option>
+          </select>
+        </div>
+
+        <div class="mb-3 d-none" id="orderCancelCustomReasonGroup">
+          <label class="form-label fw-semibold small text-dark mb-1">Specific Cancellation Details</label>
+          <textarea class="form-control form-control-sm" id="orderCancelCustomReason" rows="2" placeholder="Explain reason for cancellation..."></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer py-2 px-4 border-top bg-light">
+        <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Keep in Queue</button>
+        <button type="button" class="btn btn-sm btn-danger px-3 d-inline-flex align-items-center gap-1 fw-bold shadow-xs" id="confirmOrderCancelBtn" onclick="window.submitOrderCancel()">
+          <i class="bi bi-trash"></i> Confirm & Remove from Queue
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
 (function() {
@@ -253,9 +332,18 @@
 
     orderRows.forEach(row => {
       const status = row.getAttribute('data-status') || '';
+      const isFrame = row.getAttribute('data-is-frame') === 'true';
       const searchData = row.getAttribute('data-search') || '';
 
-      const matchesStatus = window.currentOrderStatus === 'ALL' || status === window.currentOrderStatus;
+      let matchesStatus = false;
+      if (window.currentOrderStatus === 'ALL') {
+        matchesStatus = true;
+      } else if (window.currentOrderStatus === 'FRAME') {
+        matchesStatus = isFrame;
+      } else {
+        matchesStatus = (status === window.currentOrderStatus);
+      }
+
       const matchesSearch = !term || searchData.includes(term);
 
       if (matchesStatus && matchesSearch) {
@@ -277,21 +365,118 @@
 
     tabButtons.forEach(btn => {
       const isTarget = btn.getAttribute('data-status') === status;
-      btn.classList.toggle('btn-serene-primary', isTarget);
-      btn.classList.toggle('btn-serene-secondary', !isTarget);
+      if (status === 'FRAME') {
+        btn.classList.toggle('btn-warning', isTarget);
+        btn.classList.toggle('text-dark', isTarget);
+        btn.classList.toggle('fw-bold', isTarget);
+        if (!isTarget) {
+          btn.classList.remove('btn-serene-primary');
+          btn.classList.add('btn-serene-secondary');
+        }
+      } else {
+        btn.classList.toggle('btn-serene-primary', isTarget);
+        btn.classList.toggle('btn-serene-secondary', !isTarget);
+      }
     });
 
     if (updateUrl) {
       const url = new URL(window.location.href);
       if (status === 'ALL') {
         url.searchParams.delete('status');
+        url.searchParams.delete('type');
+      } else if (status === 'FRAME') {
+        url.searchParams.set('type', 'frame');
+        url.searchParams.delete('status');
       } else {
         url.searchParams.set('status', status);
+        url.searchParams.delete('type');
       }
       window.history.pushState({ status }, '', url.toString());
     }
 
     window.filterOrdersTable();
+  };
+
+  // Cancel / Remove Order from Queue
+  let orderCancelModalInstance = null;
+
+  window.openOrderCancelModal = function(orderId, orderNumber, rawJobTitle) {
+    const modalEl = document.getElementById('orderCancelModal');
+    if (!modalEl) return;
+    if (!orderCancelModalInstance) {
+      orderCancelModalInstance = new bootstrap.Modal(modalEl);
+    }
+    document.getElementById('orderCancelModalId').value = orderId;
+    document.getElementById('orderCancelOrderNum').textContent = '#' + orderNumber;
+    try {
+      document.getElementById('orderCancelJobTitle').textContent = decodeURIComponent(rawJobTitle);
+    } catch (e) {
+      try {
+        document.getElementById('orderCancelJobTitle').textContent = unescape(rawJobTitle);
+      } catch (e2) {
+        document.getElementById('orderCancelJobTitle').textContent = rawJobTitle;
+      }
+    }
+    document.getElementById('orderCancelReasonSelect').value = 'Customer requested cancellation / changed mind';
+    document.getElementById('orderCancelCustomReason').value = '';
+    document.getElementById('orderCancelCustomReasonGroup').classList.add('d-none');
+    orderCancelModalInstance.show();
+  };
+
+  window.handleOrderCancelReasonChange = function(val) {
+    const group = document.getElementById('orderCancelCustomReasonGroup');
+    if (val === 'OTHER') {
+      group.classList.remove('d-none');
+      document.getElementById('orderCancelCustomReason').focus();
+    } else {
+      group.classList.add('d-none');
+    }
+  };
+
+  window.submitOrderCancel = async function() {
+    const orderId = document.getElementById('orderCancelModalId').value;
+    const selectVal = document.getElementById('orderCancelReasonSelect').value;
+    const customVal = document.getElementById('orderCancelCustomReason').value.trim();
+    const btn = document.getElementById('confirmOrderCancelBtn');
+
+    if (!orderId) return;
+
+    let finalReason = selectVal;
+    if (selectVal === 'OTHER') {
+      if (!customVal) {
+        alert('Please specify the cancellation reason.');
+        document.getElementById('orderCancelCustomReason').focus();
+        return;
+      }
+      finalReason = customVal;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Removing...';
+
+    try {
+      const res = await fetch(`/api/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'CANCELLED',
+          notes: `[CANCELLED from Orders Queue]: ${finalReason}`
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (orderCancelModalInstance) orderCancelModalInstance.hide();
+        window.location.reload();
+      } else {
+        alert(data.message || 'Failed to remove order.');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-trash"></i> Confirm & Remove from Queue';
+      }
+    } catch (err) {
+      alert('Error updating order: ' + err.message);
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-trash"></i> Confirm & Remove from Queue';
+    }
   };
 
   function initOrdersPage() {

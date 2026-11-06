@@ -362,7 +362,7 @@ router.get('/portal', async (req, res, next) => {
 // 2. Orders List
 router.get('/orders', requireStaff, async (req, res, next) => {
   try {
-    const { status, search, customerId, page, limit } = req.query;
+    const { status, search, customerId, page, limit, type } = req.query;
     // Load recent orders across statuses so tabs can filter in-memory instantly
     const { orders, pagination } = await orderService.getAllOrders({
       status: 'ALL',
@@ -385,8 +385,9 @@ router.get('/orders', requireStaff, async (req, res, next) => {
     });
 
     res.render('orders/index', {
-      title: 'Printing Orders · Nirmana Printing',
-      activePage: 'orders',
+      title: type === 'frame' ? 'Photo Frames Studio · Nirmana Printing' : 'Printing Orders · Nirmana Printing',
+      activePage: type === 'frame' ? 'frames' : 'orders',
+      typeFilter: type || '',
       orders,
       pagination,
       ordersSummary: {

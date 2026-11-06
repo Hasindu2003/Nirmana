@@ -48,20 +48,21 @@ class OrderController {
   async updateStatus(req, res, next) {
     try {
       const { id } = req.params;
-      const { status, notes, collectFullBalance, paymentAmount, paymentMethod } = req.body;
+      const { status, notes, collectFullBalance, paymentAmount, paymentMethod, addToPos } = req.body;
       if (!status) return res.status(400).json({ success: false, message: 'Status is required.' });
 
       const result = await orderService.updateOrderStatus(id, status, notes, {
         collectFullBalance: Boolean(collectFullBalance),
         paymentAmount: paymentAmount ? parseFloat(paymentAmount) : 0,
         paymentMethod: paymentMethod || 'CASH',
+        addToPos: addToPos !== undefined ? Boolean(addToPos) : true,
         recordedById: req.user ? req.user.id : null,
       });
 
       const order = result.order || result;
       let msg = `Order status updated to ${status}.`;
       if (result.paymentRecorded > 0) {
-        msg += ` Payment of Rs. ${result.paymentRecorded.toFixed(2)} recorded. Balance is now Rs. ${parseFloat(order.balanceAmount).toFixed(2)}.`;
+        msg += ` Payment of Rs. ${result.paymentRecorded.toFixed(2)} recorded & sent to POS. Balance is now Rs. ${parseFloat(order.balanceAmount).toFixed(2)}.`;
       }
 
       return res.json({
@@ -78,14 +79,15 @@ class OrderController {
   async recordPayment(req, res, next) {
     try {
       const { id } = req.params;
-      const { amount, notes, paymentMethod } = req.body;
+      const { amount, notes, paymentMethod, addToPos } = req.body;
       const order = await orderService.recordPayment(id, amount, notes, {
         paymentMethod: paymentMethod || 'CASH',
+        addToPos: addToPos !== undefined ? Boolean(addToPos) : true,
         recordedById: req.user ? req.user.id : null,
       });
       return res.json({
         success: true,
-        message: `Payment of Rs. ${amount} recorded. New balance: Rs. ${order.balanceAmount}.`,
+        message: `Payment of Rs. ${amount} recorded & sent to POS register. New balance: Rs. ${order.balanceAmount}.`,
         data: order,
       });
     } catch (error) {

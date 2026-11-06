@@ -122,18 +122,32 @@ class QuickPrintController {
   async updateStatus(req, res) {
     try {
       const { id } = req.params;
-      const { status, reason } = req.body;
+      const { status, reason, moneyGot, amount, paymentMethod } = req.body;
 
       if (!status) {
         return res.status(400).json({ success: false, message: 'Status is required.' });
       }
 
-      const updatedJob = await quickPrintService.updateJobStatus(id, status, reason);
+      const result = await quickPrintService.updateJobStatus(id, status, reason, {
+        moneyGot: Boolean(moneyGot),
+        amount: amount !== undefined && amount !== null && amount !== '' ? parseFloat(amount) : null,
+        paymentMethod: paymentMethod || 'CASH',
+        cashierId: req.user ? req.user.id : null,
+      });
+
+      const updatedJob = result && result.job ? result.job : result;
+      const posSale = result && result.posSale ? result.posSale : null;
+
+      let msg = `Token #${updatedJob.tokenNumber} marked as ${status}.`;
+      if (posSale) {
+        msg += ` Money received & recorded in POS #${posSale.receiptNumber} (Rs. ${parseFloat(posSale.totalAmount).toFixed(2)}).`;
+      }
 
       return res.json({
         success: true,
-        message: `Token #${updatedJob.tokenNumber} marked as ${status}.`,
+        message: msg,
         data: updatedJob,
+        posSale,
       });
     } catch (error) {
       return res.status(400).json({

@@ -253,8 +253,17 @@ class DashboardService {
       stockInTotalQty += parseFloat(tx.quantity) || 0;
     });
 
-    // Total actual money/cash received today (POS sales + order payments / advances)
-    const totalCollectedToday = posTotalRevenue + actualOrdersCollectedToday;
+    // Separate POS retail sales from order settlement transactions synced into POS
+    let posOrderSettlementsTotal = 0;
+    todayPosSales.forEach(s => {
+      if (s.notes && (s.notes.includes('Order Settlement') || s.notes.includes('Order Payment'))) {
+        posOrderSettlementsTotal += parseFloat(s.totalAmount) || 0;
+      }
+    });
+
+    // Total actual money/cash received today (Avoid double-counting order settlements already synced to POS)
+    const nonPosOrderCollections = Math.max(0, actualOrdersCollectedToday - posOrderSettlementsTotal);
+    const totalCollectedToday = posTotalRevenue + nonPosOrderCollections;
     // Total gross sales booked today (POS sales + Orders placed)
     const totalBusinessBookedToday = posTotalRevenue + ordersTotalValue;
     // Net operating balance: Total Money Collected minus ALL internal materials & consumables consumed (Job Stock + Office Use)

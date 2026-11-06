@@ -64,6 +64,11 @@
         <span>Printing Orders</span>
       </a>
 
+      <a href="/orders?type=frame" class="nav-item-link <%= (typeof activePage !== 'undefined' && activePage === 'frames') ? 'active' : '' %>">
+        <i class="bi bi-aspect-ratio text-warning"></i>
+        <span>Photo Frames Studio</span>
+      </a>
+
       <a href="/quick-print" class="nav-item-link <%= activePage === 'quick-print' ? 'active' : '' %>">
         <i class="bi bi-qr-code-scan"></i>
         <span class="d-flex align-items-center justify-content-between flex-grow-1">

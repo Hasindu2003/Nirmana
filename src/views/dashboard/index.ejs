@@ -81,6 +81,51 @@
       </div>
     </div>
 
+    <!-- Row 2.5: Dedicated Photo Frames Studio Command & Status Bar (Visible to Both Admin & Workers) -->
+    <div class="card mb-4 border-0 shadow-sm overflow-hidden" id="photoFramesStatusBar" style="border-radius: var(--serene-radius-lg); background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fde68a 100%); border-left: 6px solid #d97706 !important;">
+      <div class="card-body py-3 px-4">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="p-3 rounded-3 bg-warning text-dark d-flex align-items-center justify-content-center shadow-xs" style="width: 52px; height: 52px;">
+              <i class="bi bi-aspect-ratio-fill fs-2 text-dark"></i>
+            </div>
+            <div>
+              <div class="d-flex align-items-center gap-2">
+                <h4 class="mb-0 fw-bold text-dark fs-5">
+                  🖼️ Photo Frames & Custom Framing Studio Bar
+                </h4>
+                <span class="badge bg-warning text-dark fw-bold border border-warning-subtle px-2 py-1 shadow-xs">
+                  <%= stats.frameStats ? stats.frameStats.active : 0 %> Framing Active
+                </span>
+                <span class="badge bg-white text-secondary border px-2 py-1 small">
+                  <%= stats.frameStats ? stats.frameStats.total : 0 %> Total Recorded
+                </span>
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 small">
+                  <%= stats.frameStats ? stats.frameStats.completed : 0 %> Finished
+                </span>
+              </div>
+              <div class="text-secondary small mt-1">
+                Dedicated workshop queue for wooden frames, portrait mounts, canvas boards, and anti-reflective glass framing
+              </div>
+            </div>
+          </div>
+
+          <!-- Framing Studio Action Controls -->
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <a href="/orders?type=frame" class="btn btn-sm btn-white border shadow-xs fw-semibold text-dark">
+              <i class="bi bi-collection-fill me-1 text-warning"></i> View Framing Orders (<%= stats.frameStats ? stats.frameStats.total : 0 %>)
+            </a>
+            <a href="#photoFramesSection" class="btn btn-sm btn-outline-dark fw-semibold">
+              <i class="bi bi-arrow-down-circle me-1"></i> Jump to Framing Queue
+            </a>
+            <a href="/orders/new?type=frame" class="btn btn-sm btn-warning text-dark fw-bold shadow-xs">
+              <i class="bi bi-plus-circle-fill me-1"></i> New Frame Order
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Row 3: 4 Redesigned Compact Modern KPI Cards -->
     <div class="row g-2 g-md-3 mb-4">
       <!-- 1. Active Queue -->
@@ -697,6 +742,24 @@
     </div>
 
     <!-- Row 5: Separated Order Queues: Photo Frames Studio vs General Printing Orders -->
+    <!-- Order Queue Switcher Bar -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 p-2 bg-white rounded-3 border shadow-xs">
+      <div class="btn-group btn-group-sm" role="group" id="dashboardQueueSwitcher">
+        <button type="button" class="btn btn-warning text-dark fw-bold" id="btnShowFramesQueue" onclick="window.showDashboardQueue('FRAMES')">
+          <i class="bi bi-image me-1"></i> 🖼️ Photo Frames Studio (<%= stats.frameStats ? stats.frameStats.active : 0 %> active)
+        </button>
+        <button type="button" class="btn btn-outline-primary" id="btnShowGeneralQueue" onclick="window.showDashboardQueue('GENERAL')">
+          <i class="bi bi-printer me-1"></i> 📋 General Printing (<%= stats.ordinaryStats ? stats.ordinaryStats.active : 0 %> active)
+        </button>
+        <button type="button" class="btn btn-outline-secondary" id="btnShowBothQueues" onclick="window.showDashboardQueue('BOTH')">
+          <i class="bi bi-view-stacked me-1"></i> Show Both Queues
+        </button>
+      </div>
+      <div class="text-muted small">
+        <i class="bi bi-shield-check text-success me-1"></i> Dedicated workspace queues: Photo frames are segregated from general commercial orders.
+      </div>
+    </div>
+
     <!-- 5A. Dedicated Photo Frames Studio Queue -->
     <div class="row g-4 mb-4" id="photoFramesSection">
       <div class="col-12">
@@ -1293,6 +1356,36 @@
       alert('Error updating order: ' + err.message);
       btn.disabled = false;
       btn.innerHTML = '<i class="bi bi-trash"></i> Confirm & Remove from Queue';
+    }
+  };
+
+  window.showDashboardQueue = function(mode) {
+    const framesSection = document.getElementById('photoFramesSection');
+    const generalSection = document.getElementById('generalPrintingSection');
+    const btnFrames = document.getElementById('btnShowFramesQueue');
+    const btnGeneral = document.getElementById('btnShowGeneralQueue');
+    const btnBoth = document.getElementById('btnShowBothQueues');
+
+    if (!framesSection || !generalSection) return;
+
+    if (mode === 'FRAMES') {
+      framesSection.style.display = '';
+      generalSection.style.display = 'none';
+      if (btnFrames) { btnFrames.className = 'btn btn-warning text-dark fw-bold'; }
+      if (btnGeneral) { btnGeneral.className = 'btn btn-outline-primary'; }
+      if (btnBoth) { btnBoth.className = 'btn btn-outline-secondary'; }
+    } else if (mode === 'GENERAL') {
+      framesSection.style.display = 'none';
+      generalSection.style.display = '';
+      if (btnFrames) { btnFrames.className = 'btn btn-outline-warning text-dark'; }
+      if (btnGeneral) { btnGeneral.className = 'btn btn-primary text-white fw-bold'; }
+      if (btnBoth) { btnBoth.className = 'btn btn-outline-secondary'; }
+    } else {
+      framesSection.style.display = '';
+      generalSection.style.display = '';
+      if (btnFrames) { btnFrames.className = 'btn btn-outline-warning text-dark'; }
+      if (btnGeneral) { btnGeneral.className = 'btn btn-outline-primary'; }
+      if (btnBoth) { btnBoth.className = 'btn btn-secondary text-white fw-bold'; }
     }
   };
 </script>

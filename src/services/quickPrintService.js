@@ -478,7 +478,7 @@ class QuickPrintService {
   /**
    * Update status of a quick print job
    */
-  async updateJobStatus(id, newStatus, reason = null) {
+  async updateJobStatus(id, newStatus, reason = null, options = {}) {
     const validStatuses = ['PENDING', 'PRINTING', 'READY', 'COMPLETED', 'CANCELLED'];
     if (!validStatuses.includes(newStatus)) {
       throw new Error(`Invalid status "${newStatus}". Must be one of: ${validStatuses.join(', ')}`);
@@ -504,8 +504,43 @@ class QuickPrintService {
       job.customerMessage = job.customerMessage ? `${job.customerMessage} ${reasonTag}` : reasonTag;
     }
 
+    let posSale = null;
+    // When completed with money received, record transaction into POS system
+    if (newStatus === 'COMPLETED' && options && options.moneyGot) {
+      const posService = require('./posService');
+      const copies = parseInt(job.copies, 10) || 1;
+      const amt = options.amount !== undefined && options.amount !== null && !isNaN(options.amount)
+        ? parseFloat(options.amount)
+        : (job.colorMode === 'COLOR' ? 50 * copies : 20 * copies);
+
+      if (amt > 0) {
+        try {
+          posSale = await posService.createSale({
+            customerName: job.customerName || 'Walk-in Customer',
+            customerPhone: job.customerPhone || null,
+            customerId: job.customerId || null,
+            paymentMethod: options.paymentMethod || 'CASH',
+            amountTendered: amt,
+            notes: `[Quick Print QP #${job.tokenNumber}] Customer: ${job.customerName || 'Walk-in'} (Copies: ${copies}, Paper: ${job.paperSize || 'A4'}, Color: ${job.colorMode || 'BW'})`,
+            items: [{
+              name: `Quick Print [Token #${job.tokenNumber}]: ${copies}x ${job.paperSize || 'A4'} (${job.colorMode || 'BW'})`,
+              quantity: copies,
+              unitPrice: parseFloat((amt / copies).toFixed(2)),
+              unit: 'Prints',
+              stockItemId: null,
+            }],
+          }, options.cashierId || null);
+
+          const payTag = `[PAID Rs. ${amt.toFixed(2)} via ${options.paymentMethod || 'CASH'} - POS #${posSale.receiptNumber}]`;
+          job.customerMessage = job.customerMessage ? `${job.customerMessage} ${payTag}` : payTag;
+        } catch (posErr) {
+          console.warn('Could not record POS sale on quick print complete:', posErr.message);
+        }
+      }
+    }
+
     await job.save();
-    return job;
+    return { job, posSale };
   }
 
   /**
