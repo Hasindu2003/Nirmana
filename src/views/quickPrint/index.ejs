@@ -252,6 +252,27 @@
       </div>
     </div>
 
+    <!-- Category Filter Bar (Photo Frames Studio vs Commercial Documents) -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2 p-2 bg-white rounded-3 border shadow-xs" id="queueCategoryBar">
+      <div class="d-flex align-items-center flex-wrap gap-1">
+        <span class="text-muted small fw-bold me-1" style="font-size: 0.78rem;">Order Category:</span>
+        <button type="button" class="btn btn-sm btn-dark text-white border shadow-xs fw-semibold py-0 px-2 qp-category-filter-btn" id="filterCatAll" onclick="filterQueueByCategory('ALL')" style="font-size: 0.76rem; height: 26px;">
+          All Intake
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-warning text-dark border shadow-xs fw-semibold py-0 px-2 qp-category-filter-btn" id="filterCatPhoto" onclick="filterQueueByCategory('PHOTO_FRAME')" style="font-size: 0.76rem; height: 26px;">
+          <i class="bi bi-image-fill text-warning me-1"></i> 🖼️ Photo Frames Studio (<span id="catPhotoCount"><%= (typeof stats !== 'undefined' && stats.photoFrames) ? stats.photoFrames : 0 %></span>)
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary border shadow-xs fw-semibold py-0 px-2 qp-category-filter-btn" id="filterCatGeneral" onclick="filterQueueByCategory('GENERAL_PRINT')" style="font-size: 0.76rem; height: 26px;">
+          <i class="bi bi-printer me-1 text-primary"></i> 📄 General Prints
+        </button>
+      </div>
+      <div>
+        <a href="/orders?type=frame" class="btn btn-sm btn-warning text-dark fw-bold shadow-xs py-0 px-2 d-inline-flex align-items-center gap-1" style="font-size: 0.76rem; height: 26px;">
+          <i class="bi bi-aspect-ratio"></i> Photo Frames Studio Tab <i class="bi bi-arrow-right small"></i>
+        </a>
+      </div>
+    </div>
+
     <!-- FULL-WIDTH REDESIGNED QUEUE LIST -->
     <div id="jobsListContainer">
       <div class="d-flex flex-column gap-2" id="ordersListWrapper">
@@ -262,6 +283,7 @@
                  id="job-card-<%= job.id %>" 
                  data-id="<%= job.id %>"
                  data-status="<%= job.status %>"
+                 data-ordertype="<%= job.orderType || 'GENERAL_PRINT' %>"
                  data-token="<%= (job.tokenNumber || '').toLowerCase() %>"
                  data-name="<%= (job.customerName || '').toLowerCase() %>"
                  data-phone="<%= (job.customerPhone || '').toLowerCase() %>"
@@ -320,6 +342,18 @@
 
                   <!-- 3. Center-Right: Specs Badges -->
                   <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                    <% if (job.orderType === 'PHOTO_FRAME') { %>
+                      <span class="badge bg-warning text-dark border border-warning px-2 py-1 fw-bold" style="font-size: 0.74rem;">
+                        <i class="bi bi-image-fill me-1"></i> 🖼️ Photo Studio
+                        <% if (job.orderId) { %>
+                          <a href="/orders/<%= job.orderId %>" class="text-decoration-underline text-dark ms-1" title="Open linked order in Photo Frames Studio">#ORD-<%= job.orderId %></a>
+                        <% } %>
+                      </span>
+                    <% } else { %>
+                      <span class="badge bg-light text-secondary border px-2 py-1" style="font-size: 0.74rem;">
+                        <i class="bi bi-printer text-muted me-1"></i> 📄 Print
+                      </span>
+                    <% } %>
                     <span class="badge bg-light text-dark border px-2 py-1" style="font-size: 0.74rem;">
                       <i class="bi bi-copy text-muted me-1"></i><strong><%= job.copies %></strong> <%= job.copies > 1 ? 'copies' : 'copy' %>
                     </span>
@@ -410,11 +444,19 @@
                             <i class="bi bi-calculator me-2 text-success"></i> Bill & Collect in POS
                           </a>
                         </li>
-                        <li>
-                          <a class="dropdown-item py-2 d-flex align-items-center" href="javascript:void(0)" onclick="convertToFormalOrder(<%= job.id %>)">
-                            <i class="bi bi-receipt me-2 text-serene-primary"></i> Convert to Formal Order
-                          </a>
-                        </li>
+                        <% if (job.orderId) { %>
+                          <li>
+                            <a class="dropdown-item py-2 d-flex align-items-center text-warning-emphasis fw-semibold" href="/orders/<%= job.orderId %>">
+                              <i class="bi bi-image me-2 text-warning"></i> Open in Photo Frames Studio
+                            </a>
+                          </li>
+                        <% } else { %>
+                          <li>
+                            <a class="dropdown-item py-2 d-flex align-items-center" href="javascript:void(0)" onclick="convertToFormalOrder(<%= job.id %>)">
+                              <i class="bi bi-receipt me-2 text-serene-primary"></i> Convert to Formal Order
+                            </a>
+                          </li>
+                        <% } %>
                         <% const driveFile = job.files && job.files.find(f => f.driveViewLink); %>
                         <% if (driveFile && driveFile.driveViewLink) { %>
                           <li>
@@ -2156,6 +2198,27 @@
     });
   }
 
+  let currentCategoryFilter = 'ALL';
+
+  window.filterQueueByCategory = function(cat) {
+    currentCategoryFilter = cat;
+    const btnAll = document.getElementById('filterCatAll');
+    const btnPhoto = document.getElementById('filterCatPhoto');
+    const btnGeneral = document.getElementById('filterCatGeneral');
+
+    if (btnAll) {
+      btnAll.className = (cat === 'ALL') ? 'btn btn-sm btn-dark text-white border shadow-xs fw-semibold py-0 px-2 qp-category-filter-btn' : 'btn btn-sm btn-outline-secondary border shadow-xs fw-semibold py-0 px-2 qp-category-filter-btn';
+    }
+    if (btnPhoto) {
+      btnPhoto.className = (cat === 'PHOTO_FRAME') ? 'btn btn-sm btn-warning text-dark border shadow-xs fw-bold py-0 px-2 qp-category-filter-btn' : 'btn btn-sm btn-outline-warning text-dark border shadow-xs fw-semibold py-0 px-2 qp-category-filter-btn';
+    }
+    if (btnGeneral) {
+      btnGeneral.className = (cat === 'GENERAL_PRINT') ? 'btn btn-sm btn-primary text-white border shadow-xs fw-bold py-0 px-2 qp-category-filter-btn' : 'btn btn-sm btn-outline-secondary border shadow-xs fw-semibold py-0 px-2 qp-category-filter-btn';
+    }
+
+    applyRealtimeSearch();
+  };
+
   function applyRealtimeSearch() {
     const searchInput = document.getElementById('queueSearchInput');
     const clearBtn = document.getElementById('clearSearchBtn');
@@ -2182,6 +2245,16 @@
         : (currentViewStatus === 'CANCELLED' ? (jobStatus === 'CANCELLED') : (jobStatus === 'COMPLETED'));
 
       if (!isStatusMatch) {
+        card.style.setProperty('display', 'none', 'important');
+        return;
+      }
+
+      const jobOrderType = card.getAttribute('data-ordertype') || 'GENERAL_PRINT';
+      const isCategoryMatch = (currentCategoryFilter === 'ALL') ||
+        (currentCategoryFilter === 'PHOTO_FRAME' && jobOrderType === 'PHOTO_FRAME') ||
+        (currentCategoryFilter === 'GENERAL_PRINT' && jobOrderType !== 'PHOTO_FRAME');
+
+      if (!isCategoryMatch) {
         card.style.setProperty('display', 'none', 'important');
         return;
       }

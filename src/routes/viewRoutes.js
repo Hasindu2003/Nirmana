@@ -95,10 +95,12 @@ router.get('/logout', authController.logout);
 // Walk-in Customer Self-Service Upload (Mobile QR Destination & Fallback)
 router.get(['/upload', '/quick-print/upload'], (req, res) => {
   const defaultUploadUrl = getUploadUrl(req);
+  const initialType = req.query.type === 'general' ? 'GENERAL_PRINT' : 'PHOTO_FRAME';
   res.render('quickPrint/upload', {
     title: 'Self-Service Print Station · Nirmana Printing',
     activePage: 'guest-upload',
     uploadUrl: defaultUploadUrl,
+    initialType,
   });
 });
 

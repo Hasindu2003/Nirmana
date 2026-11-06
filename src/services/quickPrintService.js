@@ -111,7 +111,7 @@ class QuickPrintService {
       console.warn('Could not check existing Customer CRM record:', err.message);
     }
 
-    return await sequelize.transaction(async (t) => {
+    const result = await sequelize.transaction(async (t) => {
 
       const tokenNumber = await this.generateTokenNumber(t);
       // Parse per-file paper sizes if provided
@@ -184,15 +184,20 @@ class QuickPrintService {
         }
       }
 
+      const rawOrderType = (data.orderType || '').toUpperCase().trim();
+      const isFrameSize = /frame|photo|portrait|canvas|රාමු/i.test(`${effectivePaperSize} ${data.customerMessage || ''} ${data.frameType || ''}`);
+      const orderType = (rawOrderType === 'PHOTO_FRAME' || (isFrameSize && rawOrderType !== 'GENERAL_PRINT')) ? 'PHOTO_FRAME' : 'GENERAL_PRINT';
+
       const job = await QuickPrintJob.create({
         tokenNumber,
         customerName: customerName.substring(0, 100),
         customerPhone: customerPhone || rawPhone,
         customerMessage: (data.customerMessage || data.message || '').trim().substring(0, 1000) || null,
-        colorMode: (effectiveColorMode || 'BW').substring(0, 20),
+        colorMode: (effectiveColorMode || (orderType === 'PHOTO_FRAME' ? 'COLOR' : 'BW')).substring(0, 20),
         copies: effectiveCopies,
-        paperSize: (effectivePaperSize || 'A4').substring(0, 100),
+        paperSize: (effectivePaperSize || (orderType === 'PHOTO_FRAME' ? 'Photo 4x6' : 'A4')).substring(0, 100),
         status: 'PENDING',
+        orderType,
         customerId,
       }, { transaction: t });
 
@@ -269,6 +274,12 @@ class QuickPrintService {
         files: fileRecords,
       };
     });
+
+    if (result && result.job && result.job.orderType === 'PHOTO_FRAME') {
+      await this.syncPhotoFrameJobToOrder(result.job, data, uploadedFiles);
+    }
+
+    return result;
   }
 
   /**
@@ -313,7 +324,7 @@ class QuickPrintService {
       console.warn('Could not check existing Customer CRM record:', err.message);
     }
 
-    return await sequelize.transaction(async (t) => {
+    const result = await sequelize.transaction(async (t) => {
       const tokenNumber = await this.generateTokenNumber(t);
 
       // Calculate effective overall paper size from driveFiles
@@ -348,15 +359,20 @@ class QuickPrintService {
         }
       }
 
+      const rawOrderType = (data.orderType || '').toUpperCase().trim();
+      const isFrameSize = /frame|photo|portrait|canvas|රාමු/i.test(`${effectivePaperSize} ${data.customerMessage || ''} ${data.frameType || ''}`);
+      const orderType = (rawOrderType === 'PHOTO_FRAME' || (isFrameSize && rawOrderType !== 'GENERAL_PRINT')) ? 'PHOTO_FRAME' : 'GENERAL_PRINT';
+
       const job = await QuickPrintJob.create({
         tokenNumber,
         customerName: customerName.substring(0, 100),
         customerPhone: customerPhone || rawPhone,
         customerMessage: (data.customerMessage || data.message || '').trim().substring(0, 1000) || null,
-        colorMode: (effectiveColorMode || 'BW').substring(0, 20),
+        colorMode: (effectiveColorMode || (orderType === 'PHOTO_FRAME' ? 'COLOR' : 'BW')).substring(0, 20),
         copies: effectiveCopies,
-        paperSize: (effectivePaperSize || 'A4').substring(0, 100),
+        paperSize: (effectivePaperSize || (orderType === 'PHOTO_FRAME' ? 'Photo 4x6' : 'A4')).substring(0, 100),
         status: 'PENDING',
+        orderType,
         customerId,
       }, { transaction: t });
 
@@ -390,18 +406,86 @@ class QuickPrintService {
         files: fileRecords,
       };
     });
+
+    if (result && result.job && result.job.orderType === 'PHOTO_FRAME') {
+      await this.syncPhotoFrameJobToOrder(result.job, data, driveFiles);
+    }
+
+    return result;
+  }
+
+  /**
+   * Auto-sync Photo Frame order to dedicated Photo Frames Studio workspace in Orders
+   */
+  async syncPhotoFrameJobToOrder(job, data = {}, files = []) {
+    try {
+      if (job.orderId) {
+        return await Order.findByPk(job.orderId);
+      }
+      const orderService = require('./orderService');
+      const fileNames = (files && files.length > 0)
+        ? files.map(f => f.originalName || f.originalname || f.name).filter(Boolean).join(', ')
+        : 'Uploaded Photo(s)';
+
+      const pSize = job.paperSize || data.paperSize || 'Photo Frame';
+      const fType = data.frameType || 'Wooden Glass Frame';
+      const fFinish = data.frameFinish || 'Glossy Photo';
+
+      const specs = [
+        `🖼️ Walk-in QR Photo Frame Studio Order [Token #${job.tokenNumber}]`,
+        `Frame Size: ${pSize}`,
+        `Framing Style: ${fType}`,
+        `Finish: ${fFinish}`,
+        `Color Mode: ${job.colorMode}`,
+        `Quantity / Copies: ${job.copies}`,
+        `Attached Files: ${fileNames}`,
+        job.customerMessage ? `Customer Instructions: ${job.customerMessage}` : '',
+      ].filter(Boolean).join('\n');
+
+      const newOrder = await orderService.createOrder({
+        customerId: job.customerId,
+        newCustomerName: job.customerId ? undefined : job.customerName,
+        newCustomerPhone: job.customerId ? undefined : job.customerPhone,
+        jobTitle: `🖼️ Photo Frame: ${job.customerName} (${pSize})`,
+        paperMaterial: `${fType} - ${pSize}`,
+        specifications: specs,
+        quantity: job.copies || 1,
+        totalAmount: 0.00,
+        advancePaid: 0.00,
+        orderType: 'PHOTO_FRAME',
+        status: 'RECEIVED',
+        notes: `Walk-in QR Photo Frame Intake [Token #${job.tokenNumber}]. Files: ${fileNames}`,
+      });
+
+      if (newOrder && newOrder.id) {
+        job.orderId = newOrder.id;
+        await job.save();
+      }
+      return newOrder;
+    } catch (err) {
+      console.warn('[QuickPrint] Failed to auto-sync photo frame to orders:', err.message);
+      return null;
+    }
   }
 
   /**
    * Get all jobs with optional filters
    */
-  async getAllJobs({ status = 'ALL', search = '', limit = 100 } = {}) {
+  async getAllJobs({ status = 'ALL', search = '', orderType = 'ALL', limit = 100 } = {}) {
     const where = {};
 
     if (status === 'ACTIVE') {
       where.status = { [Op.in]: ['PENDING', 'PRINTING'] };
     } else if (status && status !== 'ALL') {
       where.status = status;
+    }
+
+    if (orderType && orderType !== 'ALL') {
+      if (orderType === 'PHOTO_FRAME') {
+        where.orderType = 'PHOTO_FRAME';
+      } else if (orderType === 'GENERAL_PRINT') {
+        where.orderType = { [Op.ne]: 'PHOTO_FRAME' };
+      }
     }
 
     if (search && search.trim()) {
@@ -540,6 +624,29 @@ class QuickPrintService {
     }
 
     await job.save();
+
+    if (job.orderId) {
+      try {
+        const { Order: OrderModel } = require('../models');
+        const linkedOrder = await OrderModel.findByPk(job.orderId);
+        if (linkedOrder) {
+          if (newStatus === 'COMPLETED') {
+            linkedOrder.status = 'COMPLETED';
+            if (options && options.moneyGot && options.amount) {
+              linkedOrder.balanceAmount = 0.00;
+              linkedOrder.advancePaid = parseFloat(options.amount) || parseFloat(linkedOrder.totalAmount);
+            }
+            await linkedOrder.save();
+          } else if (newStatus === 'CANCELLED') {
+            linkedOrder.status = 'CANCELLED';
+            await linkedOrder.save();
+          }
+        }
+      } catch (syncErr) {
+        console.warn('Could not update linked Order status:', syncErr.message);
+      }
+    }
+
     return { job, posSale };
   }
 
@@ -712,6 +819,7 @@ class QuickPrintService {
       totalAmount: orderOptions.totalAmount || 0,
       advancePaid: orderOptions.advancePaid || 0,
       notes: `Converted from Quick Print ${job.tokenNumber}. Original files: ${job.files.map(f => f.fileUrl).join(', ')}`,
+      orderType: (orderOptions.orderType || (job.orderType === 'PHOTO_FRAME' ? 'PHOTO_FRAME' : 'GENERAL_PRINT')),
       status: job.status === 'COMPLETED' ? 'COMPLETED' : 'PRINTING',
     };
 
@@ -732,7 +840,7 @@ class QuickPrintService {
   async getQueueStats() {
     const { startOfDay, endOfDay } = getSriLankaDayBounds();
 
-    const [pendingCount, completedTodayCount, allCompletedCount, totalTodayCount, cancelledCount] = await Promise.all([
+    const [pendingCount, completedTodayCount, allCompletedCount, totalTodayCount, cancelledCount, photoFramesCount] = await Promise.all([
       QuickPrintJob.count({ where: { status: 'PENDING' } }),
       QuickPrintJob.count({
         where: {
@@ -747,6 +855,12 @@ class QuickPrintService {
         },
       }),
       QuickPrintJob.count({ where: { status: 'CANCELLED' } }),
+      QuickPrintJob.count({
+        where: {
+          orderType: 'PHOTO_FRAME',
+          status: { [Op.in]: ['PENDING', 'PRINTING'] },
+        },
+      }).catch(() => 0),
     ]);
 
     return {
@@ -755,6 +869,7 @@ class QuickPrintService {
       completedTotal: allCompletedCount,
       totalToday: totalTodayCount,
       cancelled: cancelledCount,
+      photoFrames: photoFramesCount,
     };
   }
 }

@@ -25,6 +25,8 @@ class QuickPrintController {
           jobId: result.job.id,
           tokenNumber: result.job.tokenNumber,
           customerName: result.job.customerName,
+          orderType: result.job.orderType,
+          orderId: result.job.orderId,
           status: result.job.status,
           paperSize: result.job.paperSize,
           colorMode: result.job.colorMode,
@@ -77,6 +79,8 @@ class QuickPrintController {
           id: job.id,
           tokenNumber: job.tokenNumber,
           customerName: job.customerName,
+          orderType: job.orderType,
+          orderId: job.orderId,
           status: job.status,
           customerMessage: job.customerMessage,
           colorMode: job.colorMode,
@@ -100,9 +104,9 @@ class QuickPrintController {
    */
   async listJobs(req, res, next) {
     try {
-      const { status, search } = req.query;
+      const { status, search, orderType } = req.query;
       const [jobs, stats] = await Promise.all([
-        quickPrintService.getAllJobs({ status, search }),
+        quickPrintService.getAllJobs({ status, search, orderType }),
         quickPrintService.getQueueStats(),
       ]);
 
@@ -482,6 +486,9 @@ class QuickPrintController {
         colorMode,
         copies,
         paperSize,
+        orderType: req.body.orderType,
+        frameType: req.body.frameType,
+        frameFinish: req.body.frameFinish,
       }, finalizedFiles);
 
       return res.status(201).json({
@@ -491,6 +498,8 @@ class QuickPrintController {
           jobId: result.job.id,
           tokenNumber: result.job.tokenNumber,
           customerName: result.job.customerName,
+          orderType: result.job.orderType,
+          orderId: result.job.orderId,
           filesCount: result.files.length,
           colorMode: result.job.colorMode,
           copies: result.job.copies,

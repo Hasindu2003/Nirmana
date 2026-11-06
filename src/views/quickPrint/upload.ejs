@@ -250,10 +250,71 @@
   <div id="uploadView" class="kiosk-card">
     <form id="printUploadForm" enctype="multipart/form-data">
       
+      <!-- 1. Upfront Order Type Division (Photo Frame vs Document/Other Print) -->
+      <div class="mb-4">
+        <label class="form-label fw-bold small text-muted text-uppercase mb-2">
+          1. ඇණවුම් වර්ගය තෝරන්න / Select Order Type <span class="text-danger">*</span>
+        </label>
+
+        <input type="hidden" name="orderType" id="orderTypeHiddenInput" value="PHOTO_FRAME">
+
+        <div class="row g-2">
+          <!-- Option A: Photo Frame Order -->
+          <div class="col-6">
+            <div class="card h-100 p-2 order-type-kiosk-btn active" id="btnTypePhoto" onclick="selectCustomerOrderType('PHOTO_FRAME')" style="cursor: pointer; border: 2px solid #d97706; background: #fffbeb; border-radius: 12px; transition: all 0.2s ease;">
+              <div class="text-center py-2">
+                <div class="p-2 rounded-circle bg-warning text-dark d-inline-flex align-items-center justify-content-center mb-1" style="width: 44px; height: 44px;">
+                  <i class="bi bi-image-fill fs-5"></i>
+                </div>
+                <div class="fw-bold text-dark fs-6 mt-1">🖼️ Photo Frame</div>
+                <div class="text-muted small mt-1" style="font-size: 0.73rem; line-height: 1.25;">
+                  ඡායාරූප හෝ ෆොටෝ ෆ්‍රේම්
+                </div>
+                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle mt-2" style="font-size: 0.65rem;">
+                  Photo Frames Studio
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Option B: General Document Print -->
+          <div class="col-6">
+            <div class="card h-100 p-2 order-type-kiosk-btn" id="btnTypeGeneral" onclick="selectCustomerOrderType('GENERAL_PRINT')" style="cursor: pointer; border: 2px solid #cbd5e1; background: #ffffff; border-radius: 12px; transition: all 0.2s ease;">
+              <div class="text-center py-2">
+                <div class="p-2 rounded-circle bg-light text-primary d-inline-flex align-items-center justify-content-center mb-1" style="width: 44px; height: 44px;">
+                  <i class="bi bi-printer-fill fs-5"></i>
+                </div>
+                <div class="fw-bold text-dark fs-6 mt-1">📄 General Print</div>
+                <div class="text-muted small mt-1" style="font-size: 0.73rem; line-height: 1.25;">
+                  සාමාන්‍ය මුද්‍රණ / Documents
+                </div>
+                <span class="badge bg-light text-muted border mt-2" style="font-size: 0.65rem;">
+                  Quick Print Counter
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic Notice Banners -->
+        <div id="photoOrderBanner" class="alert alert-warning border border-warning-subtle p-2 mt-2 mb-0 rounded-3 d-flex align-items-center gap-2" style="font-size: 0.78rem;">
+          <i class="bi bi-image-fill text-warning flex-shrink-0 fs-6"></i>
+          <div>
+            <strong>Photo Frames Studio ඇණවුමක්:</strong> ඔයාගේ Photos උසස්ම HD Quality එකෙන් Wooden Glass Frames හෝ Canvas ආකාරයට Studio එකෙන් සකස් කෙරේ.
+          </div>
+        </div>
+        <div id="generalOrderBanner" class="alert alert-primary border border-primary-subtle p-2 mt-2 mb-0 rounded-3 d-none align-items-center gap-2" style="font-size: 0.78rem;">
+          <i class="bi bi-printer-fill text-primary flex-shrink-0 fs-6"></i>
+          <div>
+            <strong>සාමාන්‍ය මුද්‍රණ ඇණවුමක්:</strong> Documents, Assignments, Photocopies, සහ Booklets ඉක්මනින් Counter එකෙන් Print කරගත හැක.
+          </div>
+        </div>
+      </div>
+
       <!-- Customer Name -->
       <div class="mb-3">
         <label for="customerName" class="form-label fw-bold small text-muted text-uppercase mb-1">
-          1. ඔයාගේ Name එක <span class="text-danger">*</span>
+          2. ඔයාගේ Name එක <span class="text-danger">*</span>
         </label>
         <div class="input-group">
           <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-person"></i></span>
@@ -265,7 +326,7 @@
       <!-- Customer Phone -->
       <div class="mb-3">
         <label for="customerPhone" class="form-label fw-bold small text-muted text-uppercase mb-1">
-          2. WhatsApp / Phone Number එක <span class="text-danger">*</span>
+          3. WhatsApp / Phone Number එක <span class="text-danger">*</span>
         </label>
         <div class="input-group">
           <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-whatsapp text-success"></i></span>
@@ -280,18 +341,45 @@
         </div>
       </div>
 
+      <!-- Framing & Photo Options (Shown for Photo Frame Orders) -->
+      <div id="photoFrameOptionsCard" class="p-3 mb-3 rounded-3 border" style="background: #fafaf9; border-color: #fde68a !important;">
+        <div class="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom border-warning-subtle">
+          <span class="fw-bold text-dark small"><i class="bi bi-magic text-warning me-1"></i> Framing & Photo Preferences</span>
+          <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle" style="font-size: 0.68rem;">Studio Options</span>
+        </div>
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label small text-muted mb-1" style="font-size: 0.75rem;">Framing Style / රාමු වර්ගය</label>
+            <select class="form-select form-select-sm" id="frameTypeSelect" name="frameType">
+              <option value="Wooden Glass Frame" selected>Wooden Glass Frame (ලී වීදුරු)</option>
+              <option value="Canvas Mount">Canvas Mount (කැන්වස්)</option>
+              <option value="Photo Print Only">Photo Print Only (ප්‍රින්ට් පමණි)</option>
+              <option value="Acrylic Floating Frame">Acrylic Floating Frame</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label small text-muted mb-1" style="font-size: 0.75rem;">Photo Finish / නිමාව</label>
+            <select class="form-select form-select-sm" id="frameFinishSelect" name="frameFinish">
+              <option value="Glossy Photo" selected>Glossy HD (දිලිසෙන)</option>
+              <option value="Matte Finish">Matte Finish (මැට්)</option>
+              <option value="Canvas Texture">Canvas Texture</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <!-- File Dropzone -->
       <div class="mb-3">
-        <label class="form-label fw-bold small text-muted text-uppercase mb-1">
-          3. Print කරන්න ඕන Files / Photos මෙතනට Upload කරන්න <span class="text-danger">*</span>
+        <label class="form-label fw-bold small text-muted text-uppercase mb-1" id="uploadLabel">
+          4. Files / Photos මෙතනට Upload කරන්න <span class="text-danger">*</span>
         </label>
         
         <div class="dropzone-box" id="dropzoneBox">
           <div class="dropzone-icon">
             <i class="bi bi-cloud-arrow-up"></i>
           </div>
-          <div class="fw-bold mb-1 text-dark">Photos හෝ Files මෙතන Tap කරලා Select කරන්න</div>
-          <div class="text-muted small mb-2">Phone Gallery එකෙන් හෝ Camera එකෙන් Select කරන්න පුළුවන්</div>
+          <div class="fw-bold mb-1 text-dark" id="dropzonePrompt">📸 Framing සඳහා Photos මෙතන Tap කරලා Select කරන්න</div>
+          <div class="text-muted small mb-2" id="dropzoneSub">Wedding, Portrait, Family හෝ Memories Photos Select කරන්න</div>
           <button type="button" class="btn btn-sm btn-outline-secondary" id="browseBtn">
             <i class="bi bi-images me-1"></i> Files / Photos Select කරන්න
           </button>
@@ -302,14 +390,14 @@
         <div id="fileList" class="mt-2"></div>
       </div>
 
-      <!-- 4. Customer Message / Instructions -->
+      <!-- 5. Customer Message / Instructions -->
       <div class="mb-4">
         <label for="customerMessage" class="form-label fw-bold small text-muted text-uppercase mb-1">
-          4. Print Instructions / Notes (විශේෂ උපදෙස් - Optional)
+          5. Instructions / Notes (විශේෂ උපදෙස් - Optional)
         </label>
         <div class="input-group">
           <textarea class="form-control" id="customerMessage" name="customerMessage" rows="2" 
-                    placeholder="Eg: Staple කරන්න, page 1 ඉඳලා 5 වෙනකන් විතරක් print කරන්න..."></textarea>
+                    placeholder="Eg: Frame එකේ පාට, Border එකක් අවශ්‍යද, කැන්වස් මවුන්ට් එකක්ද..."></textarea>
         </div>
       </div>
 
@@ -327,8 +415,8 @@
 
       <!-- Submit Button -->
       <div class="d-grid">
-        <button type="submit" id="submitBtn" class="btn btn-serene-primary py-3 fs-6 fw-bold">
-          <i class="bi bi-send-fill me-2"></i> Counter එකට Send කරන්න 🚀
+        <button type="submit" id="submitBtn" class="btn btn-warning text-dark py-3 fs-6 fw-bold shadow-sm">
+          <i class="bi bi-send-fill me-2"></i> Photo Frames Studio එකට Send කරන්න 🚀
         </button>
       </div>
     </form>
@@ -339,8 +427,13 @@
     <div class="mb-3">
       <div class="token-display-badge" id="ticketTokenNumber">QP-000</div>
     </div>
-    <h3 class="fs-5 fw-bold text-dark mb-1">Files Counter එකට ලැබුණා! 🎉</h3>
-    <p class="text-muted small mb-3">
+    <div class="mb-2">
+      <span class="badge bg-warning text-dark border border-warning px-3 py-1 fs-6 rounded-pill" id="ticketTypeBadge">
+        <i class="bi bi-image-fill me-1"></i> 🖼️ Photo Frames Studio Order
+      </span>
+    </div>
+    <h3 class="fs-5 fw-bold text-dark mb-1" id="ticketSuccessHeading">Files Counter එකට ලැබුණා! 🎉</h3>
+    <p class="text-muted small mb-3" id="ticketSuccessMsg">
       ඔයාගේ Files අපේ Print Counter එකට ලැබුණා. කරුණාකර මේ <strong>Token Number එක</strong> Counter එකේ ඉන්න කෙනාට කියලා ඔයාගේ Print out එක ලබාගන්න.
     </p>
 
@@ -455,12 +548,101 @@
     handleFilesAdded(e.target.files);
   });
 
+  const serverInitialType = '<%= (typeof initialType !== "undefined" && initialType === "GENERAL_PRINT") ? "GENERAL_PRINT" : "PHOTO_FRAME" %>';
+  let currentOrderType = serverInitialType;
+
+  function selectCustomerOrderType(type) {
+    currentOrderType = type;
+    const hiddenInput = document.getElementById('orderTypeHiddenInput');
+    if (hiddenInput) hiddenInput.value = type;
+
+    const btnPhoto = document.getElementById('btnTypePhoto');
+    const btnGeneral = document.getElementById('btnTypeGeneral');
+    const photoBanner = document.getElementById('photoOrderBanner');
+    const generalBanner = document.getElementById('generalOrderBanner');
+    const photoFrameCard = document.getElementById('photoFrameOptionsCard');
+    const submitBtn = document.getElementById('submitBtn');
+    const dropzonePrompt = document.getElementById('dropzonePrompt');
+    const dropzoneSub = document.getElementById('dropzoneSub');
+
+    if (type === 'PHOTO_FRAME') {
+      if (btnPhoto) {
+        btnPhoto.classList.add('active');
+        btnPhoto.style.borderColor = '#d97706';
+        btnPhoto.style.background = '#fffbeb';
+      }
+      if (btnGeneral) {
+        btnGeneral.classList.remove('active');
+        btnGeneral.style.borderColor = '#cbd5e1';
+        btnGeneral.style.background = '#ffffff';
+      }
+      if (photoBanner) {
+        photoBanner.classList.remove('d-none');
+        photoBanner.classList.add('d-flex');
+      }
+      if (generalBanner) {
+        generalBanner.classList.add('d-none');
+        generalBanner.classList.remove('d-flex');
+      }
+      if (photoFrameCard) photoFrameCard.classList.remove('d-none');
+      if (dropzonePrompt) dropzonePrompt.textContent = '📸 Framing සඳහා Photos මෙතන Tap කරලා Select කරන්න';
+      if (dropzoneSub) dropzoneSub.textContent = 'Wedding, Portrait, Family හෝ Memories Photos Select කරන්න';
+      if (submitBtn) {
+        submitBtn.className = 'btn btn-warning text-dark py-3 fs-6 fw-bold shadow-sm';
+        submitBtn.innerHTML = '<i class="bi bi-send-fill me-2"></i> Photo Frames Studio එකට Send කරන්න 🚀';
+      }
+
+      selectedFiles.forEach(f => {
+        if (!f.hasCustomPaperSize) f.selectedPaperSize = 'Frame 8x10';
+        if (!f.hasCustomColorMode) f.selectedColorMode = 'COLOR';
+      });
+      renderFileList();
+    } else {
+      if (btnGeneral) {
+        btnGeneral.classList.add('active');
+        btnGeneral.style.borderColor = '#2563eb';
+        btnGeneral.style.background = '#eff6ff';
+      }
+      if (btnPhoto) {
+        btnPhoto.classList.remove('active');
+        btnPhoto.style.borderColor = '#cbd5e1';
+        btnPhoto.style.background = '#ffffff';
+      }
+      if (generalBanner) {
+        generalBanner.classList.remove('d-none');
+        generalBanner.classList.add('d-flex');
+      }
+      if (photoBanner) {
+        photoBanner.classList.add('d-none');
+        photoBanner.classList.remove('d-flex');
+      }
+      if (photoFrameCard) photoFrameCard.classList.add('d-none');
+      if (dropzonePrompt) dropzonePrompt.textContent = 'Photos හෝ Files මෙතන Tap කරලා Select කරන්න';
+      if (dropzoneSub) dropzoneSub.textContent = 'Phone Gallery එකෙන් හෝ Camera එකෙන් Select කරන්න පුළුවන්';
+      if (submitBtn) {
+        submitBtn.className = 'btn btn-serene-primary py-3 fs-6 fw-bold shadow-sm';
+        submitBtn.innerHTML = '<i class="bi bi-send-fill me-2"></i> Quick Print Counter එකට Send කරන්න 🚀';
+      }
+
+      selectedFiles.forEach(f => {
+        if (!f.hasCustomPaperSize) f.selectedPaperSize = 'A4';
+        if (!f.hasCustomColorMode) f.selectedColorMode = 'BW';
+      });
+      renderFileList();
+    }
+  }
+
+  // Initialize selector state on page load
+  try {
+    selectCustomerOrderType(serverInitialType);
+  } catch(initErr) {}
+
   function handleFilesAdded(files) {
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
       if (!selectedFiles.some(existing => existing.name === f.name && existing.size === f.size)) {
-        f.selectedPaperSize = 'A4';
-        f.selectedColorMode = 'BW';
+        f.selectedPaperSize = (currentOrderType === 'PHOTO_FRAME') ? 'Frame 8x10' : 'A4';
+        f.selectedColorMode = (currentOrderType === 'PHOTO_FRAME') ? 'COLOR' : 'BW';
         f.selectedCopies = 1;
         selectedFiles.push(f);
       }
@@ -979,6 +1161,9 @@
             colorMode,
             copies,
             paperSize: selectedPaperSize,
+            orderType: currentOrderType,
+            frameType: document.getElementById('frameTypeSelect') ? document.getElementById('frameTypeSelect').value : '',
+            frameFinish: document.getElementById('frameFinishSelect') ? document.getElementById('frameFinishSelect').value : '',
             files: driveFiles.map((df, idx) => ({
               ...df,
               paperSize: processedFiles[idx]?.selectedPaperSize || selectedPaperSize || 'A4',
@@ -993,7 +1178,9 @@
 
         const completeData = await completeRes.json();
         submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="bi bi-send-fill me-2"></i> Counter එකට Send කරන්න 🚀';
+        submitBtn.innerHTML = (currentOrderType === 'PHOTO_FRAME')
+          ? '<i class="bi bi-send-fill me-2"></i> Photo Frames Studio එකට Send කරන්න 🚀'
+          : '<i class="bi bi-send-fill me-2"></i> Quick Print Counter එකට Send කරන්න 🚀';
 
         if (completeRes.ok && completeData.success) {
           showSuccessScreen(completeData.data);
@@ -1014,6 +1201,13 @@
       formData.append('colorMode', colorMode);
       formData.append('copies', copies);
       formData.append('paperSize', selectedPaperSize);
+      formData.append('orderType', currentOrderType);
+      if (document.getElementById('frameTypeSelect')) {
+        formData.append('frameType', document.getElementById('frameTypeSelect').value);
+      }
+      if (document.getElementById('frameFinishSelect')) {
+        formData.append('frameFinish', document.getElementById('frameFinishSelect').value);
+      }
       formData.append('filePaperSizes', JSON.stringify(filePaperSizes));
       formData.append('fileColorModes', JSON.stringify(fileColorModes));
       formData.append('fileCopies', JSON.stringify(fileCopies));
@@ -1038,7 +1232,9 @@
 
       xhr.onload = function () {
         submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="bi bi-send-fill me-2"></i> Counter එකට Send කරන්න 🚀';
+        submitBtn.innerHTML = (currentOrderType === 'PHOTO_FRAME')
+          ? '<i class="bi bi-send-fill me-2"></i> Photo Frames Studio එකට Send කරන්න 🚀'
+          : '<i class="bi bi-send-fill me-2"></i> Quick Print Counter එකට Send කරන්න 🚀';
         
         try {
           const response = JSON.parse(xhr.responseText);
@@ -1056,7 +1252,9 @@
 
       xhr.onerror = function () {
         submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="bi bi-send-fill me-2"></i> Counter එකට Send කරන්න 🚀';
+        submitBtn.innerHTML = (currentOrderType === 'PHOTO_FRAME')
+          ? '<i class="bi bi-send-fill me-2"></i> Photo Frames Studio එකට Send කරන්න 🚀'
+          : '<i class="bi bi-send-fill me-2"></i> Quick Print Counter එකට Send කරන්න 🚀';
         uploadProgressContainer.classList.add('d-none');
         alert('Network error එකක් ආවා. කරුණාකර ඔබගේ Connection එක පරීක්ෂා කර නැවත උත්සාහ කරන්න.');
       };
@@ -1065,7 +1263,9 @@
     } catch (submitErr) {
       console.error('Submit error:', submitErr);
       submitBtn.disabled = false;
-      submitBtn.innerHTML = '<i class="bi bi-send-fill me-2"></i> Counter එකට Send කරන්න 🚀';
+      submitBtn.innerHTML = (currentOrderType === 'PHOTO_FRAME')
+        ? '<i class="bi bi-send-fill me-2"></i> Photo Frames Studio එකට Send කරන්න 🚀'
+        : '<i class="bi bi-send-fill me-2"></i> Quick Print Counter එකට Send කරන්න 🚀';
       uploadProgressContainer.classList.add('d-none');
       alert('Upload එකේ ගැටලුවක් විය: ' + submitErr.message);
     }
@@ -1079,6 +1279,32 @@
     document.getElementById('ticketTokenNumber').textContent = data.tokenNumber;
     document.getElementById('ticketCustomerName').textContent = data.customerName;
     document.getElementById('ticketFilesCount').textContent = `${data.filesCount} file(s)`;
+
+    const isPhotoOrder = (data.orderType === 'PHOTO_FRAME' || currentOrderType === 'PHOTO_FRAME');
+    const badgeEl = document.getElementById('ticketTypeBadge');
+    const headingEl = document.getElementById('ticketSuccessHeading');
+    const msgEl = document.getElementById('ticketSuccessMsg');
+
+    if (badgeEl) {
+      if (isPhotoOrder) {
+        badgeEl.className = 'badge bg-warning text-dark border border-warning px-3 py-1 fs-6 rounded-pill';
+        badgeEl.innerHTML = '<i class="bi bi-image-fill me-1"></i> 🖼️ Photo Frames Studio Order';
+      } else {
+        badgeEl.className = 'badge bg-primary text-white border px-3 py-1 fs-6 rounded-pill';
+        badgeEl.innerHTML = '<i class="bi bi-printer-fill me-1"></i> 📄 Quick Print Document Order';
+      }
+    }
+
+    if (headingEl) {
+      headingEl.textContent = isPhotoOrder ? 'Photo Frame Order ලැබුණා! 🎉' : 'Files Counter එකට ලැබුණා! 🎉';
+    }
+
+    if (msgEl) {
+      msgEl.innerHTML = isPhotoOrder
+        ? `ඔයාගේ Photo Frame Order එක අපේ <strong>Photo Frames Studio</strong> වෙත ලැබුණා. කරුණාකර මේ <strong>Token Number එක (${data.tokenNumber})</strong> Counter එකට පෙන්වන්න.`
+        : `ඔයාගේ Files අපේ Print Counter එකට ලැබුණා. කරුණාකර මේ <strong>Token Number එක (${data.tokenNumber})</strong> Counter එකේ ඉන්න කෙනාට කියලා ලබාගන්න.`;
+    }
+
     if (document.getElementById('ticketSpecs')) {
       let modeLabel = 'B&W';
       if (data.colorMode === 'COLOR') modeLabel = 'Color';

@@ -51,6 +51,11 @@ const QuickPrintJob = sequelize.define('QuickPrintJob', {
     allowNull: false,
     defaultValue: 'PENDING',
   },
+  orderType: {
+    type: DataTypes.STRING(50),
+    allowNull: false,
+    defaultValue: 'GENERAL_PRINT', // 'PHOTO_FRAME' or 'GENERAL_PRINT'
+  },
   customerId: {
     type: DataTypes.INTEGER,
     allowNull: true,
