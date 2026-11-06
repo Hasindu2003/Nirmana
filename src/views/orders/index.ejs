@@ -29,11 +29,22 @@
         <% } %>
       </div>
       <div class="mt-2 mt-sm-0 d-flex align-items-center gap-2">
+        <% const cancelledListCount = orders.filter(o => o.status === 'CANCELLED').length; %>
         <% if (typeFilter === 'frame') { %>
+          <% if (cancelledListCount > 0) { %>
+            <button type="button" class="btn btn-outline-danger btn-sm shadow-xs d-inline-flex align-items-center gap-1" onclick="openCleanCancelledModal('PHOTO_FRAME')">
+              <i class="bi bi-trash"></i> Clean Cancelled Frames (<%= cancelledListCount %>)
+            </button>
+          <% } %>
           <a href="/orders/new?type=frame" class="btn btn-warning text-dark fw-semibold shadow-xs">
             <i class="bi bi-plus-lg"></i> New Frame Order
           </a>
         <% } else { %>
+          <% if (cancelledListCount > 0) { %>
+            <button type="button" class="btn btn-outline-danger btn-sm shadow-xs d-inline-flex align-items-center gap-1" onclick="openCleanCancelledModal('GENERAL_PRINT')">
+              <i class="bi bi-trash"></i> Clean Cancelled Orders (<%= cancelledListCount %>)
+            </button>
+          <% } %>
           <a href="/orders/new?type=general" class="btn btn-serene-primary shadow-xs">
             <i class="bi bi-plus-lg"></i> New Print Order
           </a>
@@ -285,8 +296,14 @@
                       <% if (o.status !== 'COMPLETED' && o.status !== 'CANCELLED') { %>
                         <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2 d-inline-flex align-items-center gap-1 shadow-xs" 
                                 onclick="openOrderCancelModal(<%= o.id %>, '<%= o.orderNumber %>', '<%= escape(o.jobTitle) %>')" 
-                                title="Cancel and remove this order from queue">
+                                title="Cancel and remove this <%= isFrame ? 'photo frame' : 'print' %> order from queue">
                           <i class="bi bi-x-circle"></i> Remove
+                        </button>
+                      <% } else if (o.status === 'CANCELLED') { %>
+                        <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2 d-inline-flex align-items-center gap-1 shadow-xs" 
+                                onclick="openOrderDeleteModal(<%= o.id %>, '<%= o.orderNumber %>', '<%= escape(o.jobTitle) %>')" 
+                                title="Permanently delete this cancelled <%= isFrame ? 'photo frame' : 'print' %> order">
+                          <i class="bi bi-trash"></i> Delete
                         </button>
                       <% } %>
                     </div>
@@ -360,6 +377,80 @@
         <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Keep in Queue</button>
         <button type="button" class="btn btn-sm btn-danger px-3 d-inline-flex align-items-center gap-1 fw-bold shadow-xs" id="confirmOrderCancelBtn" onclick="window.submitOrderCancel()">
           <i class="bi bi-trash"></i> Confirm & Remove from Queue
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: PERMANENTLY DELETE CANCELLED ORDER -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="orderDeleteModal" tabindex="-1" aria-labelledby="orderDeleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg border-0" style="border-radius: var(--serene-radius-lg);">
+      <div class="modal-header py-3 px-4 border-bottom bg-danger text-white">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-trash3-fill fs-5"></i>
+          <h5 class="modal-title fw-bold fs-6 mb-0" id="orderDeleteModalLabel">Permanently Delete Order</h5>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body p-4 text-center">
+        <div class="mb-3">
+          <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-danger-subtle text-danger" style="width: 60px; height: 60px;">
+            <i class="bi bi-exclamation-triangle-fill fs-3"></i>
+          </span>
+        </div>
+        <h5 class="fw-bold mb-2">Delete <span id="orderDeleteOrderNum" class="font-monospace text-danger"></span>?</h5>
+        <p class="text-muted small mb-0" style="line-height: 1.6;">
+          You are about to permanently remove <strong id="orderDeleteJobTitle"></strong>. All records, payments, and associated slips will be deleted from the database. <strong>This action cannot be undone.</strong>
+        </p>
+        <input type="hidden" id="orderDeleteModalId" value="">
+      </div>
+
+      <div class="modal-footer py-2 px-4 border-top bg-light d-flex justify-content-between">
+        <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm btn-danger px-3 d-inline-flex align-items-center gap-1 fw-bold shadow-xs" id="confirmOrderDeleteBtn" onclick="window.submitOrderDelete()">
+          <i class="bi bi-trash-fill"></i> Yes, Permanently Delete
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: CLEAN ALL CANCELLED ORDERS (BULK PURGE) -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="cleanCancelledOrdersModal" tabindex="-1" aria-labelledby="cleanCancelledOrdersModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg border-0" style="border-radius: var(--serene-radius-lg);">
+      <div class="modal-header py-3 px-4 border-bottom bg-danger text-white">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-trash3-fill fs-5"></i>
+          <h5 class="modal-title fw-bold fs-6 mb-0" id="cleanCancelledOrdersModalLabel">Clean Cancelled Orders</h5>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body p-4 text-center">
+        <div class="mb-3">
+          <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-danger-subtle text-danger" style="width: 60px; height: 60px;">
+            <i class="bi bi-eraser-fill fs-3"></i>
+          </span>
+        </div>
+        <h5 class="fw-bold mb-2">Purge Cancelled <span id="cleanCancelledTypeLabel">Photo Frame</span> Orders?</h5>
+        <p class="text-muted small mb-0" style="line-height: 1.6;">
+          This will permanently delete all orders marked as <strong>CANCELLED</strong> in this category, removing stale records and freeing database storage. <strong>This action cannot be undone.</strong>
+        </p>
+        <input type="hidden" id="cleanCancelledTargetType" value="">
+      </div>
+
+      <div class="modal-footer py-2 px-4 border-top bg-light d-flex justify-content-between">
+        <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm btn-danger px-3 d-inline-flex align-items-center gap-1 fw-bold shadow-xs" id="confirmCleanCancelledBtn" onclick="window.submitCleanCancelledOrders()">
+          <i class="bi bi-trash-fill"></i> Purge All Cancelled
         </button>
       </div>
     </div>
@@ -529,6 +620,100 @@
       alert('Error updating order: ' + err.message);
       btn.disabled = false;
       btn.innerHTML = '<i class="bi bi-trash"></i> Confirm & Remove from Queue';
+    }
+  };
+
+  // Permanent Delete Single Order
+  let orderDeleteModalInstance = null;
+  window.openOrderDeleteModal = function(orderId, orderNumber, rawJobTitle) {
+    const modalEl = document.getElementById('orderDeleteModal');
+    if (!modalEl) return;
+    if (!orderDeleteModalInstance) {
+      orderDeleteModalInstance = new bootstrap.Modal(modalEl);
+    }
+    document.getElementById('orderDeleteModalId').value = orderId;
+    document.getElementById('orderDeleteOrderNum').textContent = '#' + orderNumber;
+    try {
+      document.getElementById('orderDeleteJobTitle').textContent = decodeURIComponent(rawJobTitle);
+    } catch (e) {
+      try {
+        document.getElementById('orderDeleteJobTitle').textContent = unescape(rawJobTitle);
+      } catch (e2) {
+        document.getElementById('orderDeleteJobTitle').textContent = rawJobTitle;
+      }
+    }
+    orderDeleteModalInstance.show();
+  };
+
+  window.submitOrderDelete = async function() {
+    const orderId = document.getElementById('orderDeleteModalId').value;
+    const btn = document.getElementById('confirmOrderDeleteBtn');
+    if (!orderId) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Deleting...';
+
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (orderDeleteModalInstance) orderDeleteModalInstance.hide();
+        window.location.reload();
+      } else {
+        alert(data.message || 'Failed to delete order.');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-trash-fill"></i> Yes, Permanently Delete';
+      }
+    } catch (err) {
+      alert('Error deleting order: ' + err.message);
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-trash-fill"></i> Yes, Permanently Delete';
+    }
+  };
+
+  // Clean / Bulk Purge Cancelled Orders
+  let cleanCancelledModalInstance = null;
+  window.openCleanCancelledModal = function(orderType) {
+    const modalEl = document.getElementById('cleanCancelledOrdersModal');
+    if (!modalEl) return;
+    if (!cleanCancelledModalInstance) {
+      cleanCancelledModalInstance = new bootstrap.Modal(modalEl);
+    }
+    document.getElementById('cleanCancelledTargetType').value = orderType || '';
+    const label = orderType === 'PHOTO_FRAME' ? 'Photo Frame' : (orderType === 'GENERAL_PRINT' ? 'Commercial Print' : '');
+    document.getElementById('cleanCancelledTypeLabel').textContent = label;
+    cleanCancelledModalInstance.show();
+  };
+
+  window.submitCleanCancelledOrders = async function() {
+    const orderType = document.getElementById('cleanCancelledTargetType').value;
+    const btn = document.getElementById('confirmCleanCancelledBtn');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Purging...';
+
+    try {
+      const res = await fetch('/api/orders/clean-cancelled', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderType: orderType || undefined })
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (cleanCancelledModalInstance) cleanCancelledModalInstance.hide();
+        window.location.reload();
+      } else {
+        alert(data.message || 'Failed to clean cancelled orders.');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-trash-fill"></i> Purge All Cancelled';
+      }
+    } catch (err) {
+      alert('Error cleaning cancelled orders: ' + err.message);
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-trash-fill"></i> Purge All Cancelled';
     }
   };
 

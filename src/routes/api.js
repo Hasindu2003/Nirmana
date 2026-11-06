@@ -73,6 +73,8 @@ router.put('/orders/:id/customer-edit', authenticate, orderController.customerEd
 router.put('/orders/:id/customer-cancel', authenticate, orderController.customerCancelOrder);
 router.post('/orders/:id/payment-slip', authenticate, uploadPaymentSlip, orderController.uploadPaymentSlip);
 router.put('/orders/:id/verify-slip', authenticate, requireStaff, orderController.verifyPaymentSlip);
+router.delete('/orders/:id', authenticate, requireStaff, orderController.deleteOrder);
+router.post('/orders/clean-cancelled', authenticate, requireStaff, orderController.cleanCancelledOrders);
 
 // Customers (Staff only)
 router.get('/customers', authenticate, requireStaff, customerController.listCustomers);

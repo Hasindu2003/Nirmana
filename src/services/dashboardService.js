@@ -354,12 +354,14 @@ class DashboardService {
       total: recentOrders.filter(isFrameOrder).length,
       active: recentOrders.filter(o => isFrameOrder(o) && ['RECEIVED', 'PRINTING', 'READY'].includes(o.status)).length,
       completed: recentOrders.filter(o => isFrameOrder(o) && o.status === 'COMPLETED').length,
+      cancelled: recentOrders.filter(o => isFrameOrder(o) && o.status === 'CANCELLED').length,
     };
 
     const ordinaryStats = {
       total: recentOrders.filter(o => !isFrameOrder(o)).length,
       active: recentOrders.filter(o => !isFrameOrder(o) && ['RECEIVED', 'PRINTING', 'READY'].includes(o.status)).length,
       completed: recentOrders.filter(o => !isFrameOrder(o) && o.status === 'COMPLETED').length,
+      cancelled: recentOrders.filter(o => !isFrameOrder(o) && o.status === 'CANCELLED').length,
     };
 
     return {

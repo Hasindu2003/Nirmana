@@ -391,6 +391,7 @@
               <th>Yet to Give</th>
               <th>Job Status</th>
               <th>Slip Status</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
@@ -462,12 +463,24 @@
                     <% } else { %>
                       <span class="text-muted small">—</span>
                     <% } %>
+                  <td>
+                    <div class="d-inline-flex align-items-center gap-1">
+                      <a href="/orders/<%= o.id %>/invoice" target="_blank" class="btn btn-sm btn-outline-dark py-0 px-2" style="font-size: 0.75rem;" title="View Bill">
+                        <i class="bi bi-printer"></i>
+                      </a>
+                      <% if (o.status === 'RECEIVED') { %>
+                        <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size: 0.75rem;"
+                                onclick="openCustomerDirectCancelModal(<%= o.id %>, '<%= o.orderNumber %>')" title="Cancel Order">
+                          <i class="bi bi-x-circle"></i> Cancel
+                        </button>
+                      <% } %>
+                    </div>
                   </td>
                 </tr>
               <% }) %>
             <% } else { %>
               <tr>
-                <td colspan="9" class="text-center py-5 text-muted">
+                <td colspan="10" class="text-center py-5 text-muted">
                   No orders found.
                 </td>
               </tr>

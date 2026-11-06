@@ -1,5 +1,7 @@
+const fs = require('fs');
+const path = require('path');
 const { Op } = require('sequelize');
-const { sequelize, Order, Customer, Payment } = require('../models');
+const { sequelize, Order, Customer, Payment, QuickPrintJob } = require('../models');
 const { getSriLankaTodayString } = require('../utils/dateUtils');
 
 const { buildPagination } = require('../utils/pagination');
@@ -13,6 +15,20 @@ class OrderService {
     let candidate = `${prefix}${seq.toString().padStart(4, '0')}`;
 
     while (await Order.findOne({ where: { orderNumber: candidate }, transaction })) {
+      seq++;
+      candidate = `${prefix}${seq.toString().padStart(4, '0')}`;
+    }
+    return candidate;
+  }
+
+  async generatePaymentNumber(transaction = null) {
+    const year = new Date().getFullYear();
+    const prefix = `PAY-${year}-`;
+    const count = await Payment.count({ transaction });
+    let seq = count + 1;
+    let candidate = `${prefix}${seq.toString().padStart(4, '0')}`;
+
+    while (await Payment.findOne({ where: { paymentNumber: candidate }, transaction })) {
       seq++;
       candidate = `${prefix}${seq.toString().padStart(4, '0')}`;
     }
@@ -191,8 +207,7 @@ class OrderService {
       // Automatically record initial advance deposit in Payment ledger if advance was collected
       if (advance > 0) {
         try {
-          const payCount = await Payment.count({ transaction: t });
-          const paymentNumber = `PAY-${new Date().getFullYear()}-${(payCount + 1).toString().padStart(4, '0')}`;
+          const paymentNumber = await this.generatePaymentNumber(t);
           await Payment.create({
             paymentNumber,
             orderId: order.id,
@@ -253,8 +268,7 @@ class OrderService {
 
     if (paymentRecorded > 0) {
       try {
-        const payCount = await Payment.count();
-        const paymentNumber = `PAY-${new Date().getFullYear()}-${(payCount + 1).toString().padStart(4, '0')}`;
+        const paymentNumber = await this.generatePaymentNumber();
         await Payment.create({
           paymentNumber,
           orderId: order.id,
@@ -323,8 +337,7 @@ class OrderService {
     await order.save();
 
     try {
-      const payCount = await Payment.count();
-      const paymentNumber = `PAY-${new Date().getFullYear()}-${(payCount + 1).toString().padStart(4, '0')}`;
+      const paymentNumber = await this.generatePaymentNumber();
       await Payment.create({
         paymentNumber,
         orderId: order.id,
@@ -593,6 +606,106 @@ class OrderService {
       return { order, verified: false, reason: notes };
     } else {
       throw new Error('Invalid verification action. Must be VERIFY or REJECT.');
+    }
+  }
+
+  /**
+   * Delete single order permanently by ID (Staff/Admin)
+   */
+  async deleteOrder(id) {
+    const transaction = await sequelize.transaction();
+    try {
+      const order = await Order.findByPk(id, { transaction });
+      if (!order) {
+        throw new Error('Order not found.');
+      }
+
+      const orderNumber = order.orderNumber;
+      const orderType = order.orderType || 'GENERAL_PRINT';
+
+      // Unlink any quick print job referencing this order
+      if (QuickPrintJob) {
+        await QuickPrintJob.update(
+          { orderId: null },
+          { where: { orderId: id }, transaction }
+        );
+      }
+
+      // Delete payments associated with this order
+      await Payment.destroy({
+        where: { orderId: id },
+        transaction,
+      });
+
+      // Safely unlink payment slip if locally stored
+      if (order.paymentSlipUrl && !order.paymentSlipUrl.startsWith('http')) {
+        const filePath = path.join(__dirname, '../../public', order.paymentSlipUrl);
+        if (fs.existsSync(filePath)) {
+          try { fs.unlinkSync(filePath); } catch (e) { /* ignore */ }
+        }
+      }
+
+      // Delete the order record
+      await order.destroy({ transaction });
+      await transaction.commit();
+
+      return {
+        success: true,
+        orderNumber,
+        orderType,
+        message: `Order #${orderNumber} (${orderType === 'PHOTO_FRAME' ? 'Photo Frame' : 'General Print'}) was permanently removed.`,
+      };
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+  }
+
+  /**
+   * Clean / bulk delete cancelled orders (optionally filtered by orderType: 'PHOTO_FRAME' or 'GENERAL_PRINT')
+   */
+  async cleanCancelledOrders(orderType = null) {
+    const where = { status: 'CANCELLED' };
+    if (orderType) {
+      if (orderType === 'PHOTO_FRAME') {
+        where.orderType = 'PHOTO_FRAME';
+      } else if (orderType === 'GENERAL_PRINT') {
+        where.orderType = { [Op.ne]: 'PHOTO_FRAME' };
+      }
+    }
+
+    const cancelledOrders = await Order.findAll({ where });
+    if (!cancelledOrders || cancelledOrders.length === 0) {
+      return { deletedCount: 0, message: 'No cancelled orders found to clean.' };
+    }
+
+    const ids = cancelledOrders.map(o => o.id);
+    const transaction = await sequelize.transaction();
+    try {
+      if (QuickPrintJob) {
+        await QuickPrintJob.update(
+          { orderId: null },
+          { where: { orderId: { [Op.in]: ids } }, transaction }
+        );
+      }
+      await Payment.destroy({
+        where: { orderId: { [Op.in]: ids } },
+        transaction,
+      });
+      const deletedCount = await Order.destroy({
+        where: { id: { [Op.in]: ids } },
+        transaction,
+      });
+      await transaction.commit();
+
+      const label = orderType === 'PHOTO_FRAME' ? 'photo frame' : (orderType === 'GENERAL_PRINT' ? 'commercial print' : '');
+      return {
+        deletedCount,
+        message: `Successfully cleaned ${deletedCount} cancelled ${label} order(s).`,
+      };
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
     }
   }
 }

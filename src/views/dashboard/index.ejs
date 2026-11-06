@@ -103,6 +103,11 @@
                 <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 small">
                   <%= stats.frameStats ? stats.frameStats.completed : 0 %> Finished
                 </span>
+                <% if (stats.frameStats && stats.frameStats.cancelled > 0) { %>
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 small">
+                    <%= stats.frameStats.cancelled %> Cancelled
+                  </span>
+                <% } %>
               </div>
               <div class="text-secondary small mt-1">
                 Dedicated workshop queue for wooden frames, portrait mounts, canvas boards, and anti-reflective glass framing
@@ -112,6 +117,11 @@
 
           <!-- Framing Studio Action Controls -->
           <div class="d-flex flex-wrap align-items-center gap-2">
+            <% if (stats.frameStats && stats.frameStats.cancelled > 0) { %>
+              <button type="button" class="btn btn-sm btn-outline-danger shadow-xs d-inline-flex align-items-center gap-1" onclick="openCleanCancelledFramesModal()" title="Clean cancelled frame orders">
+                <i class="bi bi-trash"></i> Clean Cancelled (<%= stats.frameStats.cancelled %>)
+              </button>
+            <% } %>
             <a href="/orders?type=frame" class="btn btn-sm btn-white border shadow-xs fw-semibold text-dark">
               <i class="bi bi-collection-fill me-1 text-warning"></i> View Framing Orders (<%= stats.frameStats ? stats.frameStats.total : 0 %>)
             </a>
@@ -812,10 +822,16 @@
               </div>
             </div>
             <div class="d-flex align-items-center gap-2">
+              <% const dashCancelledFramesCount = (stats.recentFrameOrders || []).filter(o => o.status === 'CANCELLED').length; %>
+              <% if (dashCancelledFramesCount > 0) { %>
+                <button type="button" class="btn btn-sm btn-outline-danger shadow-xs d-inline-flex align-items-center gap-1" onclick="openCleanCancelledFramesModal()" title="Clean cancelled frame orders">
+                  <i class="bi bi-trash"></i> Clean Cancelled (<%= dashCancelledFramesCount %>)
+                </button>
+              <% } %>
               <a href="/orders/new?type=frame" class="btn btn-sm btn-warning text-dark fw-semibold shadow-xs">
                 <i class="bi bi-plus-lg"></i> New Frame Order
               </a>
-              <a href="/orders?search=frame" class="btn btn-sm btn-outline-secondary">
+              <a href="/orders?type=frame" class="btn btn-sm btn-outline-secondary">
                 All Frames &rarr;
               </a>
             </div>
@@ -892,6 +908,13 @@
                                     onclick="openDashboardCancelModal(<%= order.id %>, '<%= order.orderNumber %>', '<%= escape(order.jobTitle) %>')" 
                                     title="Cancel and remove this photo frame order from queue">
                               <i class="bi bi-x-circle"></i> Remove
+                            </button>
+                          <% } else if (order.status === 'CANCELLED') { %>
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-danger py-1 px-2 d-inline-flex align-items-center gap-1 shadow-xs" 
+                                    onclick="openDashboardDeleteModal(<%= order.id %>, '<%= order.orderNumber %>', '<%= escape(order.jobTitle) %>')" 
+                                    title="Permanently remove and delete this cancelled photo frame order">
+                              <i class="bi bi-trash"></i> Delete
                             </button>
                           <% } %>
                         </div>
@@ -1022,6 +1045,13 @@
                                     onclick="openDashboardCancelModal(<%= order.id %>, '<%= order.orderNumber %>', '<%= escape(order.jobTitle) %>')" 
                                     title="Cancel and remove this print order from queue">
                               <i class="bi bi-x-circle"></i> Remove
+                            </button>
+                          <% } else if (order.status === 'CANCELLED') { %>
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-danger py-1 px-2 d-inline-flex align-items-center gap-1 shadow-xs" 
+                                    onclick="openDashboardDeleteModal(<%= order.id %>, '<%= order.orderNumber %>', '<%= escape(order.jobTitle) %>')" 
+                                    title="Permanently remove and delete this cancelled print order">
+                              <i class="bi bi-trash"></i> Delete
                             </button>
                           <% } %>
                         </div>
@@ -1381,6 +1411,95 @@
     }
   };
 
+  // Permanent Delete Single Order from Dashboard
+  let dashboardDeleteModalInstance = null;
+  window.openDashboardDeleteModal = function(orderId, orderNumber, rawJobTitle) {
+    const modalEl = document.getElementById('dashboardDeleteModal');
+    if (!modalEl) return;
+    if (!dashboardDeleteModalInstance) {
+      dashboardDeleteModalInstance = new bootstrap.Modal(modalEl);
+    }
+    document.getElementById('dashDeleteOrderId').value = orderId;
+    document.getElementById('dashDeleteOrderNum').textContent = '#' + orderNumber;
+    try {
+      document.getElementById('dashDeleteJobTitle').textContent = decodeURIComponent(rawJobTitle);
+    } catch (e) {
+      try {
+        document.getElementById('dashDeleteJobTitle').textContent = unescape(rawJobTitle);
+      } catch (e2) {
+        document.getElementById('dashDeleteJobTitle').textContent = rawJobTitle;
+      }
+    }
+    dashboardDeleteModalInstance.show();
+  };
+
+  window.submitDashboardDeleteOrder = async function() {
+    const orderId = document.getElementById('dashDeleteOrderId').value;
+    const btn = document.getElementById('confirmDashDeleteBtn');
+    if (!orderId) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Deleting...';
+
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (dashboardDeleteModalInstance) dashboardDeleteModalInstance.hide();
+        window.location.reload();
+      } else {
+        alert(data.message || 'Failed to delete order.');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-trash-fill"></i> Yes, Permanently Delete';
+      }
+    } catch (err) {
+      alert('Error deleting order: ' + err.message);
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-trash-fill"></i> Yes, Permanently Delete';
+    }
+  };
+
+  // Clean / Bulk Purge Cancelled Photo Frame Orders from Dashboard
+  let cleanCancelledFramesModalInstance = null;
+  window.openCleanCancelledFramesModal = function() {
+    const modalEl = document.getElementById('cleanCancelledFramesModal');
+    if (!modalEl) return;
+    if (!cleanCancelledFramesModalInstance) {
+      cleanCancelledFramesModalInstance = new bootstrap.Modal(modalEl);
+    }
+    cleanCancelledFramesModalInstance.show();
+  };
+
+  window.submitCleanCancelledFrames = async function() {
+    const btn = document.getElementById('confirmCleanCancelledFramesBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Cleaning...';
+
+    try {
+      const res = await fetch('/api/orders/clean-cancelled', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderType: 'PHOTO_FRAME' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (cleanCancelledFramesModalInstance) cleanCancelledFramesModalInstance.hide();
+        window.location.reload();
+      } else {
+        alert(data.message || 'Failed to clean cancelled frame orders.');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-trash-fill"></i> Purge All Cancelled Frames';
+      }
+    } catch (err) {
+      alert('Error cleaning frame orders: ' + err.message);
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-trash-fill"></i> Purge All Cancelled Frames';
+    }
+  };
+
   window.showDashboardQueue = function(mode) {
     const framesSection = document.getElementById('photoFramesSection');
     const generalSection = document.getElementById('generalPrintingSection');
@@ -1463,6 +1582,79 @@
         <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Keep in Queue</button>
         <button type="button" class="btn btn-sm btn-danger px-3 d-inline-flex align-items-center gap-1 fw-bold shadow-xs" id="confirmDashCancelBtn" onclick="window.submitDashboardCancelOrder()">
           <i class="bi bi-trash"></i> Confirm & Remove from Queue
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: PERMANENTLY DELETE CANCELLED ORDER FROM DASHBOARD -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="dashboardDeleteModal" tabindex="-1" aria-labelledby="dashboardDeleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg border-0" style="border-radius: var(--serene-radius-lg);">
+      <div class="modal-header py-3 px-4 border-bottom bg-danger text-white">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-trash3-fill fs-5"></i>
+          <h5 class="modal-title fw-bold fs-6 mb-0" id="dashboardDeleteModalLabel">Permanently Delete Order</h5>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body p-4 text-center">
+        <div class="mb-3">
+          <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-danger-subtle text-danger" style="width: 60px; height: 60px;">
+            <i class="bi bi-exclamation-triangle-fill fs-3"></i>
+          </span>
+        </div>
+        <h5 class="fw-bold mb-2">Permanently delete <span id="dashDeleteOrderNum" class="font-monospace text-danger"></span>?</h5>
+        <p class="text-muted small mb-0" style="line-height: 1.6;">
+          You are about to permanently remove <strong id="dashDeleteJobTitle"></strong> from the database. All records and history for this order will be wiped. <strong>This cannot be undone.</strong>
+        </p>
+        <input type="hidden" id="dashDeleteOrderId" value="">
+      </div>
+
+      <div class="modal-footer py-2 px-4 border-top bg-light d-flex justify-content-between">
+        <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm btn-danger px-3 d-inline-flex align-items-center gap-1 fw-bold shadow-xs" id="confirmDashDeleteBtn" onclick="window.submitDashboardDeleteOrder()">
+          <i class="bi bi-trash-fill"></i> Yes, Permanently Delete
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: CLEAN CANCELLED PHOTO FRAME ORDERS FROM DASHBOARD -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="cleanCancelledFramesModal" tabindex="-1" aria-labelledby="cleanCancelledFramesModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg border-0" style="border-radius: var(--serene-radius-lg);">
+      <div class="modal-header py-3 px-4 border-bottom bg-danger text-white">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-image fs-5 me-1"></i>
+          <h5 class="modal-title fw-bold fs-6 mb-0" id="cleanCancelledFramesModalLabel">Clean Cancelled Photo Frame Orders</h5>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body p-4 text-center">
+        <div class="mb-3">
+          <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-danger-subtle text-danger" style="width: 60px; height: 60px;">
+            <i class="bi bi-trash3-fill fs-3"></i>
+          </span>
+        </div>
+        <h5 class="fw-bold mb-2">Purge All Cancelled Framing Orders?</h5>
+        <p class="text-muted small mb-0" style="line-height: 1.6;">
+          This will permanently delete all photo frame studio jobs currently marked as <strong>CANCELLED</strong>, freeing database storage and keeping your studio queue pristine.
+        </p>
+      </div>
+
+      <div class="modal-footer py-2 px-4 border-top bg-light d-flex justify-content-between">
+        <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm btn-danger px-3 d-inline-flex align-items-center gap-1 fw-bold shadow-xs" id="confirmCleanCancelledFramesBtn" onclick="window.submitCleanCancelledFrames()">
+          <i class="bi bi-trash-fill"></i> Purge All Cancelled Frames
         </button>
       </div>
     </div>

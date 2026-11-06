@@ -341,6 +341,40 @@ class OrderController {
       return res.status(400).json({ success: false, message: error.message });
     }
   }
+
+  /**
+   * Delete order permanently (Staff/Admin)
+   */
+  async deleteOrder(req, res, next) {
+    try {
+      const { id } = req.params;
+      const result = await orderService.deleteOrder(id);
+      return res.json({
+        success: true,
+        message: result.message,
+        data: { id, orderNumber: result.orderNumber, orderType: result.orderType },
+      });
+    } catch (error) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
+  /**
+   * Clean / bulk delete cancelled orders (Staff/Admin)
+   */
+  async cleanCancelledOrders(req, res, next) {
+    try {
+      const { orderType } = req.body;
+      const result = await orderService.cleanCancelledOrders(orderType);
+      return res.json({
+        success: true,
+        message: result.message,
+        deletedCount: result.deletedCount,
+      });
+    } catch (error) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+  }
 }
 
 module.exports = new OrderController();
