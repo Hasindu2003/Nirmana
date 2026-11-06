@@ -281,9 +281,11 @@
               <div class="fs-4 fw-bold text-success tabular-nums">
                 <%= currencySymbol %> <%= stats.dailyBusiness.totalCollectedToday.toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
               </div>
-              <div class="small text-muted mt-1" style="font-size: 0.75rem;">
-                POS Sales: <%= currencySymbol %> <%= stats.dailyBusiness.posTotalRevenue.toFixed(2) %><br>
-                Order Advances: <%= currencySymbol %> <%= stats.dailyBusiness.ordersAdvanceCollected.toFixed(2) %>
+              <div class="small text-muted mt-1" style="font-size: 0.73rem; line-height: 1.35;">
+                <span class="d-inline-block me-1">🖼️ Frames: <strong><%= currencySymbol %> <%= (stats.dailyBusiness.posPhotoFrameRevenue || 0).toFixed(2) %></strong></span> |
+                <span class="d-inline-block me-1">📋 General: <strong><%= currencySymbol %> <%= (stats.dailyBusiness.posGeneralPrintRevenue || 0).toFixed(2) %></strong></span><br>
+                <span class="d-inline-block me-1">⚡ Quick: <strong><%= currencySymbol %> <%= (stats.dailyBusiness.posQuickPrintRevenue || 0).toFixed(2) %></strong></span> |
+                <span class="d-inline-block">🛒 Retail: <strong><%= currencySymbol %> <%= (stats.dailyBusiness.posRetailCounterRevenue || 0).toFixed(2) %></strong></span>
               </div>
             </div>
           </div>
@@ -679,22 +681,42 @@
               </thead>
               <tbody>
                 <tr>
-                  <td><i class="bi bi-cart me-2 text-primary"></i> POS Counter Sales (Gross)</td>
+                  <td><i class="bi bi-cart me-2 text-primary"></i> POS Sales (Gross Collections)</td>
                   <td class="text-center font-monospace"><%= stats.dailyBusiness.posSalesCount %></td>
                   <td class="text-end fw-semibold tabular-nums"><%= stats.dailyBusiness.posTotalRevenue.toFixed(2) %></td>
                 </tr>
                 <tr>
-                  <td class="ps-4 text-muted small">&bull; Cash Collected</td>
+                  <td class="ps-4 text-dark small">&bull; 🖼️ Photo Frame Studio Revenue</td>
                   <td class="text-center text-muted small">-</td>
-                  <td class="text-end tabular-nums small"><%= stats.dailyBusiness.posCashTotal.toFixed(2) %></td>
+                  <td class="text-end tabular-nums small fw-semibold text-warning-emphasis"><%= (stats.dailyBusiness.posPhotoFrameRevenue || 0).toFixed(2) %></td>
                 </tr>
                 <tr>
-                  <td class="ps-4 text-muted small">&bull; Card / Digital Payments</td>
+                  <td class="ps-4 text-dark small">&bull; 📋 General Printing Orders Revenue</td>
+                  <td class="text-center text-muted small">-</td>
+                  <td class="text-end tabular-nums small fw-semibold text-primary"><%= (stats.dailyBusiness.posGeneralPrintRevenue || 0).toFixed(2) %></td>
+                </tr>
+                <tr>
+                  <td class="ps-4 text-dark small">&bull; ⚡ Quick Print (QR Uploads) Revenue</td>
+                  <td class="text-center text-muted small">-</td>
+                  <td class="text-end tabular-nums small"><%= (stats.dailyBusiness.posQuickPrintRevenue || 0).toFixed(2) %></td>
+                </tr>
+                <tr>
+                  <td class="ps-4 text-dark small">&bull; 🛒 Retail Counter Direct Sales</td>
+                  <td class="text-center text-muted small">-</td>
+                  <td class="text-end tabular-nums small"><%= (stats.dailyBusiness.posRetailCounterRevenue || 0).toFixed(2) %></td>
+                </tr>
+                <tr>
+                  <td class="ps-4 text-muted small">&bull; Cash Drawer Collections</td>
+                  <td class="text-center text-muted small">-</td>
+                  <td class="text-end tabular-nums small text-success"><%= stats.dailyBusiness.posCashTotal.toFixed(2) %></td>
+                </tr>
+                <tr>
+                  <td class="ps-4 text-muted small">&bull; Card & Digital Payments</td>
                   <td class="text-center text-muted small">-</td>
                   <td class="text-end tabular-nums small"><%= stats.dailyBusiness.posCardTotal.toFixed(2) %></td>
                 </tr>
                 <tr>
-                  <td class="ps-4 text-muted small">&bull; Bank Transfers</td>
+                  <td class="ps-4 text-muted small">&bull; Bank Transfers Verified</td>
                   <td class="text-center text-muted small">-</td>
                   <td class="text-end tabular-nums small"><%= stats.dailyBusiness.posBankTransferTotal.toFixed(2) %></td>
                 </tr>

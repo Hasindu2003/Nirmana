@@ -251,45 +251,156 @@
       <!-- 2. SALES RECORDS & HISTORY VIEW -->
       <!-- =================================================================== -->
       <div class="tab-pane fade" id="recordsView" role="tabpanel">
-        <!-- Daily KPI Summary Cards -->
-        <div class="row g-3 mb-4">
-          <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
-              <div class="text-muted small mb-1 fw-semibold">Today's Sales Revenue</div>
-              <div class="fs-4 fw-bold text-primary tabular-nums" id="kpiTodayRevenue">
-                <%= currencySymbol %> <%= parseFloat(todayStats.todayRevenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %>
+        <!-- Daily & Monthly Reports Control & KPI Summary Cards -->
+        <div class="card border-0 shadow-sm rounded-3 p-3 bg-white mb-4">
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pb-3 mb-3 border-bottom">
+            <div class="d-flex align-items-center gap-2">
+              <span class="p-2 rounded-2 bg-primary-subtle text-primary d-inline-flex align-items-center justify-content-center">
+                <i class="bi bi-graph-up fs-5"></i>
+              </span>
+              <div>
+                <h5 class="fw-bold text-dark mb-0">POS Financial Reports (Daily & Monthly)</h5>
+                <div class="text-muted small">Live consolidated revenue reports including Photo Frame Studio, General Print, Quick Print & Retail</div>
               </div>
-              <div class="text-muted small" style="font-size: 0.72rem;">Total revenue settled today</div>
+            </div>
+            <div class="btn-group btn-group-sm" role="group" id="posReportToggle">
+              <button type="button" class="btn btn-serene-primary fw-bold" id="btnPosReportToday" onclick="togglePosReportView('today')">
+                <i class="bi bi-calendar-day me-1"></i> Today's Report
+              </button>
+              <button type="button" class="btn btn-outline-secondary fw-semibold" id="btnPosReportMonth" onclick="togglePosReportView('month')">
+                <i class="bi bi-calendar-month me-1"></i> Monthly Report (<%= (typeof monthStats !== 'undefined' && monthStats) ? monthStats.monthName : 'This Month' %>)
+              </button>
             </div>
           </div>
-          <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
-              <div class="text-muted small mb-1 fw-semibold">Transactions Count</div>
-              <div class="fs-4 fw-bold text-dark tabular-nums" id="kpiTodayCount">
-                <%= todayStats.todaySalesCount || 0 %>
+
+          <!-- Section A: Today's Daily Report -->
+          <div id="posReportTodayPane">
+            <div class="row g-3 mb-3">
+              <div class="col-6 col-md-3">
+                <div class="p-3 rounded-3 border bg-light h-100">
+                  <div class="text-muted small mb-1 fw-semibold">Today's Total POS Revenue</div>
+                  <div class="fs-4 fw-bold text-primary tabular-nums" id="kpiTodayRevenue">
+                    <%= currencySymbol %> <%= parseFloat(todayStats.todayRevenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %>
+                  </div>
+                  <div class="text-muted small" style="font-size: 0.72rem;"><%= todayStats.todaySalesCount || 0 %> bills generated today</div>
+                </div>
               </div>
-              <div class="text-muted small" style="font-size: 0.72rem;">Total bills generated today</div>
+              <div class="col-6 col-md-3">
+                <div class="p-3 rounded-3 border h-100" style="background:#fffbeb; border-color:#fde68a !important;">
+                  <div class="text-warning-emphasis small mb-1 fw-semibold"><i class="bi bi-image me-1"></i> Photo Frame Studio</div>
+                  <div class="fs-4 fw-bold text-warning-emphasis tabular-nums">
+                    <%= currencySymbol %> <%= parseFloat(todayStats.photoFrameRevenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %>
+                  </div>
+                  <div class="text-muted small" style="font-size: 0.72rem;">Frame orders & studio settlements</div>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="p-3 rounded-3 border h-100" style="background:#eff6ff; border-color:#bfdbfe !important;">
+                  <div class="text-primary small mb-1 fw-semibold"><i class="bi bi-printer me-1"></i> General Printing Orders</div>
+                  <div class="fs-4 fw-bold text-primary tabular-nums">
+                    <%= currencySymbol %> <%= parseFloat(todayStats.generalPrintRevenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %>
+                  </div>
+                  <div class="text-muted small" style="font-size: 0.72rem;">Commercial prints & orders</div>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="p-3 rounded-3 border h-100" style="background:#f0fdf4; border-color:#bbf7d0 !important;">
+                  <div class="text-success small mb-1 fw-semibold"><i class="bi bi-cash me-1"></i> Cash & Counter Intake</div>
+                  <div class="fs-4 fw-bold text-success tabular-nums" id="kpiCashRevenue">
+                    <%= currencySymbol %> <%= parseFloat(todayStats.cashRevenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %>
+                  </div>
+                  <div class="text-muted small" style="font-size: 0.72rem;">Direct cash drawer collections</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="d-flex flex-wrap align-items-center justify-content-between p-2 rounded-2 bg-light border small text-muted">
+              <div>
+                <span class="me-3">⚡ Quick Print QR: <strong class="text-dark"><%= currencySymbol %> <%= parseFloat(todayStats.quickPrintRevenue || 0).toFixed(2) %></strong></span>
+                <span class="me-3">🛒 Counter Retail: <strong class="text-dark"><%= currencySymbol %> <%= parseFloat(todayStats.retailRevenue || 0).toFixed(2) %></strong></span>
+              </div>
+              <div>
+                <span class="me-3">💳 Card: <strong class="text-dark"><%= currencySymbol %> <%= parseFloat(todayStats.cardRevenue || 0).toFixed(2) %></strong></span>
+                <span>🏦 Bank Transfer: <strong class="text-dark"><%= currencySymbol %> <%= parseFloat(todayStats.bankRevenue || 0).toFixed(2) %></strong></span>
+              </div>
             </div>
           </div>
-          <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
-              <div class="text-muted small mb-1 fw-semibold">Cash Collected</div>
-              <div class="fs-4 fw-bold text-success tabular-nums" id="kpiCashRevenue">
-                <%= currencySymbol %> <%= parseFloat(todayStats.cashRevenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %>
+
+          <!-- Section B: Monthly Report Pane -->
+          <% if (typeof monthStats !== 'undefined' && monthStats) { %>
+            <div id="posReportMonthPane" class="d-none">
+              <div class="row g-3 mb-3">
+                <div class="col-6 col-md-3">
+                  <div class="p-3 rounded-3 border bg-light h-100">
+                    <div class="text-muted small mb-1 fw-semibold"><%= monthStats.monthName %> Gross Revenue</div>
+                    <div class="fs-4 fw-bold text-primary tabular-nums">
+                      <%= currencySymbol %> <%= parseFloat(monthStats.monthRevenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %>
+                    </div>
+                    <div class="text-muted small" style="font-size: 0.72rem;"><%= monthStats.monthSalesCount %> transactions this month</div>
+                  </div>
+                </div>
+                <div class="col-6 col-md-3">
+                  <div class="p-3 rounded-3 border h-100" style="background:#fffbeb; border-color:#fde68a !important;">
+                    <div class="text-warning-emphasis small mb-1 fw-semibold"><i class="bi bi-image me-1"></i> Frame Studio (Monthly)</div>
+                    <div class="fs-4 fw-bold text-warning-emphasis tabular-nums">
+                      <%= currencySymbol %> <%= parseFloat(monthStats.photoFrameRevenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %>
+                    </div>
+                    <div class="text-muted small" style="font-size: 0.72rem;">Total framing revenue this month</div>
+                  </div>
+                </div>
+                <div class="col-6 col-md-3">
+                  <div class="p-3 rounded-3 border h-100" style="background:#eff6ff; border-color:#bfdbfe !important;">
+                    <div class="text-primary small mb-1 fw-semibold"><i class="bi bi-printer me-1"></i> General Printing (Monthly)</div>
+                    <div class="fs-4 fw-bold text-primary tabular-nums">
+                      <%= currencySymbol %> <%= parseFloat(monthStats.generalPrintRevenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %>
+                    </div>
+                    <div class="text-muted small" style="font-size: 0.72rem;">Total commercial orders this month</div>
+                  </div>
+                </div>
+                <div class="col-6 col-md-3">
+                  <div class="p-3 rounded-3 border h-100" style="background:#f0fdf4; border-color:#bbf7d0 !important;">
+                    <div class="text-success small mb-1 fw-semibold"><i class="bi bi-cash me-1"></i> Monthly Cash Drawer</div>
+                    <div class="fs-4 fw-bold text-success tabular-nums">
+                      <%= currencySymbol %> <%= parseFloat(monthStats.cashRevenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %>
+                    </div>
+                    <div class="text-muted small" style="font-size: 0.72rem;">Cash intake for <%= monthStats.monthName %></div>
+                  </div>
+                </div>
               </div>
-              <div class="text-muted small" style="font-size: 0.72rem;">Cash drawer intake</div>
-            </div>
-          </div>
-          <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
-              <div class="text-muted small mb-1 fw-semibold">Card & Bank Transfers</div>
-              <div class="fs-4 fw-bold text-info tabular-nums" id="kpiCardRevenue">
-                <%= currencySymbol %> <%= parseFloat((todayStats.cardRevenue || 0) + (todayStats.bankRevenue || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %>
+
+              <div class="d-flex flex-wrap align-items-center justify-content-between p-2 rounded-2 bg-light border small text-muted">
+                <div>
+                  <span class="me-3">⚡ Quick Print QR: <strong class="text-dark"><%= currencySymbol %> <%= parseFloat(monthStats.quickPrintRevenue || 0).toFixed(2) %></strong></span>
+                  <span class="me-3">🛒 Counter Retail: <strong class="text-dark"><%= currencySymbol %> <%= parseFloat(monthStats.retailRevenue || 0).toFixed(2) %></strong></span>
+                </div>
+                <div>
+                  <span class="me-3">💳 Card: <strong class="text-dark"><%= currencySymbol %> <%= parseFloat(monthStats.cardRevenue || 0).toFixed(2) %></strong></span>
+                  <span>🏦 Bank Transfer: <strong class="text-dark"><%= currencySymbol %> <%= parseFloat(monthStats.bankRevenue || 0).toFixed(2) %></strong></span>
+                </div>
               </div>
-              <div class="text-muted small" style="font-size: 0.72rem;">Digital & bank settlements</div>
             </div>
-          </div>
+          <% } %>
         </div>
+
+        <script>
+          function togglePosReportView(view) {
+            const todayPane = document.getElementById('posReportTodayPane');
+            const monthPane = document.getElementById('posReportMonthPane');
+            const btnToday = document.getElementById('btnPosReportToday');
+            const btnMonth = document.getElementById('btnPosReportMonth');
+            if (view === 'month') {
+              if (todayPane) todayPane.classList.add('d-none');
+              if (monthPane) monthPane.classList.remove('d-none');
+              if (btnToday) { btnToday.className = 'btn btn-outline-secondary fw-semibold'; }
+              if (btnMonth) { btnMonth.className = 'btn btn-serene-primary fw-bold'; }
+            } else {
+              if (monthPane) monthPane.classList.add('d-none');
+              if (todayPane) todayPane.classList.remove('d-none');
+              if (btnMonth) { btnMonth.className = 'btn btn-outline-secondary fw-semibold'; }
+              if (btnToday) { btnToday.className = 'btn btn-serene-primary fw-bold'; }
+            }
+          }
+        </script>
 
         <!-- Filter & Search Toolbar -->
         <div class="card border-0 shadow-sm rounded-3 mb-3">

@@ -78,3 +78,4 @@ verify().catch(e => {
   console.error('Vercel check failed:', e.message);
   process.exit(1);
 });
+

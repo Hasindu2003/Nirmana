@@ -290,7 +290,7 @@ class PosService {
   }
 
   /**
-   * Get daily summary statistics (today's revenue, transaction count, payment breakdown)
+   * Get daily summary statistics (today's revenue, transaction count, payment breakdown & channel breakdown)
    */
   async getDailyStats(date = new Date()) {
     const { startOfDay, endOfDay } = getSriLankaDayBounds(date);
@@ -303,7 +303,7 @@ class PosService {
         },
         status: 'COMPLETED',
       },
-      attributes: ['id', 'totalAmount', 'paymentMethod', 'discount'],
+      include: [{ model: PosSaleItem, as: 'items', attributes: ['id', 'itemName', 'totalPrice'] }],
     });
 
     let todaySalesCount = todaySales.length;
@@ -313,6 +313,11 @@ class PosService {
     let bankRevenue = 0;
     let otherRevenue = 0;
     let totalDiscount = 0;
+
+    let photoFrameRevenue = 0;
+    let generalPrintRevenue = 0;
+    let quickPrintRevenue = 0;
+    let retailRevenue = 0;
 
     for (const sale of todaySales) {
       const amt = parseFloat(sale.totalAmount) || 0;
@@ -328,6 +333,20 @@ class PosService {
       } else {
         otherRevenue += amt;
       }
+
+      const notes = sale.notes || '';
+      const itemNames = (sale.items || []).map(i => i.itemName || '').join(' ');
+      const combined = (notes + ' ' + itemNames).toLowerCase();
+
+      if (combined.includes('photo frame studio') || (combined.includes('frame') && (combined.includes('settlement') || combined.includes('payment')))) {
+        photoFrameRevenue += amt;
+      } else if (combined.includes('quick print') || combined.includes('token #qp')) {
+        quickPrintRevenue += amt;
+      } else if (combined.includes('order settlement') || combined.includes('order payment') || combined.includes('print order')) {
+        generalPrintRevenue += amt;
+      } else {
+        retailRevenue += amt;
+      }
     }
 
     return {
@@ -338,6 +357,91 @@ class PosService {
       bankRevenue: parseFloat(bankRevenue.toFixed(2)),
       otherRevenue: parseFloat(otherRevenue.toFixed(2)),
       totalDiscount: parseFloat(totalDiscount.toFixed(2)),
+      photoFrameRevenue: parseFloat(photoFrameRevenue.toFixed(2)),
+      generalPrintRevenue: parseFloat(generalPrintRevenue.toFixed(2)),
+      quickPrintRevenue: parseFloat(quickPrintRevenue.toFixed(2)),
+      retailRevenue: parseFloat(retailRevenue.toFixed(2)),
+    };
+  }
+
+  /**
+   * Get monthly summary statistics (current month's revenue, transaction count, channel breakdown)
+   */
+  async getMonthlyStats(targetDate = new Date()) {
+    const year = targetDate.getFullYear();
+    const month = targetDate.getMonth();
+    const startOfMonth = new Date(year, month, 1, 0, 0, 0, 0);
+    const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59, 999);
+
+    const monthSales = await PosSale.findAll({
+      where: {
+        createdAt: {
+          [Op.gte]: startOfMonth,
+          [Op.lte]: endOfMonth,
+        },
+        status: 'COMPLETED',
+      },
+      include: [{ model: PosSaleItem, as: 'items', attributes: ['id', 'itemName', 'totalPrice'] }],
+    });
+
+    let monthSalesCount = monthSales.length;
+    let monthRevenue = 0;
+    let cashRevenue = 0;
+    let cardRevenue = 0;
+    let bankRevenue = 0;
+    let otherRevenue = 0;
+    let totalDiscount = 0;
+
+    let photoFrameRevenue = 0;
+    let generalPrintRevenue = 0;
+    let quickPrintRevenue = 0;
+    let retailRevenue = 0;
+
+    for (const sale of monthSales) {
+      const amt = parseFloat(sale.totalAmount) || 0;
+      monthRevenue += amt;
+      totalDiscount += parseFloat(sale.discount) || 0;
+
+      if (sale.paymentMethod === 'CASH') {
+        cashRevenue += amt;
+      } else if (sale.paymentMethod === 'CARD') {
+        cardRevenue += amt;
+      } else if (sale.paymentMethod === 'BANK_TRANSFER') {
+        bankRevenue += amt;
+      } else {
+        otherRevenue += amt;
+      }
+
+      const notes = sale.notes || '';
+      const itemNames = (sale.items || []).map(i => i.itemName || '').join(' ');
+      const combined = (notes + ' ' + itemNames).toLowerCase();
+
+      if (combined.includes('photo frame studio') || (combined.includes('frame') && (combined.includes('settlement') || combined.includes('payment')))) {
+        photoFrameRevenue += amt;
+      } else if (combined.includes('quick print') || combined.includes('token #qp')) {
+        quickPrintRevenue += amt;
+      } else if (combined.includes('order settlement') || combined.includes('order payment') || combined.includes('print order')) {
+        generalPrintRevenue += amt;
+      } else {
+        retailRevenue += amt;
+      }
+    }
+
+    const monthName = targetDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+    return {
+      monthName,
+      monthSalesCount,
+      monthRevenue: parseFloat(monthRevenue.toFixed(2)),
+      cashRevenue: parseFloat(cashRevenue.toFixed(2)),
+      cardRevenue: parseFloat(cardRevenue.toFixed(2)),
+      bankRevenue: parseFloat(bankRevenue.toFixed(2)),
+      otherRevenue: parseFloat(otherRevenue.toFixed(2)),
+      totalDiscount: parseFloat(totalDiscount.toFixed(2)),
+      photoFrameRevenue: parseFloat(photoFrameRevenue.toFixed(2)),
+      generalPrintRevenue: parseFloat(generalPrintRevenue.toFixed(2)),
+      quickPrintRevenue: parseFloat(quickPrintRevenue.toFixed(2)),
+      retailRevenue: parseFloat(retailRevenue.toFixed(2)),
     };
   }
 

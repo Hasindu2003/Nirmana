@@ -255,9 +255,27 @@ class DashboardService {
 
     // Separate POS retail sales from order settlement transactions synced into POS
     let posOrderSettlementsTotal = 0;
+    let posPhotoFrameRevenue = 0;
+    let posGeneralPrintRevenue = 0;
+    let posQuickPrintRevenue = 0;
+    let posRetailCounterRevenue = 0;
+
     todayPosSales.forEach(s => {
-      if (s.notes && (s.notes.includes('Order Settlement') || s.notes.includes('Order Payment'))) {
-        posOrderSettlementsTotal += parseFloat(s.totalAmount) || 0;
+      const amt = parseFloat(s.totalAmount) || 0;
+      const notes = s.notes || '';
+      const itemNames = (s.items || []).map(i => i.itemName || '').join(' ');
+      const combined = (notes + ' ' + itemNames).toLowerCase();
+
+      if (combined.includes('photo frame studio') || (combined.includes('frame') && (combined.includes('settlement') || combined.includes('payment')))) {
+        posPhotoFrameRevenue += amt;
+        posOrderSettlementsTotal += amt;
+      } else if (combined.includes('quick print') || combined.includes('token #qp')) {
+        posQuickPrintRevenue += amt;
+      } else if (combined.includes('order settlement') || combined.includes('order payment') || combined.includes('print order')) {
+        posGeneralPrintRevenue += amt;
+        posOrderSettlementsTotal += amt;
+      } else {
+        posRetailCounterRevenue += amt;
       }
     });
 
@@ -279,6 +297,10 @@ class DashboardService {
       posCashTotal: parseFloat(posCashTotal.toFixed(2)),
       posCardTotal: parseFloat(posCardTotal.toFixed(2)),
       posBankTransferTotal: parseFloat(posBankTransferTotal.toFixed(2)),
+      posPhotoFrameRevenue: parseFloat(posPhotoFrameRevenue.toFixed(2)),
+      posGeneralPrintRevenue: parseFloat(posGeneralPrintRevenue.toFixed(2)),
+      posQuickPrintRevenue: parseFloat(posQuickPrintRevenue.toFixed(2)),
+      posRetailCounterRevenue: parseFloat(posRetailCounterRevenue.toFixed(2)),
       ordersTotalValue: parseFloat(ordersTotalValue.toFixed(2)),
       ordersAdvanceCollected: parseFloat(actualOrdersCollectedToday.toFixed(2)),
       ordersBalanceDue: parseFloat(ordersBalanceDue.toFixed(2)),
@@ -314,6 +336,8 @@ class DashboardService {
     };
 
     const isFrameOrder = (o) => {
+      if (o.orderType === 'PHOTO_FRAME') return true;
+      if (o.orderType === 'GENERAL_PRINT') return false;
       const text = [
         o.jobTitle || '',
         o.paperMaterial || '',

@@ -349,6 +349,7 @@
           </div>
 
           <input type="hidden" name="productName" id="orderModalInputProductName" value="">
+          <input type="hidden" name="orderType" id="orderModalInputOrderType" value="">
           <input type="hidden" name="productType" id="orderModalInputProductType" value="">
           <input type="hidden" name="category" id="orderModalInputCategory" value="">
           <input type="hidden" name="paperMaterial" id="orderModalInputPaperMaterial" value="">
@@ -525,6 +526,10 @@ function openGuestOnlineOrderModal() {
   // Format material & dimensions
   const materialOrDim = p.sizeLabel || p.dimensions || p.category || 'Standard Material';
   document.getElementById('orderModalItemMaterial').textContent = materialOrDim;
+
+  const isFrame = (p.category === 'Photo Frames' || /frame|රාමු|fream|framing/i.test(p.name));
+  const orderTypeEl = document.getElementById('orderModalInputOrderType');
+  if (orderTypeEl) orderTypeEl.value = isFrame ? 'PHOTO_FRAME' : 'GENERAL_PRINT';
 
   document.getElementById('orderModalInputProductName').value = p.name;
   document.getElementById('orderModalInputProductType').value = typeLabel;

@@ -187,12 +187,19 @@ class OrderController {
         customerId = req.user.customerId;
       }
 
+      let orderType = req.body.orderType;
+      if (!orderType) {
+        const isFrame = /frame|රාමු|fream|framing/i.test([category || '', productType || '', title || '', materialDesc || '', specifications || ''].join(' '));
+        orderType = isFrame ? 'PHOTO_FRAME' : 'GENERAL_PRINT';
+      }
+
       const orderPayload = {
         customerId,
         newCustomerName: cName,
         newCustomerPhone: cPhone,
         newCustomerEmail: email || (req.user ? req.user.email : null),
         jobTitle: title,
+        orderType: orderType,
         paperMaterial: materialDesc,
         quantity: qty,
         subtotal: totalAmount,

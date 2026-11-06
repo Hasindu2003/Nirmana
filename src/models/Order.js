@@ -81,6 +81,11 @@ const Order = sequelize.define('Order', {
     allowNull: false,
     defaultValue: 'RECEIVED',
   },
+  orderType: {
+    type: DataTypes.STRING(50),
+    allowNull: false,
+    defaultValue: 'GENERAL_PRINT', // 'PHOTO_FRAME' or 'GENERAL_PRINT'
+  },
   notes: {
     type: DataTypes.TEXT,
     allowNull: true,

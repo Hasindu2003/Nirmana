@@ -364,7 +364,7 @@ router.get('/orders', requireStaff, async (req, res, next) => {
   try {
     const { status, search, customerId, page, limit, type } = req.query;
     // Load recent orders across statuses so tabs can filter in-memory instantly
-    const { orders, pagination } = await orderService.getAllOrders({
+    const { orders: allOrders, pagination } = await orderService.getAllOrders({
       status: 'ALL',
       search,
       customerId,
@@ -372,6 +372,14 @@ router.get('/orders', requireStaff, async (req, res, next) => {
       limit: parseInt(limit, 10) || 100,
       paginate: true,
     });
+
+    const isFrame = (o) => o.orderType === 'PHOTO_FRAME' || /frame|රාමු|fream|framing/i.test([o.jobTitle||'', o.paperMaterial||'', o.specifications||'', o.notes||''].join(' '));
+    const totalFrameCount = allOrders.filter(isFrame).length;
+    const totalGeneralCount = allOrders.filter(o => !isFrame(o)).length;
+
+    // Strict partition: if type === 'frame', only include photo frames. Otherwise only include general print orders!
+    const activeSection = type === 'frame' ? 'frame' : 'general';
+    const orders = allOrders.filter(o => activeSection === 'frame' ? isFrame(o) : !isFrame(o));
 
     let totalBilledVal = 0;
     let totalGivenVal = 0;
@@ -385,10 +393,12 @@ router.get('/orders', requireStaff, async (req, res, next) => {
     });
 
     res.render('orders/index', {
-      title: type === 'frame' ? 'Photo Frames Studio · Nirmana Printing' : 'Printing Orders · Nirmana Printing',
-      activePage: type === 'frame' ? 'frames' : 'orders',
-      typeFilter: type || '',
+      title: activeSection === 'frame' ? 'Photo Frames Studio · Nirmana Printing' : 'Printing Orders · Nirmana Printing',
+      activePage: activeSection === 'frame' ? 'frames' : 'orders',
+      typeFilter: activeSection,
       orders,
+      totalFrameCount,
+      totalGeneralCount,
       pagination,
       ordersSummary: {
         totalOrders: orders.length,
@@ -415,7 +425,8 @@ router.get('/orders/new', requireStaff, async (req, res, next) => {
     ]);
     res.render('orders/create', {
       title: 'New Print Order · Nirmana Printing',
-      activePage: 'new-order',
+      activePage: req.query.type === 'frame' ? 'frames' : 'new-order',
+      initialType: req.query.type || 'general',
       customers,
       stockItems,
     });
@@ -712,9 +723,10 @@ router.get('/pos', requireStaff, async (req, res, next) => {
   try {
     const { search, dateFrom, dateTo, paymentMethod, page } = req.query;
 
-    const [stockItems, todayStats, salesResult] = await Promise.all([
+    const [stockItems, todayStats, monthStats, salesResult] = await Promise.all([
       stockService.getAllStockItems(),
       posService.getDailyStats(),
+      posService.getMonthlyStats(),
       posService.getAllSales({
         search: search || '',
         dateFrom: dateFrom || '',
@@ -731,6 +743,7 @@ router.get('/pos', requireStaff, async (req, res, next) => {
       activePage: 'pos',
       stockItems,
       todayStats,
+      monthStats,
       sales: salesResult.sales,
       pagination: salesResult.pagination,
       search: search || '',

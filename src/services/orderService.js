@@ -19,11 +19,18 @@ class OrderService {
     return candidate;
   }
 
-  async getAllOrders({ status, search, customerId, page = 1, limit = 10, paginate = true } = {}) {
+  async getAllOrders({ status, search, customerId, orderType, type, page = 1, limit = 10, paginate = true } = {}) {
     const where = {};
 
-    if (status && status !== 'ALL') {
+    if (status && status !== 'ALL' && status !== 'FRAME' && status !== 'GENERAL') {
       where.status = status;
+    }
+
+    const targetType = orderType || (type === 'frame' ? 'PHOTO_FRAME' : (type === 'general' ? 'GENERAL_PRINT' : null));
+    if (targetType === 'PHOTO_FRAME') {
+      where.orderType = 'PHOTO_FRAME';
+    } else if (targetType === 'GENERAL_PRINT') {
+      where.orderType = { [Op.ne]: 'PHOTO_FRAME' };
     }
 
     if (customerId) {
@@ -155,12 +162,19 @@ class OrderService {
       const advance = parseFloat(data.advancePaid) || 0.00;
       const balance = Math.max(0, total - advance);
 
+      let orderType = data.orderType;
+      if (!orderType || (orderType !== 'PHOTO_FRAME' && orderType !== 'GENERAL_PRINT')) {
+        const isFrame = /frame|රාමු|fream|framing/i.test([data.jobTitle || '', data.paperMaterial || '', data.specifications || '', data.notes || '', data.category || ''].join(' '));
+        orderType = isFrame ? 'PHOTO_FRAME' : 'GENERAL_PRINT';
+      }
+
       const order = await Order.create({
         orderNumber,
         customerId: customer ? customer.id : null,
         orderDate: data.orderDate || getSriLankaTodayString(),
         dueDate: data.dueDate || null,
         jobTitle: data.jobTitle || 'Print Job Order',
+        orderType: orderType,
         paperMaterial: data.paperMaterial || null,
         specifications: data.specifications || null,
         quantity: qty,
@@ -256,18 +270,26 @@ class OrderService {
         if (paymentOptions.addToPos !== false) {
           try {
             const posService = require('./posService');
+            const isFrame = order.orderType === 'PHOTO_FRAME' || /frame|රාමු|fream|framing/i.test([order.jobTitle || '', order.paperMaterial || '', order.specifications || ''].join(' '));
+            const itemLabel = isFrame
+              ? `Photo Frame Studio Settlement [${order.orderNumber}]: ${order.jobTitle}`
+              : `Print Order Settlement [${order.orderNumber}]: ${order.jobTitle}`;
+            const noteLabel = isFrame
+              ? `[Photo Frame Studio Settlement #${order.orderNumber}] Job: ${order.jobTitle}`
+              : `[Order Settlement #${order.orderNumber}] Job: ${order.jobTitle}`;
+
             await posService.createSale({
               customerName: order.customer ? order.customer.name : 'Walk-in Customer',
               customerPhone: order.customer ? order.customer.phone : null,
               customerId: order.customerId || null,
               paymentMethod: paymentOptions.paymentMethod || 'CASH',
               amountTendered: paymentRecorded,
-              notes: `[Order Settlement #${order.orderNumber}] Job: ${order.jobTitle}`,
+              notes: noteLabel,
               items: [{
-                name: `Print Order Settlement [${order.orderNumber}]: ${order.jobTitle}`,
+                name: itemLabel,
                 quantity: 1,
                 unitPrice: paymentRecorded,
-                unit: 'Job',
+                unit: isFrame ? 'Frame' : 'Job',
                 stockItemId: null,
               }],
             }, paymentOptions.recordedById || null);
@@ -319,18 +341,26 @@ class OrderService {
         try {
           const posService = require('./posService');
           const customer = await Customer.findByPk(order.customerId);
+          const isFrame = order.orderType === 'PHOTO_FRAME' || /frame|රාමු|fream|framing/i.test([order.jobTitle || '', order.paperMaterial || '', order.specifications || ''].join(' '));
+          const itemLabel = isFrame
+            ? `Photo Frame Studio Payment [${order.orderNumber}]: ${order.jobTitle}`
+            : `Print Order Payment [${order.orderNumber}]: ${order.jobTitle}`;
+          const noteLabel = isFrame
+            ? `[Photo Frame Studio Payment #${order.orderNumber}] Job: ${order.jobTitle} - ${notes || 'Progress Payment'}`
+            : `[Order Payment #${order.orderNumber}] Job: ${order.jobTitle} - ${notes || 'Progress Payment'}`;
+
           await posService.createSale({
             customerName: customer ? customer.name : 'Walk-in Customer',
             customerPhone: customer ? customer.phone : null,
             customerId: order.customerId || null,
             paymentMethod: paymentOptions.paymentMethod || 'CASH',
             amountTendered: amt,
-            notes: `[Order Payment #${order.orderNumber}] Job: ${order.jobTitle} - ${notes || 'Progress Payment'}`,
+            notes: noteLabel,
             items: [{
-              name: `Print Order Payment [${order.orderNumber}]: ${order.jobTitle}`,
+              name: itemLabel,
               quantity: 1,
               unitPrice: amt,
-              unit: 'Payment',
+              unit: isFrame ? 'Frame' : 'Payment',
               stockItemId: null,
             }],
           }, paymentOptions.recordedById || null);
