@@ -850,11 +850,13 @@
   </div>
 </div>
 
+<script>
+window._preloadedStockItems = <%- JSON.stringify(((typeof allItems !== 'undefined' && allItems && allItems.length) ? allItems : (items || [])).map(i => ({ id: i.id, name: i.name, code: i.code, unit: i.unit, currentStock: i.currentStock, unitCost: i.unitCost, sellingPrice: i.sellingPrice }))) %>;
+</script>
+
 <%- include('../partials/footer') %>
 
 <script>
-window._preloadedStockItems = <%- JSON.stringify((items || []).map(i => ({ id: i.id, name: i.name, code: i.code, unit: i.unit, currentStock: i.currentStock, unitCost: i.unitCost, sellingPrice: i.sellingPrice }))) %>;
-
 function quickStockIn(itemId, suggestedQty, itemName) {
   if (typeof window.quickStockIn === 'function') {
     window.quickStockIn(itemId, suggestedQty, itemName ? unescape(itemName) : null);

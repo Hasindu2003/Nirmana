@@ -473,7 +473,8 @@ async function loadStockDropdowns(preselectInId = null, preselectOutId = null, p
   const outSelect = document.getElementById('stockOutSelect');
   const officeSelect = document.getElementById('officeUseSelect');
   const removeSelect = document.getElementById('stockRemoveSelect');
-  if (!inSelect && !outSelect && !officeSelect && !removeSelect) return [];
+  const quickSelect = document.getElementById('quickTxStockSelect');
+  if (!inSelect && !outSelect && !officeSelect && !removeSelect && !quickSelect) return [];
 
   // Use preloaded items if available on the page
   if (!globalStockItems && window._preloadedStockItems && Array.isArray(window._preloadedStockItems) && window._preloadedStockItems.length > 0) {
@@ -523,7 +524,7 @@ function populateStockDropdowns(items, preselectInId = null, preselectOutId = nu
     ? String(preselectRemoveId)
     : (removeSelect && removeSelect.dataset.pendingSelectedId ? removeSelect.dataset.pendingSelectedId : (removeSelect ? removeSelect.value : ''));
 
-  if (items.length === 0) {
+  if (!items || items.length === 0) {
     if (inSelect) inSelect.innerHTML = '<option value="">-- No materials registered yet --</option>';
     if (outSelect) outSelect.innerHTML = '<option value="">-- No materials in stock yet --</option>';
     if (officeSelect) officeSelect.innerHTML = '<option value="">-- No materials in stock yet --</option>';
@@ -567,14 +568,17 @@ function populateStockDropdowns(items, preselectInId = null, preselectOutId = nu
         items.map(i => `<option value="${i.id}" data-name="${encodeURIComponent(i.name)}" data-code="${i.code || ''}" data-category="${i.category || ''}" data-current="${i.currentStock}" data-unitcost="${i.unitCost || 0}" data-sellingprice="${i.sellingPrice || ''}" data-unit="${i.unit}">${i.name} (${i.currentStock} ${i.unit} in stock &bull; Rs. ${parseFloat(i.sellingPrice || i.unitCost || 0).toFixed(2)})</option>`).join('');
     }
     if (removeSelect) {
-      removeSelect.innerHTML = '<option value="">-- Choose Stock Item --</option>' +
-        items.map(i => `<option value="${i.id}" data-name="${encodeURIComponent(i.name)}" data-current="${i.currentStock}" data-unit="${i.unit}" data-unitcost="${i.unitCost || 0}">${i.name} (${i.currentStock} ${i.unit} available)</option>`).join('');
+      removeSelect.innerHTML = '<option value="">-- Choose Stock Item to Remove --</option>' +
+        items.map(i => {
+          const cur = parseFloat(i.currentStock) || 0;
+          return `<option value="${i.id}" data-name="${encodeURIComponent(i.name)}" data-current="${cur}" data-unit="${i.unit}" data-unitcost="${i.unitCost || 0}">${i.name} (${cur} ${i.unit} available)</option>`;
+        }).join('');
 
       if (targetRemoveVal) {
         removeSelect.value = String(targetRemoveVal);
         delete removeSelect.dataset.pendingSelectedId;
-        onStockRemoveItemChange(removeSelect);
       }
+      onStockRemoveItemChange(removeSelect);
     }
   }
 }
@@ -721,18 +725,34 @@ window.quickOfficeUse = async function(itemId, suggestedQty = null, itemName = n
   }, 350);
 };
 
-// Lazy load when user opens Stock or Quick Transaction modals from toolbar without preselection
+// Lazy load when user opens Stock In, Stock Out, Office Use, Stock Removal, or Quick Transaction modals
 document.addEventListener('show.bs.modal', function (e) {
-  if (e.target && (e.target.id === 'stockInModal' || e.target.id === 'stockOutModal' || e.target.id === 'officeUseModal' || e.target.id === 'quickTransactionModal')) {
+  if (e.target && (
+    e.target.id === 'stockInModal' ||
+    e.target.id === 'stockOutModal' ||
+    e.target.id === 'officeUseModal' ||
+    e.target.id === 'stockRemoveModal' ||
+    e.target.id === 'quickTransactionModal'
+  )) {
     const inSelect = document.getElementById('stockInSelect');
     const outSelect = document.getElementById('stockOutSelect');
     const officeSelect = document.getElementById('officeUseSelect');
+    const removeSelect = document.getElementById('stockRemoveSelect');
     const pendingIn = inSelect ? inSelect.dataset.pendingSelectedId : null;
     const pendingOut = outSelect ? outSelect.dataset.pendingSelectedId : null;
     const pendingOffice = officeSelect ? officeSelect.dataset.pendingSelectedId : null;
-    loadStockDropdowns(pendingIn, pendingOut, pendingOffice);
+    const pendingRemove = removeSelect ? removeSelect.dataset.pendingSelectedId : null;
+    loadStockDropdowns(pendingIn, pendingOut, pendingOffice, pendingRemove);
   }
 });
+
+// Auto-populate stock dropdowns on initial page load so they are ready instantly
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => loadStockDropdowns());
+} else {
+  loadStockDropdowns();
+}
+document.addEventListener('turbo:load', () => loadStockDropdowns());
 
 function onStockInItemChange(selectEl) {
   const opt = selectEl.options[selectEl.selectedIndex];

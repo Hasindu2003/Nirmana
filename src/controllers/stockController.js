@@ -16,7 +16,7 @@ class StockController {
       }
       return res.json({ success: true, data: result });
     } catch (error) {
-      next(error);
+      return res.status(400).json({ success: false, message: error.message });
     }
   }
 
@@ -50,7 +50,7 @@ class StockController {
         data: item,
       });
     } catch (error) {
-      next(error);
+      return res.status(400).json({ success: false, message: error.message });
     }
   }
 
@@ -146,7 +146,7 @@ class StockController {
       });
       return res.json({ success: true, data: result.transactions, pagination: result.pagination });
     } catch (error) {
-      next(error);
+      return res.status(400).json({ success: false, message: error.message });
     }
   }
 
@@ -163,7 +163,7 @@ class StockController {
       }
       return res.json({ success: true, data: result });
     } catch (error) {
-      next(error);
+      return res.status(400).json({ success: false, message: error.message });
     }
   }
 
@@ -195,7 +195,7 @@ class StockController {
         data: result,
       });
     } catch (error) {
-      next(error);
+      return res.status(400).json({ success: false, message: error.message });
     }
   }
 
@@ -212,7 +212,7 @@ class StockController {
         data: result,
       });
     } catch (error) {
-      next(error);
+      return res.status(400).json({ success: false, message: error.message });
     }
   }
 
@@ -236,7 +236,7 @@ class StockController {
         summary: result.summary,
       });
     } catch (error) {
-      next(error);
+      return res.status(400).json({ success: false, message: error.message });
     }
   }
 }

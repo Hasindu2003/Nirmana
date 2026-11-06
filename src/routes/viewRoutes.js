@@ -563,6 +563,7 @@ router.get('/stock', requireStaff, async (req, res, next) => {
       title: 'Stock Management · Nirmana Printing',
       activePage: 'stock',
       items,
+      allItems,
       itemsPagination,
       inventorySummary,
       transactions,
