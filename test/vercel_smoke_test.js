@@ -60,9 +60,21 @@ async function verify() {
   // Orders check
   const orders = await get('https://nirmanaprinting-eta.vercel.app/orders', token);
   console.log('✓ Vercel Orders HTTP Status:', orders.status);
-  console.log('✓ Photo Frames Tab on /orders:', orders.body.includes('Photo Frames'));
+  console.log('✓ Commercial Orders tab / switch on /orders:', orders.body.includes('Commercial Orders'));
+  console.log('✓ Photo Frames Studio switch on /orders:', orders.body.includes('Photo Frames Studio'));
   console.log('✓ Remove buttons on /orders rows:', orders.body.includes('openOrderCancelModal'));
   console.log('✓ Order Cancel Modal on /orders:', orders.body.includes('id="orderCancelModal"'));
+
+  // Orders New check
+  const ordersNew = await get('https://nirmanaprinting-eta.vercel.app/orders/new', token);
+  console.log('✓ Vercel New Order HTTP Status:', ordersNew.status);
+  console.log('✓ Order Type Selector on /orders/new:', ordersNew.body.includes('orderTypeSelectorCard'));
+  console.log('✓ Photo Frame Studio Option on /orders/new:', ordersNew.body.includes('Photo Frame Studio Order'));
+
+  // POS Reports check
+  const posPage = await get('https://nirmanaprinting-eta.vercel.app/pos', token);
+  console.log('✓ Vercel POS Page HTTP Status:', posPage.status);
+  console.log('✓ Daily & Monthly Reports on /pos:', posPage.body.includes('POS Financial Reports (Daily & Monthly)'));
 
   // Quick Print check
   const qp = await get('https://nirmanaprinting-eta.vercel.app/quick-print', token);
