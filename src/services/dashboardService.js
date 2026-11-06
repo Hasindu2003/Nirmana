@@ -39,7 +39,7 @@ class DashboardService {
         order: [['currentStock', 'ASC']],
       }),
       Order.findAll({
-        limit: 6,
+        limit: 100,
         order: [['createdAt', 'DESC']],
         include: [
           {
@@ -304,6 +304,31 @@ class DashboardService {
       todayStockInTransactions,
     };
 
+    const isFrameOrder = (o) => {
+      const text = [
+        o.jobTitle || '',
+        o.paperMaterial || '',
+        o.specifications || '',
+        o.notes || ''
+      ].join(' ').toLowerCase();
+      return /frame|රාමු|fream|framing/i.test(text);
+    };
+
+    const recentFrameOrders = recentOrders.filter(isFrameOrder).slice(0, 10);
+    const recentOrdinaryOrders = recentOrders.filter(o => !isFrameOrder(o)).slice(0, 10);
+
+    const frameStats = {
+      total: recentOrders.filter(isFrameOrder).length,
+      active: recentOrders.filter(o => isFrameOrder(o) && ['RECEIVED', 'PRINTING', 'READY'].includes(o.status)).length,
+      completed: recentOrders.filter(o => isFrameOrder(o) && o.status === 'COMPLETED').length,
+    };
+
+    const ordinaryStats = {
+      total: recentOrders.filter(o => !isFrameOrder(o)).length,
+      active: recentOrders.filter(o => !isFrameOrder(o) && ['RECEIVED', 'PRINTING', 'READY'].includes(o.status)).length,
+      completed: recentOrders.filter(o => !isFrameOrder(o) && o.status === 'COMPLETED').length,
+    };
+
     return {
       kpis: {
         activeOrdersCount,
@@ -315,6 +340,10 @@ class DashboardService {
       lowStockItems,
       allStockItems,
       recentOrders,
+      recentOrdinaryOrders,
+      recentFrameOrders,
+      frameStats,
+      ordinaryStats,
       recentTransactions,
       dailyBusiness,
     };

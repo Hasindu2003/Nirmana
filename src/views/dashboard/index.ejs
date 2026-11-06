@@ -696,45 +696,64 @@
       </div>
     </div>
 
-    <!-- Row 5: Full-Width Spacious Recent Orders Table -->
-    <div class="row g-4">
+    <!-- Row 5: Separated Order Queues: Photo Frames Studio vs General Printing Orders -->
+    <!-- 5A. Dedicated Photo Frames Studio Queue -->
+    <div class="row g-4 mb-4" id="photoFramesSection">
       <div class="col-12">
-        <div class="serene-card">
-          <div class="serene-card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div class="serene-card" style="border: 1px solid #fde68a; box-shadow: 0 4px 6px -1px rgba(245, 158, 11, 0.08);">
+          <div class="serene-card-header d-flex flex-wrap align-items-center justify-content-between gap-2" style="background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%); border-bottom: 1px solid #fde68a;">
             <div>
-              <h3 class="serene-card-title mb-0">
-                <i class="bi bi-clipboard2-check me-2 text-serene-primary"></i> Recent Printing Orders
-              </h3>
-              <div class="text-muted small mt-1">Live overview of recent customer orders, production status, and balances</div>
+              <div class="d-flex align-items-center gap-2">
+                <span class="p-2 rounded-2 bg-warning-subtle text-warning-emphasis d-inline-flex align-items-center justify-content-center">
+                  <i class="bi bi-image fs-5"></i>
+                </span>
+                <div>
+                  <div class="d-flex align-items-center gap-2">
+                    <h3 class="serene-card-title mb-0 fs-5 fw-bold text-dark">
+                      🖼️ Photo Frames & Custom Framing Studio Queue
+                    </h3>
+                    <% if (stats.frameStats && stats.frameStats.active > 0) { %>
+                      <span class="badge bg-warning text-dark border border-warning-subtle px-2 py-0 fw-bold" style="font-size: 0.74rem;">
+                        <%= stats.frameStats.active %> Active Framing
+                      </span>
+                    <% } else { %>
+                      <span class="badge bg-light text-muted border px-2 py-0" style="font-size: 0.74rem;">Queue Clear</span>
+                    <% } %>
+                  </div>
+                  <div class="text-muted small mt-1">
+                    Dedicated studio queue for wooden framing, portrait mounts, canvas boards, and custom framed prints
+                  </div>
+                </div>
+              </div>
             </div>
             <div class="d-flex align-items-center gap-2">
-              <a href="/orders/new" class="btn btn-sm btn-serene-primary">
-                <i class="bi bi-plus-lg"></i> New Order
+              <a href="/orders/new?type=frame" class="btn btn-sm btn-warning text-dark fw-semibold shadow-xs">
+                <i class="bi bi-plus-lg"></i> New Frame Order
               </a>
-              <a href="/orders" class="btn btn-sm btn-serene-secondary">
-                All Orders &rarr;
+              <a href="/orders?search=frame" class="btn btn-sm btn-outline-secondary">
+                All Frames &rarr;
               </a>
             </div>
           </div>
           <div class="table-responsive">
-            <table class="serene-table">
+            <table class="serene-table mb-0">
               <thead>
                 <tr>
                   <th>Order #</th>
                   <th>Customer</th>
-                  <th>Job Description</th>
+                  <th>Frame Size & Specifications</th>
                   <th>Order Date</th>
                   <th>Amount & Balance</th>
-                  <th>Status</th>
-                  <th class="text-end">Action</th>
+                  <th>Production Status</th>
+                  <th class="text-end">Queue Actions</th>
                 </tr>
               </thead>
               <tbody>
-                <% if (stats.recentOrders && stats.recentOrders.length > 0) { %>
-                  <% stats.recentOrders.forEach(order => { %>
+                <% if (stats.recentFrameOrders && stats.recentFrameOrders.length > 0) { %>
+                  <% stats.recentFrameOrders.forEach(order => { %>
                     <tr>
                       <td>
-                        <a href="/orders/<%= order.id %>" class="fw-bold text-decoration-none text-dark font-monospace">
+                        <a href="/orders/<%= order.id %>" class="fw-bold text-decoration-none text-dark font-monospace hover-primary">
                           <%= order.orderNumber %>
                         </a>
                       </td>
@@ -745,8 +764,14 @@
                         <% } %>
                       </td>
                       <td>
-                        <div class="text-dark fw-medium text-truncate" style="max-width: 280px;" title="<%= order.jobTitle %>">
-                          <%= order.jobTitle %>
+                        <div class="text-dark fw-bold text-truncate" style="max-width: 280px;" title="<%= order.jobTitle %>">
+                          <i class="bi bi-aspect-ratio text-warning me-1"></i><%= order.jobTitle %>
+                        </div>
+                        <div class="text-muted small mt-0">
+                          <% if (order.paperMaterial) { %>
+                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle py-0 px-1 me-1" style="font-size: 0.7rem;"><%= order.paperMaterial %></span>
+                          <% } %>
+                          <span class="text-muted">Qty: <strong><%= order.quantity %></strong></span>
                         </div>
                       </td>
                       <td>
@@ -772,15 +797,155 @@
                         </span>
                       </td>
                       <td class="text-end">
-                        <a href="/orders/<%= order.id %>" class="btn btn-sm btn-serene-secondary py-1 px-3 d-inline-flex align-items-center gap-1 shadow-xs" title="View Details">
-                          <i class="bi bi-eye"></i> View
-                        </a>
+                        <div class="d-inline-flex align-items-center gap-1">
+                          <a href="/orders/<%= order.id %>" class="btn btn-sm btn-serene-secondary py-1 px-2 d-inline-flex align-items-center gap-1 shadow-xs" title="View Details">
+                            <i class="bi bi-eye"></i> View
+                          </a>
+                          <% if (order.status !== 'COMPLETED' && order.status !== 'CANCELLED') { %>
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-danger py-1 px-2 d-inline-flex align-items-center gap-1 shadow-xs" 
+                                    onclick="openDashboardCancelModal(<%= order.id %>, '<%= order.orderNumber %>', '<%= escape(order.jobTitle) %>')" 
+                                    title="Cancel and remove this photo frame order from queue">
+                              <i class="bi bi-x-circle"></i> Remove
+                            </button>
+                          <% } %>
+                        </div>
                       </td>
                     </tr>
                   <% }) %>
                 <% } else { %>
                   <tr>
-                    <td colspan="7" class="text-center py-5 text-muted">No orders recorded yet.</td>
+                    <td colspan="7" class="text-center py-4 text-muted">
+                      <div class="d-flex flex-column align-items-center justify-content-center">
+                        <i class="bi bi-image fs-3 text-warning opacity-50 mb-1"></i>
+                        <span class="fw-medium">No photo frame orders currently in queue.</span>
+                        <span class="small text-muted">Photo frame and mounting jobs booked at the counter or online will show here exclusively.</span>
+                      </div>
+                    </td>
+                  </tr>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5B. Commercial & General Printing Orders Queue (Mugs, Books, Flyers, Banners) -->
+    <div class="row g-4" id="generalPrintingSection">
+      <div class="col-12">
+        <div class="serene-card">
+          <div class="serene-card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div>
+              <div class="d-flex align-items-center gap-2">
+                <span class="p-2 rounded-2 bg-primary-subtle text-primary d-inline-flex align-items-center justify-content-center">
+                  <i class="bi bi-printer fs-5"></i>
+                </span>
+                <div>
+                  <div class="d-flex align-items-center gap-2">
+                    <h3 class="serene-card-title mb-0 fs-5 fw-bold text-dark">
+                      📋 General Printing Orders (Mugs, Books, Cards, Banners)
+                    </h3>
+                    <% if (stats.ordinaryStats && stats.ordinaryStats.active > 0) { %>
+                      <span class="badge bg-primary text-white px-2 py-0 fw-semibold" style="font-size: 0.74rem;">
+                        <%= stats.ordinaryStats.active %> In Production
+                      </span>
+                    <% } %>
+                  </div>
+                  <div class="text-muted small mt-1">Live overview of commercial print jobs, stationery, mug printing, and brochures (photo frames excluded)</div>
+                </div>
+              </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <a href="/orders/new" class="btn btn-sm btn-serene-primary">
+                <i class="bi bi-plus-lg"></i> New Order
+              </a>
+              <a href="/orders" class="btn btn-sm btn-serene-secondary">
+                All Orders &rarr;
+              </a>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="serene-table mb-0">
+              <thead>
+                <tr>
+                  <th>Order #</th>
+                  <th>Customer</th>
+                  <th>Job Description</th>
+                  <th>Order Date</th>
+                  <th>Amount & Balance</th>
+                  <th>Status</th>
+                  <th class="text-end">Queue Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (stats.recentOrdinaryOrders && stats.recentOrdinaryOrders.length > 0) { %>
+                  <% stats.recentOrdinaryOrders.forEach(order => { %>
+                    <tr>
+                      <td>
+                        <a href="/orders/<%= order.id %>" class="fw-bold text-decoration-none text-dark font-monospace hover-primary">
+                          <%= order.orderNumber %>
+                        </a>
+                      </td>
+                      <td>
+                        <div class="fw-semibold text-dark"><%= order.customer ? order.customer.name : 'Walk-in / Unknown' %></div>
+                        <% if (order.customer && order.customer.phone) { %>
+                          <div class="text-muted small"><i class="bi bi-telephone text-muted me-1"></i><%= order.customer.phone %></div>
+                        <% } %>
+                      </td>
+                      <td>
+                        <div class="text-dark fw-medium text-truncate" style="max-width: 280px;" title="<%= order.jobTitle %>">
+                          <%= order.jobTitle %>
+                        </div>
+                        <div class="text-muted small mt-0">
+                          <% if (order.paperMaterial) { %>
+                            <span class="badge bg-light text-secondary border py-0 px-1 me-1" style="font-size: 0.7rem;"><%= order.paperMaterial %></span>
+                          <% } %>
+                          <span class="text-muted">Qty: <strong><%= order.quantity %></strong></span>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="text-muted small tabular-nums">
+                          <%= order.orderDate ? formatDate(order.orderDate) : formatDate(order.createdAt) %>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="tabular-nums fw-bold text-dark">
+                          <%= currencySymbol %> <%= parseFloat(order.totalAmount).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+                        </div>
+                        <% if (parseFloat(order.balanceAmount) <= 0) { %>
+                          <span class="badge bg-success-subtle text-success border border-success-subtle mt-1" style="font-size: 0.72rem;">Paid</span>
+                        <% } else { %>
+                          <div class="text-danger small fw-semibold mt-1">
+                            Due: <%= currencySymbol %> <%= parseFloat(order.balanceAmount).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
+                          </div>
+                        <% } %>
+                      </td>
+                      <td>
+                        <span class="status-badge status-<%= order.status.toLowerCase() %>">
+                          <span class="status-dot"></span> <%= order.status.replace('_', ' ') %>
+                        </span>
+                      </td>
+                      <td class="text-end">
+                        <div class="d-inline-flex align-items-center gap-1">
+                          <a href="/orders/<%= order.id %>" class="btn btn-sm btn-serene-secondary py-1 px-2 d-inline-flex align-items-center gap-1 shadow-xs" title="View Details">
+                            <i class="bi bi-eye"></i> View
+                          </a>
+                          <% if (order.status !== 'COMPLETED' && order.status !== 'CANCELLED') { %>
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-danger py-1 px-2 d-inline-flex align-items-center gap-1 shadow-xs" 
+                                    onclick="openDashboardCancelModal(<%= order.id %>, '<%= order.orderNumber %>', '<%= escape(order.jobTitle) %>')" 
+                                    title="Cancel and remove this print order from queue">
+                              <i class="bi bi-x-circle"></i> Remove
+                            </button>
+                          <% } %>
+                        </div>
+                      </td>
+                    </tr>
+                  <% }) %>
+                <% } else { %>
+                  <tr>
+                    <td colspan="7" class="text-center py-5 text-muted">No general print orders recorded yet.</td>
                   </tr>
                 <% } %>
               </tbody>
@@ -1048,6 +1213,145 @@
     `);
     win.document.close();
   };
+
+  // Dashboard Queue Order Removal / Cancellation Logic
+  let dashboardCancelModalInstance = null;
+
+  window.openDashboardCancelModal = function(orderId, orderNumber, rawJobTitle) {
+    const modalEl = document.getElementById('dashboardCancelModal');
+    if (!modalEl) return;
+    if (!dashboardCancelModalInstance) {
+      dashboardCancelModalInstance = new bootstrap.Modal(modalEl);
+    }
+    document.getElementById('dashCancelOrderId').value = orderId;
+    document.getElementById('dashCancelOrderNum').textContent = '#' + orderNumber;
+    try {
+      document.getElementById('dashCancelJobTitle').textContent = decodeURIComponent(rawJobTitle);
+    } catch (e) {
+      try {
+        document.getElementById('dashCancelJobTitle').textContent = unescape(rawJobTitle);
+      } catch (e2) {
+        document.getElementById('dashCancelJobTitle').textContent = rawJobTitle;
+      }
+    }
+    document.getElementById('dashCancelReasonSelect').value = 'Customer requested cancellation / changed mind';
+    document.getElementById('dashCancelCustomReason').value = '';
+    document.getElementById('dashCancelCustomReasonGroup').classList.add('d-none');
+    dashboardCancelModalInstance.show();
+  };
+
+  window.handleDashCancelReasonChange = function(val) {
+    const group = document.getElementById('dashCancelCustomReasonGroup');
+    if (val === 'OTHER') {
+      group.classList.remove('d-none');
+      document.getElementById('dashCancelCustomReason').focus();
+    } else {
+      group.classList.add('d-none');
+    }
+  };
+
+  window.submitDashboardCancelOrder = async function() {
+    const orderId = document.getElementById('dashCancelOrderId').value;
+    const selectVal = document.getElementById('dashCancelReasonSelect').value;
+    const customVal = document.getElementById('dashCancelCustomReason').value.trim();
+    const btn = document.getElementById('confirmDashCancelBtn');
+
+    if (!orderId) return;
+
+    let finalReason = selectVal;
+    if (selectVal === 'OTHER') {
+      if (!customVal) {
+        alert('Please specify the cancellation details.');
+        document.getElementById('dashCancelCustomReason').focus();
+        return;
+      }
+      finalReason = customVal;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Removing...';
+
+    try {
+      const res = await fetch(`/api/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'CANCELLED',
+          notes: `[CANCELLED from Dashboard Queue]: ${finalReason}`
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (dashboardCancelModalInstance) dashboardCancelModalInstance.hide();
+        window.location.reload();
+      } else {
+        alert(data.message || 'Failed to remove order.');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-trash"></i> Confirm & Remove from Queue';
+      }
+    } catch (err) {
+      alert('Error updating order: ' + err.message);
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-trash"></i> Confirm & Remove from Queue';
+    }
+  };
 </script>
+
+<!-- ========================================================================= -->
+<!-- MODAL: REMOVE ORDER FROM DASHBOARD QUEUE -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="dashboardCancelModal" tabindex="-1" aria-labelledby="dashboardCancelModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg border-0" style="border-radius: var(--serene-radius-lg);">
+      <div class="modal-header py-3 px-4 border-bottom bg-light">
+        <div class="d-flex align-items-center gap-2">
+          <div class="p-2 rounded-2 bg-danger-subtle text-danger d-flex align-items-center justify-content-center">
+            <i class="bi bi-x-octagon-fill fs-5"></i>
+          </div>
+          <div>
+            <h5 class="modal-title fw-bold fs-6 mb-0 text-dark" id="dashboardCancelModalLabel">Remove Order from Queue</h5>
+            <div class="text-muted small">Cancel production and remove order from active queue</div>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body p-4">
+        <div class="alert alert-warning py-2 px-3 mb-3 border-warning-subtle small d-flex align-items-start gap-2">
+          <i class="bi bi-exclamation-triangle-fill text-warning flex-shrink-0 mt-1"></i>
+          <div>
+            You are about to cancel order <strong id="dashCancelOrderNum" class="font-monospace text-dark"></strong> (<span id="dashCancelJobTitle"></span>). This will mark it as <strong>CANCELLED</strong> and remove it from the active production queues.
+          </div>
+        </div>
+
+        <input type="hidden" id="dashCancelOrderId" value="">
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold small text-dark mb-1">Reason for Removal / Cancellation <span class="text-danger">*</span></label>
+          <select class="form-select form-select-sm" id="dashCancelReasonSelect" onchange="window.handleDashCancelReasonChange(this.value)">
+            <option value="Customer requested cancellation / changed mind" selected>Customer requested cancellation / changed mind</option>
+            <option value="Frame size / substrate material currently out of stock">Frame size / substrate material currently out of stock</option>
+            <option value="Customer walked out / did not confirm specifications">Customer walked out / did not confirm specifications</option>
+            <option value="Wrong dimensions or artwork resolution entered">Wrong dimensions or artwork resolution entered</option>
+            <option value="Duplicate order entry created by mistake">Duplicate order entry created by mistake</option>
+            <option value="OTHER">Other Reason (Specify below)...</option>
+          </select>
+        </div>
+
+        <div class="mb-3 d-none" id="dashCancelCustomReasonGroup">
+          <label class="form-label fw-semibold small text-dark mb-1">Specific Cancellation Details</label>
+          <textarea class="form-control form-control-sm" id="dashCancelCustomReason" rows="2" placeholder="Explain reason for cancellation..."></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer py-2 px-4 border-top bg-light">
+        <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Keep in Queue</button>
+        <button type="button" class="btn btn-sm btn-danger px-3 d-inline-flex align-items-center gap-1 fw-bold shadow-xs" id="confirmDashCancelBtn" onclick="window.submitDashboardCancelOrder()">
+          <i class="bi bi-trash"></i> Confirm & Remove from Queue
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <%- include('../partials/footer') %>

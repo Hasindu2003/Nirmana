@@ -364,6 +364,11 @@
                         <i class="bi bi-check2-circle fs-6"></i>
                         <span>Mark Completed</span>
                       </button>
+                      <!-- REMOVE FROM QUEUE BUTTON -->
+                      <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2 d-flex align-items-center gap-1 shadow-xs" style="font-size: 0.8rem; height: 32px;"
+                              onclick="openCancelJobModal(<%= job.id %>, '<%= job.tokenNumber %>')" title="Cancel and remove this walk-in order from queue">
+                        <i class="bi bi-x-circle"></i> <span>Remove</span>
+                      </button>
                     <% } else if (job.status === 'CANCELLED') { %>
                       <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" style="font-size: 0.75rem;">
                         <i class="bi bi-x-circle me-1"></i> Cancelled
@@ -2066,14 +2071,26 @@
                  onclick="markJobCompleted(${job.id}, '${escapeHtml(job.tokenNumber)}')">
            <i class="bi bi-check2-circle fs-6"></i>
            <span>Mark Completed</span>
+         </button>
+         <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2 d-flex align-items-center gap-1 shadow-xs" style="font-size: 0.8rem; height: 32px;"
+                 onclick="openCancelJobModal(${job.id}, '${escapeHtml(job.tokenNumber)}')" title="Cancel and remove this walk-in order from queue">
+           <i class="bi bi-x-circle"></i> <span>Remove</span>
          </button>`
-      : `<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 0.75rem;">
-           <i class="bi bi-check2-all me-1"></i> Completed
-         </span>
-         <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" style="font-size: 0.75rem; height: 28px;"
-                 onclick="reopenJob(${job.id}, '${escapeHtml(job.tokenNumber)}')" title="Move back to Pending">
-           <i class="bi bi-arrow-counterclockwise"></i>
-         </button>`;
+      : (job.status === 'CANCELLED'
+          ? `<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" style="font-size: 0.75rem;">
+               <i class="bi bi-x-circle me-1"></i> Cancelled
+             </span>
+             <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" style="font-size: 0.75rem; height: 28px;"
+                     onclick="reopenJob(${job.id}, '${escapeHtml(job.tokenNumber)}')" title="Move back to Pending">
+               <i class="bi bi-arrow-counterclockwise"></i>
+             </button>`
+          : `<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 0.75rem;">
+               <i class="bi bi-check2-all me-1"></i> Completed
+             </span>
+             <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" style="font-size: 0.75rem; height: 28px;"
+                     onclick="reopenJob(${job.id}, '${escapeHtml(job.tokenNumber)}')" title="Move back to Pending">
+               <i class="bi bi-arrow-counterclockwise"></i>
+             </button>`);
 
     const driveFile = (job.files && Array.isArray(job.files) && job.files.find(f => f.driveViewLink));
     const driveLinkHtml = (driveFile && driveFile.driveViewLink)
@@ -2232,6 +2249,18 @@
                   </li>
                   ${driveLinkHtml}
                   <li><hr class="dropdown-divider my-1"></li>
+                  ${job.status !== 'CANCELLED'
+                    ? `<li>
+                         <a class="dropdown-item py-2 text-warning-emphasis d-flex align-items-center" href="javascript:void(0)" onclick="openCancelJobModal(${job.id}, '${escapeHtml(job.tokenNumber)}')">
+                           <i class="bi bi-x-circle me-2 text-warning"></i> Cancel / Reject Job
+                         </a>
+                       </li>`
+                    : `<li>
+                         <a class="dropdown-item py-2 text-success d-flex align-items-center" href="javascript:void(0)" onclick="reopenJob(${job.id}, '${escapeHtml(job.tokenNumber)}')">
+                           <i class="bi bi-arrow-counterclockwise me-2 text-success"></i> Restore to Pending
+                         </a>
+                       </li>`
+                  }
                   <li>
                     <a class="dropdown-item py-2 text-danger d-flex align-items-center" href="javascript:void(0)" onclick="deleteJob(${job.id})">
                       <i class="bi bi-trash me-2"></i> Delete Order & Files
