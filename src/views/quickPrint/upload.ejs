@@ -22,6 +22,17 @@
   <link rel="alternate icon" type="image/png" href="/images/favicon.png">
   <link rel="apple-touch-icon" href="/images/favicon.png">
 
+  <!-- Immediate Theme Engine: Prevents flash of white/dark theme -->
+  <script>
+    (function() {
+      try {
+        var saved = localStorage.getItem('nirmana_theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-bs-theme', saved);
+        document.documentElement.setAttribute('data-theme', saved);
+      } catch(e) {}
+    })();
+  </script>
+
   <style>
     body {
       font-family: 'Plus Jakarta Sans', 'Noto Sans Sinhala', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -30,6 +41,33 @@
       display: flex;
       flex-direction: column;
       padding-bottom: 2rem;
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+    [data-bs-theme="dark"] body {
+      background: linear-gradient(180deg, #0b1120 0%, #0f172a 100%);
+      color: #f8fafc;
+    }
+    [data-bs-theme="dark"] .kiosk-card {
+      background: #131c31;
+      border-color: #243049;
+    }
+    [data-bs-theme="dark"] .pill-radio-group label {
+      background: #0f172a;
+      border-color: #334155;
+      color: #e2e8f0;
+    }
+    [data-bs-theme="dark"] .pill-radio-group input[type="radio"]:checked + label {
+      background: #2d6a68;
+      border-color: #2d6a68;
+      color: #ffffff;
+    }
+    [data-bs-theme="dark"] #btnTypeGeneral {
+      background: #131c31 !important;
+      border-color: #334155 !important;
+    }
+    [data-bs-theme="dark"] #btnTypePhoto {
+      background: #1f1b0c !important;
+      border-color: #d97706 !important;
     }
     .mobile-upload-container {
       max-width: 560px;
@@ -240,9 +278,13 @@
       WhatsApp වලට දාන්න ඕනෙ නෑ! ඔයාගේ Photos හෝ Documents මෙතනින් කෙලින්ම අපේ Counter Printer එකට Send කරන්න.
     </p>
   </header>
-  <div class="d-flex justify-content-center mb-3">
+  <div class="d-flex justify-content-center align-items-center gap-2 mb-3">
     <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 shadow-xs fw-semibold" data-bs-toggle="modal" data-bs-target="#publicTrackModal">
       <i class="bi bi-search me-1"></i> Track Order or Token Status
+    </button>
+    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1 theme-toggle-btn shadow-xs" onclick="toggleKioskTheme()" title="Toggle Dark / Light Mode" aria-label="Toggle Theme">
+      <i class="bi bi-moon-stars-fill theme-icon-moon"></i>
+      <i class="bi bi-sun-fill theme-icon-sun d-none text-warning"></i>
     </button>
   </div>
 
@@ -1502,6 +1544,36 @@
       container.innerHTML = '<div class="alert alert-danger small mb-0">Failed to lookup tracking code: ' + err.message + '</div>';
     }
   }
+
+  // Kiosk Theme Toggle Support
+  function syncKioskThemeIcons(theme) {
+    var moons = document.querySelectorAll('.theme-icon-moon');
+    var suns = document.querySelectorAll('.theme-icon-sun');
+    moons.forEach(function(m) {
+      if (theme === 'dark') m.classList.add('d-none');
+      else m.classList.remove('d-none');
+    });
+    suns.forEach(function(s) {
+      if (theme === 'dark') s.classList.remove('d-none');
+      else s.classList.add('d-none');
+    });
+  }
+
+  function toggleKioskTheme() {
+    var current = document.documentElement.getAttribute('data-bs-theme') || 'light';
+    var next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-bs-theme', next);
+    document.documentElement.setAttribute('data-theme', next);
+    try {
+      localStorage.setItem('nirmana_theme', next);
+    } catch(e) {}
+    syncKioskThemeIcons(next);
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var current = document.documentElement.getAttribute('data-bs-theme') || 'light';
+    syncKioskThemeIcons(current);
+  });
   </script>
 </body>
 </html>

@@ -25,6 +25,17 @@
   <!-- Hotwire Turbo Drive (Seamless Fast SPA Navigation) -->
   <meta name="turbo-cache-control" content="no-preview">
   <script defer src="/js/turbo.min.js"></script>
+
+  <!-- Immediate Theme Engine: Prevents flash of white/dark theme -->
+  <script>
+    (function() {
+      try {
+        var saved = localStorage.getItem('nirmana_theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-bs-theme', saved);
+        document.documentElement.setAttribute('data-theme', saved);
+      } catch(e) {}
+    })();
+  </script>
 </head>
 <body>
 <div class="app-container">

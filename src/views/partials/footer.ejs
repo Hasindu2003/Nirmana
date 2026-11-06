@@ -1334,6 +1334,42 @@ function initFooterScripts() {
   }, { passive: true, capture: true });
 })();
 
+// Global Theme Toggle Functionality (Dark Mode / Light Mode)
+window.toggleDarkMode = function() {
+  try {
+    const currentTheme = document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'dark' : 'light';
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-bs-theme', newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('nirmana_theme', newTheme);
+    updateThemeToggleIcons(newTheme);
+  } catch(e) {
+    console.warn('Theme toggle error:', e);
+  }
+};
+
+function updateThemeToggleIcons(theme) {
+  try {
+    const activeTheme = theme || document.documentElement.getAttribute('data-bs-theme') || 'light';
+    const buttons = document.querySelectorAll('.theme-toggle-btn');
+    buttons.forEach(btn => {
+      const icon = btn.querySelector('i');
+      if (icon) {
+        if (activeTheme === 'dark') {
+          icon.className = 'bi bi-sun-fill text-warning';
+          btn.setAttribute('title', 'Switch to Light Mode');
+        } else {
+          icon.className = 'bi bi-moon-stars-fill text-secondary';
+          btn.setAttribute('title', 'Switch to Dark Mode');
+        }
+      }
+    });
+  } catch(e) {}
+}
+
+document.addEventListener('DOMContentLoaded', () => updateThemeToggleIcons());
+document.addEventListener('turbo:load', () => updateThemeToggleIcons());
+
 document.addEventListener('DOMContentLoaded', initFooterScripts);
 document.addEventListener('turbo:load', initFooterScripts);
 </script>
