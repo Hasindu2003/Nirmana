@@ -287,6 +287,23 @@ router.get('/dashboard', requireStaff, async (req, res, next) => {
   }
 });
 
+// 1c. Quick Sell Counter (Dedicated Tab/Page - Staff & Admin Only)
+router.get('/quick-sell', requireStaff, async (req, res, next) => {
+  try {
+    const selectedDate = req.query.date || null;
+    const stats = await dashboardService.getDashboardStats(selectedDate);
+    res.render('quickSell/index', {
+      title: 'Quick Sell Counter · Nirmana Printing',
+      activePage: 'quick-sell',
+      stats,
+      quickSellItems: stats.quickSellItems,
+      selectedDate: stats.dailyBusiness.date,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // 1b. Customer Portal (Personal Orders, Quick Print Submissions, Bills & Balance)
 router.get('/portal', async (req, res, next) => {
   try {

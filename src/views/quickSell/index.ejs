@@ -1,0 +1,479 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar', { activePage: 'quick-sell' }) %>
+
+<main class="main-content">
+  <div class="content-body p-3 p-md-4">
+    <!-- Breadcrumb & Top Bar -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0 small">
+          <li class="breadcrumb-item"><a href="/dashboard" class="text-decoration-none">Dashboard</a></li>
+          <li class="breadcrumb-item active" aria-current="page">Quick Sell Counter</li>
+        </ol>
+      </nav>
+
+      <!-- Date & Live Badge -->
+      <div class="status-pill-header small d-flex align-items-center gap-1 rounded-pill px-3 py-1 shadow-xs" style="font-size: 0.8rem;">
+        <i class="bi bi-calendar3 me-1 text-muted"></i>
+        <span>Today, <%= formatDateTime(new Date(), { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) %></span>
+        <span class="mx-1 text-muted">&bull;</span>
+        <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-2 py-0 d-inline-flex align-items-center" style="font-size: 0.72rem; font-weight: 600;">
+          <span class="spinner-grow spinner-grow-sm text-success me-1" style="width: 6px; height: 6px;" role="status"></span> Live Counter
+        </span>
+      </div>
+    </div>
+
+    <!-- Hero Card Banner -->
+    <div class="quick-sell-hero-banner p-3 p-md-4 mb-4 shadow-sm">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="p-3 rounded-3 bg-success text-white d-flex align-items-center justify-content-center shadow-xs" style="width: 54px; height: 54px;">
+            <i class="bi bi-lightning-charge-fill fs-3"></i>
+          </div>
+          <div>
+            <h2 class="fs-4 fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+              <span>Quick Sell Counter</span>
+              <span class="badge bg-success-subtle text-success border border-success-subtle fs-6 px-2 py-1">Instant Sales</span>
+            </h2>
+            <div class="text-muted small">
+              High-frequency counter sales with <strong>automatic inventory depletion (Office Use)</strong> and <strong>manual wastage tracking</strong> for misprinted sheets.
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <button type="button" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-2 shadow-xs" 
+                  onclick="window.quickStockRemove()" title="Manually deduct spoiled or misprinted sheets from inventory">
+            <i class="bi bi-trash3"></i>
+            <span class="fw-semibold">Manual Wastage Removal</span>
+          </button>
+          <a href="/pos" class="btn btn-sm btn-serene-secondary d-inline-flex align-items-center gap-2 shadow-xs">
+            <i class="bi bi-cart3 text-success"></i>
+            <span>Full POS Register</span>
+          </a>
+          <a href="/stock" class="btn btn-sm btn-serene-secondary d-inline-flex align-items-center gap-2 shadow-xs">
+            <i class="bi bi-boxes text-serene-primary"></i>
+            <span>Stock Management</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Stats Ribbon (4 KPI Cards) -->
+    <div class="row g-3 mb-4">
+      <!-- 1. Today's Quick Sales Count -->
+      <div class="col-6 col-lg-3">
+        <div class="kpi-card-compact h-100">
+          <div class="kpi-compact-content">
+            <div class="kpi-compact-label">
+              <span>Quick Sales Today</span>
+            </div>
+            <div class="kpi-compact-num text-success tabular-nums">
+              <%= stats.dailyBusiness.posSalesCount || 0 %>
+            </div>
+            <div class="kpi-compact-sub">
+              <i class="bi bi-lightning-charge text-success"></i> Counter transactions
+            </div>
+          </div>
+          <div class="kpi-icon-chip bg-success-subtle text-success">
+            <i class="bi bi-bag-check-fill"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Quick Revenue Collected -->
+      <div class="col-6 col-lg-3">
+        <div class="kpi-card-compact h-100">
+          <div class="kpi-compact-content">
+            <div class="kpi-compact-label">
+              <span>Quick Revenue</span>
+            </div>
+            <div class="kpi-compact-num text-dark tabular-nums">
+              <%= currencySymbol %> <%= (stats.dailyBusiness.posQuickPrintRevenue !== undefined ? stats.dailyBusiness.posQuickPrintRevenue : (stats.dailyBusiness.posTotalRevenue || 0)).toFixed(2) %>
+            </div>
+            <div class="kpi-compact-sub">
+              <i class="bi bi-cash-stack text-success"></i> Cash & digital inflow
+            </div>
+          </div>
+          <div class="kpi-icon-chip bg-primary-subtle text-primary">
+            <i class="bi bi-currency-dollar"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Consumed Sheets (Office Use) -->
+      <div class="col-6 col-lg-3">
+        <div class="kpi-card-compact h-100">
+          <div class="kpi-compact-content">
+            <div class="kpi-compact-label">
+              <span>Consumed Sheets (Office Use)</span>
+            </div>
+            <div class="kpi-compact-num text-warning-emphasis tabular-nums">
+              <%= (stats.dailyBusiness.officeUseTotalQty || 0).toFixed(0) %> <small class="fs-6 font-normal">sheets</small>
+            </div>
+            <div class="kpi-compact-sub">
+              <i class="bi bi-box-arrow-up-right text-warning"></i> Auto-depleted from stock
+            </div>
+          </div>
+          <div class="kpi-icon-chip bg-warning-subtle text-warning">
+            <i class="bi bi-building-down"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Paper Inventory Items -->
+      <div class="col-6 col-lg-3">
+        <a href="/stock" class="text-decoration-none">
+          <div class="kpi-card-compact h-100">
+            <div class="kpi-compact-content">
+              <div class="kpi-compact-label">
+                <span>Active Print Substrates</span>
+              </div>
+              <div class="kpi-compact-num text-info-emphasis tabular-nums">
+                <%= (stats.quickSellItems || []).length %> <small class="fs-6 font-normal">presets</small>
+              </div>
+              <div class="kpi-compact-sub">
+                <i class="bi bi-shield-check text-success"></i> Monitored live stock
+              </div>
+            </div>
+            <div class="kpi-icon-chip bg-info-subtle text-info">
+              <i class="bi bi-layers-fill"></i>
+            </div>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <!-- Section Title: Frequently Sold Print Materials -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+      <div>
+        <h3 class="fs-5 fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+          <i class="bi bi-printer-fill text-success"></i>
+          <span>Frequently Sold Print Materials</span>
+        </h3>
+        <div class="text-muted small">
+          Click any material below to instantly record a walk-in sale. Inventory automatically deducts and logs under Office Use.
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 small">
+          <i class="bi bi-check-circle me-1"></i>Auto Stock Depletion Active
+        </span>
+      </div>
+    </div>
+
+    <!-- The 5 High-Frequency Print Material Cards Grid -->
+    <div class="row g-3 mb-4" id="quickSellGrid">
+      <% 
+        const fallbackItems = [
+          { name: 'A4 black and white', code: 'STK-A4-BW', price: 8, unit: 'Sheets', currentStock: 500, icon: 'bi-file-earmark-text', color: '#1e293b', bg: '#f1f5f9' },
+          { name: 'A3 b&w', code: 'STK-A3-BW', price: 15, unit: 'Sheets', currentStock: 300, icon: 'bi-file-earmark-ruled', color: '#334155', bg: '#f8fafc' },
+          { name: 'A4 color', code: 'STK-A4-CLR', price: 20, unit: 'Sheets', currentStock: 500, icon: 'bi-palette2', color: '#0284c7', bg: '#e0f2fe' },
+          { name: 'A3 color', code: 'STK-A3-CLR', price: 40, unit: 'Sheets', currentStock: 300, icon: 'bi-aspect-ratio', color: '#7c3aed', bg: '#f3e8ff' },
+          { name: 'A4 sticker', code: 'STK-A4-STK', price: 120, unit: 'Sheets', currentStock: 200, icon: 'bi-stickies', color: '#d97706', bg: '#fef3c7' }
+        ];
+        const quickItems = (stats.quickSellItems && stats.quickSellItems.length > 0) ? stats.quickSellItems : fallbackItems;
+      %>
+
+      <% quickItems.forEach((item, index) => { %>
+        <div class="col-12 col-md-6 col-xl-4">
+          <div class="quick-sell-item-div h-100 d-flex flex-column justify-content-between shadow-xs"
+               id="quick-item-card-<%= (item.code || item.name).toLowerCase().replace(/[^a-z0-9]/g, '-') %>">
+            
+            <!-- Top Card Header: Icon, Name, and Badges -->
+            <div>
+              <div class="d-flex align-items-start justify-content-between gap-2 mb-3">
+                <div class="d-flex align-items-center gap-3">
+                  <div class="rounded-3 p-3 d-flex align-items-center justify-content-center shadow-2xs flex-shrink-0"
+                       style="width: 52px; height: 52px; background: <%= item.bg || '#f1f5f9' %>; color: <%= item.color || '#334155' %>;">
+                    <i class="bi <%= item.icon || 'bi-file-earmark-text' %> fs-3"></i>
+                  </div>
+                  <div>
+                    <h4 class="fs-6 fw-bold text-dark mb-0 text-capitalize"><%= item.name %></h4>
+                    <div class="text-muted small font-monospace"><%= item.code || 'RAW-STOCK' %></div>
+                  </div>
+                </div>
+
+                <!-- Price Badge -->
+                <div class="text-end">
+                  <div class="fs-4 fw-bold text-success tabular-nums">
+                    <%= currencySymbol %> <%= parseFloat(item.price).toFixed(2) %>
+                  </div>
+                  <div class="text-muted small" style="font-size: 0.72rem;">per <%= item.unit || 'Sheet' %></div>
+                </div>
+              </div>
+
+              <!-- Stock & Rule Tags -->
+              <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                <span class="badge <%= item.currentStock > 30 ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle' %> tabular-nums px-2 py-1" style="font-size: 0.76rem;">
+                  <i class="bi bi-boxes me-1"></i><%= parseFloat(item.currentStock) %> <%= item.unit %> in stock
+                </span>
+                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="font-size: 0.72rem;">
+                  <i class="bi bi-box-arrow-up-right me-1"></i>Office Use: Auto -1
+                </span>
+                <% if (item.currentStock <= 30) { %>
+                  <span class="badge bg-danger text-white px-2 py-1" style="font-size: 0.72rem;">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i>Low Stock
+                  </span>
+                <% } %>
+              </div>
+            </div>
+
+            <!-- Bottom Actions -->
+            <div class="pt-3 border-top mt-auto">
+              <div class="row g-2">
+                <!-- 1-Click Sell Button -->
+                <div class="col-8">
+                  <button type="button" class="btn btn-success w-100 quick-sell-action-btn shadow-xs"
+                          onclick="triggerQuickSell(<%= item.id ? item.id : 'null' %>, '<%= escape(item.name) %>', <%= item.price %>, '<%= item.unit %>', <%= item.currentStock %>)"
+                          title="Instant 1-Click Walk-In Sale">
+                    <i class="bi bi-lightning-charge-fill me-1"></i>
+                    <span>Quick Sell</span>
+                  </button>
+                </div>
+                <!-- Manual Wastage Button -->
+                <div class="col-4">
+                  <button type="button" class="btn btn-outline-danger w-100 quick-sell-action-btn shadow-xs"
+                          onclick="window.quickStockRemove(<%= item.id ? item.id : 'null' %>, '<%= escape(item.name) %>', <%= item.currentStock %>, '<%= item.unit %>')"
+                          title="Remove spoiled / misprinted sheets manually">
+                    <i class="bi bi-trash3 me-1"></i>
+                    <span class="small">Wastage</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      <% }) %>
+    </div>
+
+    <!-- Quick Sell Helpers: Custom Inventory Depletion & Recent Sales -->
+    <div class="row g-3">
+      <!-- Left: Fast Custom Inventory Sale & Deplete -->
+      <div class="col-12 col-lg-5">
+        <div class="serene-card h-100 shadow-sm">
+          <div class="serene-card-header p-3 border-bottom d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+              <div class="p-2 rounded-2 bg-primary-subtle text-primary d-flex align-items-center justify-content-center">
+                <i class="bi bi-box-arrow-up-right fs-5"></i>
+              </div>
+              <div>
+                <h4 class="fs-6 fw-bold text-dark mb-0">Custom Stock Sale / Deplete</h4>
+                <div class="text-muted small">Sell or log wastage for any other stock item</div>
+              </div>
+            </div>
+          </div>
+          <div class="p-3">
+            <p class="text-muted small mb-3">
+              Need to sell or consume a non-preset substrate (e.g. Glossy Photopaper, Matte Cardstock, Lamination Foil)? Select it below:
+            </p>
+
+            <div class="mb-3">
+              <label class="form-label small fw-semibold text-dark">Choose Inventory Item</label>
+              <select class="form-select form-select-sm" id="customStockSelector" onchange="onCustomStockSelectChange(this)">
+                <option value="">-- Choose item from store inventory --</option>
+                <% if (stats.allStockItems && stats.allStockItems.length > 0) { %>
+                  <% stats.allStockItems.forEach(stk => { %>
+                    <option value="<%= stk.id %>" 
+                            data-name="<%= stk.name %>" 
+                            data-code="<%= stk.code %>" 
+                            data-price="<%= stk.sellingPrice || 0 %>" 
+                            data-stock="<%= stk.currentStock %>" 
+                            data-unit="<%= stk.unit %>">
+                      <%= stk.name %> (<%= stk.code %>) &bull; <%= parseFloat(stk.currentStock) %> <%= stk.unit %> left &bull; <%= currencySymbol %> <%= parseFloat(stk.sellingPrice || 0).toFixed(2) %>
+                    </option>
+                  <% }) %>
+                <% } %>
+              </select>
+            </div>
+
+            <div class="row g-2 mb-3" id="customStockDetailsBox" style="display: none;">
+              <div class="col-6">
+                <div class="p-2 rounded border bg-light small">
+                  <span class="text-muted d-block">Available Stock:</span>
+                  <strong class="text-dark fs-6" id="customStockQtyDisplay">0</strong> <span id="customStockUnitDisplay">Units</span>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="p-2 rounded border bg-light small">
+                  <span class="text-muted d-block">Selling Price:</span>
+                  <strong class="text-success fs-6"><%= currencySymbol %> <span id="customStockPriceDisplay">0.00</span></strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-success btn-sm flex-fill d-inline-flex align-items-center justify-content-center gap-1 shadow-xs" 
+                      id="customQuickSellBtn" onclick="triggerCustomStockSell()" disabled>
+                <i class="bi bi-lightning-charge-fill"></i> Quick Sell Selected
+              </button>
+              <button type="button" class="btn btn-outline-danger btn-sm flex-fill d-inline-flex align-items-center justify-content-center gap-1 shadow-xs" 
+                      id="customWastageBtn" onclick="triggerCustomStockWastage()" disabled>
+                <i class="bi bi-trash3"></i> Log Wastage
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Today's Live Counter Transactions & Depletions Ledger -->
+      <div class="col-12 col-lg-7">
+        <div class="serene-card h-100 shadow-sm">
+          <div class="serene-card-header p-3 border-bottom d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+              <div class="p-2 rounded-2 bg-success-subtle text-success d-flex align-items-center justify-content-center">
+                <i class="bi bi-receipt fs-5"></i>
+              </div>
+              <div>
+                <h4 class="fs-6 fw-bold text-dark mb-0">Today's Counter Activity</h4>
+                <div class="text-muted small">Real-time receipts and inventory deductions</div>
+              </div>
+            </div>
+            <a href="/pos" class="btn btn-sm btn-serene-ghost">
+              <span>View POS Ledger</span> &rarr;
+            </a>
+          </div>
+
+          <div class="p-0">
+            <% if (stats.recentTransactions && stats.recentTransactions.length > 0) { %>
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                  <thead class="table-light">
+                    <tr>
+                      <th class="ps-3">Time</th>
+                      <th>Type / Action</th>
+                      <th>Material / Good</th>
+                      <th class="text-center">Quantity</th>
+                      <th class="text-end pe-3">Recorded By</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% stats.recentTransactions.slice(0, 7).forEach(t => { %>
+                      <tr>
+                        <td class="ps-3 text-muted small tabular-nums">
+                          <%= formatDateTime(t.createdAt, { hour: '2-digit', minute: '2-digit' }) %>
+                        </td>
+                        <td>
+                          <% if (t.type === 'IN') { %>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0">
+                              <i class="bi bi-box-arrow-in-down me-1"></i>Stock In
+                            </span>
+                          <% } else if (t.notes && t.notes.toLowerCase().includes('office')) { %>
+                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-0">
+                              <i class="bi bi-building-down me-1"></i>Office Use
+                            </span>
+                          <% } else if (t.notes && (t.notes.toLowerCase().includes('waste') || t.notes.toLowerCase().includes('misprint') || t.notes.toLowerCase().includes('damage'))) { %>
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-0">
+                              <i class="bi bi-trash3 me-1"></i>Wastage
+                            </span>
+                          <% } else { %>
+                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-0">
+                              <i class="bi bi-box-arrow-up me-1"></i><%= t.type %>
+                            </span>
+                          <% } %>
+                        </td>
+                        <td>
+                          <div class="fw-semibold text-dark text-truncate" style="max-width: 180px;">
+                            <%= t.stockItem ? t.stockItem.name : 'Substrate Item' %>
+                          </div>
+                          <% if (t.notes) { %>
+                            <div class="text-muted small fst-italic text-truncate" style="max-width: 180px; font-size: 0.72rem;">
+                              <%= t.notes %>
+                            </div>
+                          <% } %>
+                        </td>
+                        <td class="text-center tabular-nums fw-bold">
+                          <%= t.type === 'IN' ? '+' : '-' %><%= parseFloat(t.quantity) %>
+                        </td>
+                        <td class="text-end pe-3 text-muted small">
+                          <%= t.createdBy ? (t.createdBy.fullName || t.createdBy.username) : 'Counter Staff' %>
+                        </td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            <% } else { %>
+              <div class="text-center py-5 text-muted">
+                <i class="bi bi-lightning-charge fs-2 d-block mb-2 text-muted"></i>
+                <div class="fw-semibold text-dark">No counter transactions yet today</div>
+                <div class="small">Click any material card above to start selling!</div>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+  let selectedCustomStock = null;
+
+  function onCustomStockSelectChange(sel) {
+    const val = sel.value;
+    const detailsBox = document.getElementById('customStockDetailsBox');
+    const sellBtn = document.getElementById('customQuickSellBtn');
+    const wasteBtn = document.getElementById('customWastageBtn');
+
+    if (!val) {
+      selectedCustomStock = null;
+      if (detailsBox) detailsBox.style.display = 'none';
+      if (sellBtn) sellBtn.disabled = true;
+      if (wasteBtn) wasteBtn.disabled = true;
+      return;
+    }
+
+    const opt = sel.options[sel.selectedIndex];
+    selectedCustomStock = {
+      id: parseInt(val, 10),
+      name: opt.getAttribute('data-name'),
+      code: opt.getAttribute('data-code'),
+      price: parseFloat(opt.getAttribute('data-price') || 0),
+      stock: parseFloat(opt.getAttribute('data-stock') || 0),
+      unit: opt.getAttribute('data-unit') || 'Units'
+    };
+
+    const qtyDisp = document.getElementById('customStockQtyDisplay');
+    const unitDisp = document.getElementById('customStockUnitDisplay');
+    const priceDisp = document.getElementById('customStockPriceDisplay');
+
+    if (qtyDisp) qtyDisp.textContent = selectedCustomStock.stock;
+    if (unitDisp) unitDisp.textContent = selectedCustomStock.unit;
+    if (priceDisp) priceDisp.textContent = selectedCustomStock.price.toFixed(2);
+
+    if (detailsBox) detailsBox.style.display = 'flex';
+    if (sellBtn) sellBtn.disabled = false;
+    if (wasteBtn) wasteBtn.disabled = false;
+  }
+
+  function triggerCustomStockSell() {
+    if (!selectedCustomStock) return;
+    if (typeof window.triggerQuickSell === 'function') {
+      window.triggerQuickSell(
+        selectedCustomStock.id,
+        escape(selectedCustomStock.name),
+        selectedCustomStock.price,
+        selectedCustomStock.unit,
+        selectedCustomStock.stock
+      );
+    }
+  }
+
+  function triggerCustomStockWastage() {
+    if (!selectedCustomStock) return;
+    if (typeof window.quickStockRemove === 'function') {
+      window.quickStockRemove(
+        selectedCustomStock.id,
+        escape(selectedCustomStock.name),
+        selectedCustomStock.stock,
+        selectedCustomStock.unit
+      );
+    }
+  }
+</script>
+
+<%- include('../partials/footer') %>

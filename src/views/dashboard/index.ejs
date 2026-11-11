@@ -10,7 +10,7 @@
       </div>
 
       <!-- Far Right Corner: Date & Live Status -->
-      <div class="text-muted small d-flex align-items-center gap-1 bg-white border rounded-pill px-3 py-1 shadow-xs ms-auto" style="font-size: 0.8rem;">
+      <div class="status-pill-header small d-flex align-items-center gap-1 rounded-pill px-3 py-1 shadow-xs ms-auto" style="font-size: 0.8rem;">
         <i class="bi bi-calendar3 me-1 text-muted"></i>
         <span>Today, <%= formatDateTime(new Date(), { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' }) %></span>
         <span class="mx-1 text-muted">&bull;</span>
@@ -187,243 +187,183 @@
     </div>
 
     <!-- Row 4: Two-Column Workspace Layout (Left Panel: Quick Sell Bar & Right Panel: Essential Workspaces) -->
-    <div class="row g-3 mb-4">
-      <!-- Left Panel: Quick Sell -->
-      <div class="col-12 col-lg-5 col-xl-4">
-        <div class="serene-card h-100 shadow-sm" id="quickSellPanel" style="border: 1px solid #cbd5e1;">
-          <div class="serene-card-header d-flex flex-wrap align-items-center justify-content-between p-3 gap-2" style="background: linear-gradient(180deg, #ecfdf5 0%, #f0fdf4 100%); border-bottom: 1px solid #bbf7d0;">
-            <div class="d-flex align-items-center gap-2">
-              <div class="p-2 rounded-2 bg-success text-white d-flex align-items-center justify-content-center shadow-xs">
-                <i class="bi bi-lightning-charge-fill fs-5"></i>
-              </div>
-              <div>
-                <h3 class="serene-card-title mb-0 fs-6 fw-bold text-dark">Quick Sell</h3>
-                <div class="text-muted small" style="font-size: 0.74rem;">Frequently sold print inventory</div>
-              </div>
-            </div>
-            <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2 d-inline-flex align-items-center gap-1 shadow-xs" 
-                    onclick="window.quickStockRemove()" title="Manually remove damaged / misprinted sheets from inventory" style="font-size: 0.75rem;">
-              <i class="bi bi-trash3"></i>
-              <span>Manual Wastage</span>
-            </button>
-          </div>
-
-          <div class="p-3">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-              <span class="text-muted small" style="font-size: 0.78rem;">
-                <i class="bi bi-info-circle me-1 text-success"></i> Click any material to sell instantly:
-              </span>
-              <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.68rem;">Auto-Office Use</span>
-            </div>
-
-            <!-- Divs for frequently sold materials -->
-            <div class="d-flex flex-column gap-2" id="quickSellItemsList">
-              <% 
-                const fallbackItems = [
-                  { name: 'A4 black and white', code: 'STK-A4-BW', price: 8, unit: 'Sheets', currentStock: 500, icon: 'bi-file-earmark-text', color: '#1e293b', bg: '#f1f5f9' },
-                  { name: 'A3 b&w', code: 'STK-A3-BW', price: 15, unit: 'Sheets', currentStock: 300, icon: 'bi-file-earmark-ruled', color: '#334155', bg: '#f8fafc' },
-                  { name: 'A4 color', code: 'STK-A4-CLR', price: 20, unit: 'Sheets', currentStock: 500, icon: 'bi-palette2', color: '#0284c7', bg: '#e0f2fe' },
-                  { name: 'A3 color', code: 'STK-A3-CLR', price: 40, unit: 'Sheets', currentStock: 300, icon: 'bi-aspect-ratio', color: '#7c3aed', bg: '#f3e8ff' },
-                  { name: 'A4 sticker', code: 'STK-A4-STK', price: 120, unit: 'Sheets', currentStock: 200, icon: 'bi-stickies', color: '#d97706', bg: '#fef3c7' }
-                ];
-                const quickItems = (stats.quickSellItems && stats.quickSellItems.length > 0) ? stats.quickSellItems : fallbackItems;
-              %>
-
-              <% quickItems.forEach(item => { %>
-                <div class="quick-sell-item-div p-3 rounded-3 border bg-white shadow-2xs d-flex align-items-center justify-content-between transition"
-                     id="quick-sell-<%= (item.code || item.name).toLowerCase().replace(/[^a-z0-9]/g, '-') %>"
-                     data-name="<%= item.name %>"
-                     data-price="<%= item.price %>"
-                     data-id="<%= item.id || '' %>"
-                     data-stock="<%= item.currentStock %>"
-                     data-unit="<%= item.unit %>"
-                     role="button"
-                     tabindex="0"
-                     onclick="triggerQuickSell(<%= item.id ? item.id : 'null' %>, '<%= escape(item.name) %>', <%= item.price %>, '<%= item.unit %>', <%= item.currentStock %>)"
-                     style="cursor: pointer; border-color: #e2e8f0; transition: all 0.2s ease;">
-                  <div class="d-flex align-items-center gap-2 gap-sm-3">
-                    <div class="rounded-3 p-2 d-flex align-items-center justify-content-center flex-shrink-0" 
-                         style="width: 42px; height: 42px; background: <%= item.bg || '#f1f5f9' %>; color: <%= item.color || '#334155' %>;">
-                      <i class="bi <%= item.icon || 'bi-file-earmark-text' %> fs-5"></i>
-                    </div>
-                    <div>
-                      <div class="fw-bold text-dark fs-6 text-capitalize"><%= item.name %></div>
-                      <div class="text-muted small d-flex align-items-center gap-2 mt-1">
-                        <span class="badge <%= item.currentStock > 30 ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle' %> tabular-nums" style="font-size: 0.72rem;">
-                          <i class="bi bi-boxes me-1"></i><%= item.currentStock %> <%= item.unit %> in stock
-                        </span>
-                        <span class="badge bg-light text-muted border font-monospace d-none d-sm-inline" style="font-size: 0.68rem;">
-                          Office Use
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="text-end d-flex flex-column align-items-end gap-1">
-                    <div class="fw-bold text-success fs-5 tabular-nums">
-                      <%= currencySymbol %> <%= parseFloat(item.price).toFixed(2) %>
-                    </div>
-                    <div class="d-flex align-items-center gap-1">
-                      <button type="button" class="btn btn-sm btn-light border py-0 px-2 text-dark fw-semibold" style="font-size: 0.72rem;" title="Click to Quick Sell">
-                        <i class="bi bi-lightning-charge-fill text-warning me-1"></i> Sell
-                      </button>
-                      <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" title="Remove spoiled/misprinted sheets manually" 
-                              onclick="event.stopPropagation(); window.quickStockRemove(<%= item.id ? item.id : 'null' %>, '<%= escape(item.name) %>', <%= item.currentStock %>, '<%= item.unit %>');">
-                        <i class="bi bi-trash3"></i>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              <% }) %>
-            </div>
-
-            <div class="mt-3 pt-2 border-top d-flex align-items-center justify-content-between text-muted small" style="font-size: 0.75rem;">
-              <span>⚡ Reduces stock & logs office use</span>
-              <a href="javascript:void(0)" onclick="window.quickStockRemove()" class="text-danger text-decoration-none">
-                <i class="bi bi-trash3 me-1"></i>Remove Damaged Sheets
-              </a>
-            </div>
-          </div>
+    <!-- Essential Shortcuts & Workspaces Grid (Full-Width Workspace Hub) -->
+    <div class="mb-4">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <div>
+          <h3 class="fs-5 fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+            <i class="bi bi-grid-fill text-primary"></i> Essential Shortcuts & Workspaces
+          </h3>
+          <div class="text-muted small">Instant 1-click access to counter sales, production orders, custom framing, billing, and inventory</div>
         </div>
       </div>
 
-      <!-- Right Panel: Essential Shortcuts & Workspaces -->
-      <div class="col-12 col-lg-7 col-xl-8">
-        <div class="d-flex align-items-center justify-content-between mb-2">
-          <div>
-            <h3 class="fs-5 fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-              <i class="bi bi-grid-fill text-primary"></i> Essential Shortcuts & Workspaces
-            </h3>
-            <div class="text-muted small">Instant 1-click access to production orders, custom framing, billing, counter printing, and inventory</div>
-          </div>
+      <div class="row g-2 g-md-3">
+        <!-- 1. Quick Sell Counter (Dedicated Tab / Page) -->
+        <div class="col-12 col-sm-6 col-xl-3">
+          <a href="/quick-sell" class="text-decoration-none" data-turbo="false">
+            <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
+              <div class="d-flex align-items-center gap-3">
+                <div class="p-3 rounded-3 bg-success-subtle text-success d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                  <i class="bi bi-lightning-charge-fill fs-4"></i>
+                </div>
+                <div class="flex-grow-1">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="fs-6 fw-bold text-dark mb-0">Quick Sell Counter</h5>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-1 py-0 small" style="font-size: 0.65rem;">COUNTER</span>
+                  </div>
+                  <p class="text-muted small mb-0 mt-1">1-click sales for A4/A3 prints, stickers & instant stock depletion</p>
+                </div>
+              </div>
+            </div>
+          </a>
         </div>
 
-        <div class="row g-2 g-md-3">
-          <!-- 1. Commercial Orders -->
-          <div class="col-12 col-sm-6">
-            <a href="/orders" class="text-decoration-none">
-              <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
-                <div class="d-flex align-items-center gap-3">
-                  <div class="p-3 rounded-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-                    <i class="bi bi-clipboard2-check fs-4"></i>
+        <!-- 2. Commercial Orders -->
+        <div class="col-12 col-sm-6 col-xl-3">
+          <a href="/orders" class="text-decoration-none">
+            <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
+              <div class="d-flex align-items-center gap-3">
+                <div class="p-3 rounded-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                  <i class="bi bi-clipboard2-check fs-4"></i>
+                </div>
+                <div class="flex-grow-1">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="fs-6 fw-bold text-dark mb-0">Commercial Orders</h5>
+                    <i class="bi bi-arrow-right text-muted small"></i>
                   </div>
-                  <div class="flex-grow-1">
-                    <div class="d-flex align-items-center justify-content-between">
-                      <h5 class="fs-6 fw-bold text-dark mb-0">Commercial Orders</h5>
-                      <i class="bi bi-arrow-right text-muted small"></i>
-                    </div>
-                    <p class="text-muted small mb-0 mt-1">Flyers, mugs, cards, brochures & bulk print orders</p>
-                  </div>
+                  <p class="text-muted small mb-0 mt-1">Flyers, mugs, cards, brochures & bulk print orders</p>
                 </div>
               </div>
-            </a>
-          </div>
+            </div>
+          </a>
+        </div>
 
-          <!-- 2. Photo Frames Studio -->
-          <div class="col-12 col-sm-6">
-            <a href="/orders?type=frame" class="text-decoration-none">
-              <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
-                <div class="d-flex align-items-center gap-3">
-                  <div class="p-3 rounded-3 bg-warning-subtle text-warning-emphasis d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-                    <i class="bi bi-aspect-ratio fs-4"></i>
+        <!-- 3. Photo Frames Studio -->
+        <div class="col-12 col-sm-6 col-xl-3">
+          <a href="/orders?type=frame" class="text-decoration-none">
+            <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
+              <div class="d-flex align-items-center gap-3">
+                <div class="p-3 rounded-3 bg-warning-subtle text-warning-emphasis d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                  <i class="bi bi-aspect-ratio fs-4"></i>
+                </div>
+                <div class="flex-grow-1">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="fs-6 fw-bold text-dark mb-0">Photo Frames Studio</h5>
+                    <i class="bi bi-arrow-right text-muted small"></i>
                   </div>
-                  <div class="flex-grow-1">
-                    <div class="d-flex align-items-center justify-content-between">
-                      <h5 class="fs-6 fw-bold text-dark mb-0">Photo Frames Studio</h5>
-                      <i class="bi bi-arrow-right text-muted small"></i>
-                    </div>
-                    <p class="text-muted small mb-0 mt-1">Custom wooden frames, portrait mounts & canvas framing</p>
-                  </div>
+                  <p class="text-muted small mb-0 mt-1">Custom wooden frames, portrait mounts & canvas framing</p>
                 </div>
               </div>
-            </a>
-          </div>
+            </div>
+          </a>
+        </div>
 
-          <!-- 3. Express Quick-Print -->
-          <div class="col-12 col-sm-6">
-            <a href="/quick-print" class="text-decoration-none">
-              <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
-                <div class="d-flex align-items-center gap-3">
-                  <div class="p-3 rounded-3 bg-info-subtle text-info-emphasis d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-                    <i class="bi bi-qr-code-scan fs-4"></i>
+        <!-- 4. Express Quick-Print -->
+        <div class="col-12 col-sm-6 col-xl-3">
+          <a href="/quick-print" class="text-decoration-none">
+            <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
+              <div class="d-flex align-items-center gap-3">
+                <div class="p-3 rounded-3 bg-info-subtle text-info-emphasis d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                  <i class="bi bi-qr-code-scan fs-4"></i>
+                </div>
+                <div class="flex-grow-1">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="fs-6 fw-bold text-dark mb-0">Quick Print (QR)</h5>
+                    <i class="bi bi-arrow-right text-muted small"></i>
                   </div>
-                  <div class="flex-grow-1">
-                    <div class="d-flex align-items-center justify-content-between">
-                      <h5 class="fs-6 fw-bold text-dark mb-0">Quick Print (QR)</h5>
-                      <i class="bi bi-arrow-right text-muted small"></i>
-                    </div>
-                    <p class="text-muted small mb-0 mt-1">Counter file uploads, token queue & fast walk-in printing</p>
-                  </div>
+                  <p class="text-muted small mb-0 mt-1">Counter file uploads, token queue & fast walk-in printing</p>
                 </div>
               </div>
-            </a>
-          </div>
+            </div>
+          </a>
+        </div>
 
-          <!-- 4. Point of Sale (POS) -->
-          <div class="col-12 col-sm-6">
-            <a href="/pos" class="text-decoration-none">
-              <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
-                <div class="d-flex align-items-center gap-3">
-                  <div class="p-3 rounded-3 bg-success-subtle text-success d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-                    <i class="bi bi-cart3 fs-4"></i>
+        <!-- 5. Point of Sale (POS) -->
+        <div class="col-12 col-sm-6 col-xl-3">
+          <a href="/pos" class="text-decoration-none">
+            <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
+              <div class="d-flex align-items-center gap-3">
+                <div class="p-3 rounded-3 bg-success-subtle text-success d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                  <i class="bi bi-cart3 fs-4"></i>
+                </div>
+                <div class="flex-grow-1">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="fs-6 fw-bold text-dark mb-0">POS Cash Register</h5>
+                    <i class="bi bi-arrow-right text-muted small"></i>
                   </div>
-                  <div class="flex-grow-1">
-                    <div class="d-flex align-items-center justify-content-between">
-                      <h5 class="fs-6 fw-bold text-dark mb-0">POS Cash Register</h5>
-                      <i class="bi bi-arrow-right text-muted small"></i>
-                    </div>
-                    <p class="text-muted small mb-0 mt-1">Counter retail billing, thermal receipts & daily sales audit</p>
-                  </div>
+                  <p class="text-muted small mb-0 mt-1">Counter retail billing, thermal receipts & daily sales audit</p>
                 </div>
               </div>
-            </a>
-          </div>
+            </div>
+          </a>
+        </div>
 
-          <!-- 5. Stock & Inventory -->
-          <div class="col-12 col-sm-6">
-            <a href="/stock" class="text-decoration-none">
-              <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
-                <div class="d-flex align-items-center gap-3">
-                  <div class="p-3 rounded-3 bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-                    <i class="bi bi-box-seam fs-4"></i>
+        <!-- 6. Stock & Inventory -->
+        <div class="col-12 col-sm-6 col-xl-3">
+          <a href="/stock" class="text-decoration-none">
+            <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
+              <div class="d-flex align-items-center gap-3">
+                <div class="p-3 rounded-3 bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                  <i class="bi bi-box-seam fs-4"></i>
+                </div>
+                <div class="flex-grow-1">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="fs-6 fw-bold text-dark mb-0">Stock & Materials</h5>
+                    <i class="bi bi-arrow-right text-muted small"></i>
                   </div>
-                  <div class="flex-grow-1">
-                    <div class="d-flex align-items-center justify-content-between">
-                      <h5 class="fs-6 fw-bold text-dark mb-0">Stock & Materials</h5>
-                      <i class="bi bi-arrow-right text-muted small"></i>
-                    </div>
-                    <p class="text-muted small mb-0 mt-1">Raw materials, paper substrates, stock in & damage write-offs</p>
-                  </div>
+                  <p class="text-muted small mb-0 mt-1">Raw materials, paper substrates, stock in & damage write-offs</p>
                 </div>
               </div>
-            </a>
-          </div>
+            </div>
+          </a>
+        </div>
 
-          <!-- 6. Customers Directory -->
-          <div class="col-12 col-sm-6">
-            <a href="/customers" class="text-decoration-none">
-              <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
-                <div class="d-flex align-items-center gap-3">
-                  <div class="p-3 rounded-3 bg-danger-subtle text-danger d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-                    <i class="bi bi-people fs-4"></i>
+        <!-- 7. Products & Catalog -->
+        <div class="col-12 col-sm-6 col-xl-3">
+          <a href="/products" class="text-decoration-none">
+            <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
+              <div class="d-flex align-items-center gap-3">
+                <div class="p-3 rounded-3 bg-info-subtle text-info d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                  <i class="bi bi-tags fs-4"></i>
+                </div>
+                <div class="flex-grow-1">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="fs-6 fw-bold text-dark mb-0">Products Catalog</h5>
+                    <i class="bi bi-arrow-right text-muted small"></i>
                   </div>
-                  <div class="flex-grow-1">
-                    <div class="d-flex align-items-center justify-content-between">
-                      <h5 class="fs-6 fw-bold text-dark mb-0">Customers & Accounts</h5>
-                      <i class="bi bi-arrow-right text-muted small"></i>
-                    </div>
-                    <p class="text-muted small mb-0 mt-1">Client profiles, debt/credit balance & order history</p>
-                  </div>
+                  <p class="text-muted small mb-0 mt-1">Service pricing, catalog items & customer rate cards</p>
                 </div>
               </div>
-            </a>
-          </div>
+            </div>
+          </a>
+        </div>
+
+        <!-- 8. Customers Directory -->
+        <div class="col-12 col-sm-6 col-xl-3">
+          <a href="/customers" class="text-decoration-none">
+            <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
+              <div class="d-flex align-items-center gap-3">
+                <div class="p-3 rounded-3 bg-danger-subtle text-danger d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                  <i class="bi bi-people fs-4"></i>
+                </div>
+                <div class="flex-grow-1">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="fs-6 fw-bold text-dark mb-0">Customers & Accounts</h5>
+                    <i class="bi bi-arrow-right text-muted small"></i>
+                  </div>
+                  <p class="text-muted small mb-0 mt-1">Client profiles, debt/credit balance & order history</p>
+                </div>
+              </div>
+            </div>
+          </a>
         </div>
       </div>
     </div>
 
     <!-- Row 5: End-of-Day Business & Financial Summary (Daily Money Values, Prices, & Ledgers) -->
-    <div class="serene-card mb-4" id="dailyBusinessCard" style="border: 1px solid #cbd5e1; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.06);">
-      <div class="serene-card-header d-flex flex-wrap align-items-center justify-content-between gap-3" style="background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%); border-bottom: 1px solid var(--serene-border);">
+    <div class="serene-card mb-4" id="dailyBusinessCard" style="border: 1px solid var(--serene-border); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.06);">
+      <div class="serene-card-header d-flex flex-wrap align-items-center justify-content-between gap-3 border-bottom">
         <div>
           <div class="d-flex align-items-center gap-2">
             <div class="p-2 rounded-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center">
@@ -450,7 +390,7 @@
         <!-- Date Picker & Print Slip Controls -->
         <div class="d-flex flex-wrap align-items-center gap-2">
           <div class="input-group input-group-sm" style="max-width: 200px;">
-            <span class="input-group-text bg-white"><i class="bi bi-calendar3"></i></span>
+            <span class="input-group-text"><i class="bi bi-calendar3"></i></span>
             <input type="date" class="form-control" value="<%= stats.dailyBusiness.date %>" onchange="window.location.href='/dashboard?date=' + this.value" title="Select audit date">
           </div>
           <% if (!stats.dailyBusiness.isToday) { %>
@@ -465,11 +405,11 @@
       </div>
 
       <!-- Financial Metric Cards Ribbon -->
-      <div class="p-3 border-bottom" style="background: #ffffff;">
+      <div class="daily-ribbon-container p-3 border-bottom">
         <div class="row g-2 g-md-3">
           <!-- Metric 1: Total Cash/Money Collected Today -->
           <div class="col-6 col-lg-3">
-            <div class="p-3 rounded-3 border h-100" style="background: #f0fdf4; border-color: #bbf7d0 !important;">
+            <div class="daily-metric-card-success p-3 rounded-3 h-100">
               <div class="d-flex justify-content-between align-items-start mb-1">
                 <span class="small fw-semibold text-success">Total Money Collected</span>
                 <span class="badge bg-success text-white" style="font-size: 0.68rem;">Cash Inflow</span>
@@ -488,7 +428,7 @@
 
           <!-- Metric 2: Total Business Booked -->
           <div class="col-6 col-lg-3">
-            <div class="p-3 rounded-3 border h-100" style="background: #f8fafc; border-color: #e2e8f0 !important;">
+            <div class="daily-metric-card-neutral p-3 rounded-3 h-100">
               <div class="d-flex justify-content-between align-items-start mb-1">
                 <span class="small fw-semibold text-dark">Total Business Booked</span>
                 <span class="badge bg-light text-dark border" style="font-size: 0.68rem;">Gross Value</span>
@@ -505,7 +445,7 @@
 
           <!-- Metric 3: Internal Material & Consumables Consumed (Job Stock + Office Use) -->
           <div class="col-6 col-lg-3">
-            <div class="p-3 rounded-3 border h-100" style="background: #fffbeb; border-color: #fde68a !important;">
+            <div class="daily-metric-card-warning p-3 rounded-3 h-100">
               <div class="d-flex justify-content-between align-items-start mb-1">
                 <span class="small fw-semibold text-warning-emphasis">Consumed Materials</span>
                 <span class="badge bg-warning text-dark" style="font-size: 0.68rem;">Job + Office</span>
@@ -522,7 +462,7 @@
 
           <!-- Metric 4: Net Operating Cash Balance -->
           <div class="col-6 col-lg-3">
-            <div class="p-3 rounded-3 border h-100" style="background: #faf5ff; border-color: #e9d5ff !important;">
+            <div class="daily-metric-card-purple p-3 rounded-3 h-100">
               <div class="d-flex justify-content-between align-items-start mb-1">
                 <span class="small fw-semibold" style="color: #6b21a8;">Net Operating Balance</span>
                 <span class="badge" style="background: #f3e8ff; color: #6b21a8; font-size: 0.68rem;">Cash - Materials</span>
@@ -967,7 +907,7 @@
 <div class="modal fade" id="stockAttentionModal" tabindex="-1" aria-labelledby="stockAttentionModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content shadow-lg border-0" style="border-radius: var(--serene-radius-lg);">
-      <div class="modal-header py-3 px-4 border-bottom" style="background: #fafbfc;">
+      <div class="modal-header py-3 px-4 border-bottom">
         <div class="d-flex align-items-center gap-2">
           <div class="p-2 rounded-2 <%= stats.kpis.lowStockCount > 0 ? 'bg-danger-subtle text-danger' : 'bg-success-subtle text-success' %> d-flex align-items-center justify-content-center">
             <i class="bi <%= stats.kpis.lowStockCount > 0 ? 'bi-exclamation-triangle-fill fs-5' : 'bi-shield-check fs-5' %>"></i>
@@ -1071,7 +1011,7 @@
 <div class="modal fade" id="recentMovementsModal" tabindex="-1" aria-labelledby="recentMovementsModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content shadow-lg border-0" style="border-radius: var(--serene-radius-lg);">
-      <div class="modal-header py-3 px-4 border-bottom" style="background: #fafbfc;">
+      <div class="modal-header py-3 px-4 border-bottom">
         <div class="d-flex align-items-center gap-2">
           <div class="p-2 rounded-2 bg-light text-dark d-flex align-items-center justify-content-center">
             <i class="bi bi-arrow-left-right text-serene-primary fs-5"></i>

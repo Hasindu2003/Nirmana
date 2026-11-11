@@ -4,7 +4,7 @@
 <div class="modal fade" id="stockInModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content" style="border-radius: var(--serene-radius-lg); border: 1px solid var(--serene-border);">
-      <div class="modal-header border-bottom" style="background:#fafbfc;">
+      <div class="modal-header border-bottom">
         <h5 class="modal-title fs-6 fw-semibold"><i class="bi bi-box-arrow-in-down text-success me-2"></i> Record Stock Arrival (Stock In)</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
@@ -110,7 +110,7 @@
 <div class="modal fade" id="stockOutModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content" style="border-radius: var(--serene-radius-lg); border: 1px solid var(--serene-border);">
-      <div class="modal-header border-bottom" style="background:#fafbfc;">
+      <div class="modal-header border-bottom">
         <h5 class="modal-title fs-6 fw-semibold text-dark">
           <i class="bi bi-box-arrow-up-right text-warning me-2"></i> Record Material Usage (Job & Office)
         </h5>
@@ -177,7 +177,7 @@
 <div class="modal fade" id="officeUseModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content" style="border-radius: var(--serene-radius-lg); border: 1px solid var(--serene-border);">
-      <div class="modal-header border-bottom" style="background:#fffcf5;">
+      <div class="modal-header border-bottom">
         <h5 class="modal-title fs-6 fw-semibold text-dark">
           <i class="bi bi-building-down text-warning me-2"></i> Take Material for Office Use
         </h5>
@@ -274,7 +274,7 @@
 <div class="modal fade" id="stockRemoveModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content" style="border-radius: var(--serene-radius-lg); border: 1px solid #fca5a5;">
-      <div class="modal-header border-bottom" style="background: #fef2f2;">
+      <div class="modal-header border-bottom">
         <h5 class="modal-title fs-6 fw-bold text-danger d-flex align-items-center gap-2">
           <i class="bi bi-dash-circle-fill"></i> Remove / Deduct Stock
         </h5>
@@ -344,7 +344,7 @@
 <div class="modal fade" id="quickTransactionModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content" style="border-radius: var(--serene-radius-lg); border: 1px solid var(--serene-border);">
-      <div class="modal-header border-bottom" style="background:#f0fdf4;">
+      <div class="modal-header border-bottom">
         <div class="d-flex align-items-center gap-2">
           <div class="p-2 rounded-2 bg-success text-white d-flex align-items-center justify-content-center">
             <i class="bi bi-lightning-charge-fill fs-5"></i>
@@ -388,7 +388,7 @@
           </div>
 
           <!-- Total Calculation Banner -->
-          <div class="p-3 mb-3 rounded-2" style="background:#fafbfc; border: 1px solid var(--serene-border-subtle);">
+          <div class="modal-calc-banner p-3 mb-3 rounded-2">
             <div class="d-flex align-items-center justify-content-between mb-1">
               <span class="small text-muted fw-semibold"><i class="bi bi-calculator me-1"></i> Transaction Total</span>
               <span class="badge bg-success-subtle text-success border border-success-subtle">Instant Walk-in</span>
@@ -400,7 +400,7 @@
           </div>
 
           <!-- Misprint / Damaged Wastage Manual Removal Field -->
-          <div class="p-3 mb-3 rounded-2 border" style="background: #faf5ff; border-color: #e9d5ff !important;">
+          <div class="modal-wastage-banner p-3 mb-3 rounded-2 border">
             <div class="d-flex align-items-center justify-content-between mb-1">
               <label class="form-label small fw-semibold text-dark mb-0">
                 <i class="bi bi-trash3 text-danger me-1"></i> Damaged / Misprinted Sheets (Manual Wastage)
@@ -452,7 +452,7 @@
 <div class="modal fade" id="sereneDialogModal" tabindex="-1" aria-hidden="true" style="z-index: 10600;">
   <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
     <div class="modal-content" style="border-radius: var(--serene-radius-lg); border: 1px solid var(--serene-border); box-shadow: var(--serene-shadow-popover);">
-      <div class="modal-header border-bottom py-3 px-4" style="background:#fafbfc;">
+      <div class="modal-header border-bottom py-3 px-4">
         <h5 class="modal-title fs-6 fw-semibold" id="sereneDialogTitle">Confirm Action</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>

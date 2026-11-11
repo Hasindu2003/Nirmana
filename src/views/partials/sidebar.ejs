@@ -67,19 +67,26 @@
         <span>Upload Print Files</span>
       </a>
     <% } else { %>
-      <div class="nav-section-title">Navigation</div>
-      <a href="/dashboard" class="nav-item-link <%= activePage === 'dashboard' ? 'active' : '' %>">
-        <i class="bi bi-grid-1x2"></i>
+      <!-- SECTION 1: CORE WORKSPACES -->
+      <div class="nav-section-title">Core Workspaces</div>
+      <a href="/dashboard" class="nav-item-link <%= activePage === 'dashboard' ? 'active' : '' %>" data-turbo="false">
+        <i class="bi bi-grid-1x2 text-primary"></i>
         <span>Dashboard</span>
       </a>
 
-      <a href="/dashboard#quickSellPanel" class="nav-item-link text-success fw-semibold">
-        <i class="bi bi-lightning-charge-fill text-success"></i>
-        <span>Quick Sell</span>
+      <a href="/quick-sell" class="nav-item-link <%= (typeof activePage !== 'undefined' && activePage === 'quick-sell') ? 'active' : '' %>" data-turbo="false">
+        <i class="bi bi-lightning-charge-fill text-warning"></i>
+        <span class="d-flex align-items-center justify-content-between flex-grow-1">
+          <span class="fw-semibold">Quick Sell</span>
+          <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0" style="font-size: 0.65rem; font-weight: 700;">COUNTER</span>
+        </span>
       </a>
 
+      <!-- SECTION 2: PRINT PRODUCTION -->
+      <div class="nav-section-divider"></div>
+      <div class="nav-section-title">Print Production</div>
       <a href="/orders" class="nav-item-link <%= activePage === 'orders' ? 'active' : '' %>">
-        <i class="bi bi-clipboard2-check"></i>
+        <i class="bi bi-clipboard2-check text-info"></i>
         <span>Printing Orders</span>
       </a>
 
@@ -89,36 +96,42 @@
       </a>
 
       <a href="/quick-print" class="nav-item-link <%= activePage === 'quick-print' ? 'active' : '' %>">
-        <i class="bi bi-qr-code-scan"></i>
+        <i class="bi bi-qr-code-scan text-success"></i>
         <span class="d-flex align-items-center justify-content-between flex-grow-1">
           <span>Quick Print (QR)</span>
           <span class="badge bg-danger rounded-pill px-1 py-0 small" id="sidebarQuickBadge" style="display: none; font-size: 0.65rem;">NEW</span>
         </span>
       </a>
 
+      <!-- SECTION 3: SALES & INVENTORY -->
+      <div class="nav-section-divider"></div>
+      <div class="nav-section-title">Sales & Inventory</div>
       <a href="/pos" class="nav-item-link <%= activePage === 'pos' ? 'active' : '' %>">
-        <i class="bi bi-cart3"></i>
+        <i class="bi bi-cart3 text-success"></i>
         <span>Point of Sale (POS)</span>
       </a>
 
       <a href="/stock" class="nav-item-link <%= activePage === 'stock' ? 'active' : '' %>">
-        <i class="bi bi-box-seam"></i>
+        <i class="bi bi-box-seam text-secondary"></i>
         <span>Stock Management</span>
       </a>
 
       <a href="/products" class="nav-item-link <%= activePage === 'products' ? 'active' : '' %>">
-        <i class="bi bi-tags"></i>
+        <i class="bi bi-tags text-info"></i>
         <span>Products & Catalog</span>
       </a>
 
       <a href="/customers" class="nav-item-link <%= activePage === 'customers' ? 'active' : '' %>">
-        <i class="bi bi-people"></i>
+        <i class="bi bi-people text-danger"></i>
         <span>Customers & Accounts</span>
       </a>
 
+      <!-- SECTION 4: SYSTEM SETTINGS -->
       <% if (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'OWNER')) { %>
+        <div class="nav-section-divider"></div>
+        <div class="nav-section-title">System Administration</div>
         <a href="/users" class="nav-item-link <%= activePage === 'users' ? 'active' : '' %>">
-          <i class="bi bi-shield-lock"></i>
+          <i class="bi bi-shield-lock text-primary"></i>
           <span>User Administration</span>
         </a>
       <% } %>
@@ -136,9 +149,6 @@
           <div class="text-muted" style="font-size: 0.72rem;"><%= currentUser ? (currentUser.role === 'ADMIN' || currentUser.role === 'OWNER' ? 'Owner / Admin' : (currentUser.role === 'CUSTOMER' ? 'Regular Customer' : 'Store Worker')) : 'Operations Desk' %></div>
         </div>
       </div>
-      <a href="/logout" class="btn btn-sm btn-serene-ghost text-muted p-1 ms-1" title="Sign Out" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px;">
-        <i class="bi bi-box-arrow-right fs-6"></i>
-      </a>
       <div class="d-flex align-items-center gap-1 ms-1">
         <button type="button" class="theme-toggle-btn text-muted p-1" onclick="toggleDarkMode()" title="Toggle Dark / Light Mode" aria-label="Toggle Dark / Light Mode">
           <i class="bi bi-moon-stars-fill fs-6"></i>
