@@ -8,15 +8,17 @@
       <div>
         <nav aria-label="breadcrumb">
           <ol class="breadcrumb mb-1 small text-muted">
-            <li class="breadcrumb-item"><a href="/orders" class="text-decoration-none text-muted">Orders</a></li>
-            <li class="breadcrumb-item active">New Order</li>
+            <li class="breadcrumb-item"><a href="/orders<%= (typeof initialType !== 'undefined' && initialType === 'frame') ? '?type=frame' : '' %>" class="text-decoration-none text-muted"><%= (typeof initialType !== 'undefined' && initialType === 'frame') ? 'Photo Frames Studio' : 'Orders' %></a></li>
+            <li class="breadcrumb-item active"><%= (typeof initialType !== 'undefined' && initialType === 'frame') ? 'New Frame Order' : 'New Print Order' %></li>
           </ol>
         </nav>
-        <h2 class="fs-4 fw-bold mb-0">Record New Printing Order</h2>
+        <h2 class="fs-4 fw-bold mb-0">
+          <%= (typeof initialType !== 'undefined' && initialType === 'frame') ? '🖼️ Record New Photo Frame Order' : '📋 Record New Commercial Print Order' %>
+        </h2>
       </div>
       <div>
-        <a href="/orders" class="btn btn-serene-secondary">
-          <i class="bi bi-arrow-left"></i> Back to Orders
+        <a href="/orders<%= (typeof initialType !== 'undefined' && initialType === 'frame') ? '?type=frame' : '' %>" class="btn btn-serene-secondary">
+          <i class="bi bi-arrow-left"></i> <%= (typeof initialType !== 'undefined' && initialType === 'frame') ? 'Back to Photo Frames' : 'Back to Orders' %>
         </a>
       </div>
     </div>
@@ -91,91 +93,60 @@
     </style>
 
     <form id="newOrderForm" onsubmit="handleOrderSubmit(event)">
-      <!-- 0. Primary Order Type Selector Card -->
-      <div class="serene-card mb-4" id="orderTypeSelectorCard" style="border: 2px solid #e2e8f0;">
-        <div class="serene-card-header d-flex flex-wrap align-items-center justify-content-between gap-2" style="background:#f8fafc;">
-          <div>
-            <h3 class="serene-card-title mb-0 fs-6 fw-bold text-dark">
-              <i class="bi bi-tag-fill me-1 text-primary"></i> Step 1: Choose Order Type *
-            </h3>
-            <div class="text-muted small" style="font-size: 0.75rem;">
-              Select whether this order belongs to Photo Frames Studio or General Commercial Printing
-            </div>
-          </div>
-          <span class="badge bg-light text-muted border small">Strict Workspace Isolation</span>
-        </div>
-        <div class="serene-card-body p-3">
-          <input type="hidden" name="orderType" id="orderTypeHiddenInput" value="<%= (typeof initialType !== 'undefined' && initialType === 'frame') ? 'PHOTO_FRAME' : 'GENERAL_PRINT' %>">
-          
-          <div class="row g-2">
-            <!-- Option 1: General Printing Order -->
-            <div class="col-md-6">
-              <button type="button" 
-                      class="order-type-card <%= (typeof initialType === 'undefined' || initialType !== 'frame') ? 'active' : '' %>" 
-                      id="btnOrderTypeGeneral" 
-                      onclick="selectOrderType('GENERAL_PRINT')">
-                <div class="d-flex align-items-start gap-3">
-                  <div class="order-type-icon-box" style="background:#eff6ff; color:#2563eb;">
-                    <i class="bi bi-printer-fill fs-5"></i>
-                  </div>
-                  <div class="flex-grow-1 text-start">
-                    <div class="d-flex align-items-center justify-content-between">
-                      <strong class="text-dark">📋 General Commercial Printing</strong>
-                      <span class="order-type-radio-dot"></span>
-                    </div>
-                    <div class="text-muted small mt-1" style="font-size: 0.76rem; line-height: 1.3;">
-                      Documents, Books, Mugs, Flyers, Business Cards, Banners, Posters, Stickers
-                    </div>
-                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle mt-2" style="font-size: 0.68rem;">
-                      <i class="bi bi-check2 me-1"></i> Routes to General Printing Orders
-                    </span>
-                  </div>
+      <!-- 0. Primary Order Type Banner Card -->
+      <% if (typeof initialType !== 'undefined' && initialType === 'frame') { %>
+        <!-- Dedicated Photo Frame Studio Workspace Card -->
+        <div class="serene-card mb-4 border-warning shadow-xs" id="orderTypeSelectorCard">
+          <div class="serene-card-header d-flex flex-wrap align-items-center justify-content-between gap-2" style="background:#fffbeb;">
+            <div class="d-flex align-items-center gap-2">
+              <span class="p-2 rounded-2 bg-warning text-dark d-inline-flex align-items-center justify-content-center">
+                <i class="bi bi-image fs-5"></i>
+              </span>
+              <div>
+                <h3 class="serene-card-title mb-0 fs-6 fw-bold text-dark">🖼️ Photo Frames Studio Order</h3>
+                <div class="text-muted small" style="font-size: 0.76rem;">
+                  Dedicated studio workspace for custom wooden frames, portrait glass prints, canvas framing, and custom mounts.
                 </div>
-              </button>
+              </div>
             </div>
-
-            <!-- Option 2: Photo Frame Studio Order -->
-            <div class="col-md-6">
-              <button type="button" 
-                      class="order-type-card <%= (typeof initialType !== 'undefined' && initialType === 'frame') ? 'active' : '' %>" 
-                      id="btnOrderTypeFrame" 
-                      onclick="selectOrderType('PHOTO_FRAME')">
-                <div class="d-flex align-items-start gap-3">
-                  <div class="order-type-icon-box" style="background:#fef3c7; color:#d97706;">
-                    <i class="bi bi-image-fill fs-5"></i>
-                  </div>
-                  <div class="flex-grow-1 text-start">
-                    <div class="d-flex align-items-center justify-content-between">
-                      <strong class="text-dark">🖼️ Photo Frame Studio Order</strong>
-                      <span class="order-type-radio-dot"></span>
-                    </div>
-                    <div class="text-muted small mt-1" style="font-size: 0.76rem; line-height: 1.3;">
-                      Wooden Frames, Portrait Glass, Canvas Framing, Custom Sizes (8x10, 10x12, 12x18)
-                    </div>
-                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle mt-2" style="font-size: 0.68rem;">
-                      <i class="bi bi-shield-lock me-1"></i> Strictly Isolated to Photo Frames Studio
-                    </span>
-                  </div>
-                </div>
-              </button>
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">
+                <i class="bi bi-shield-lock me-1"></i> Studio Workspace Active
+              </span>
+              <a href="/orders/new" class="btn btn-sm btn-outline-primary shadow-xs" title="Switch to General Commercial Printing">
+                <i class="bi bi-printer me-1"></i> Switch to Print Order &rarr;
+              </a>
             </div>
           </div>
-
-          <!-- Dynamic Workspace Routing Banner -->
-          <div id="photoFrameStudioHint" class="alert alert-warning border border-warning-subtle d-flex align-items-center gap-2 mt-3 mb-0 py-2 px-3 rounded-2 <%= (typeof initialType !== 'undefined' && initialType === 'frame') ? '' : 'd-none' %>" style="font-size: 0.8rem; background: #fffbeb;">
-            <i class="bi bi-image-fill text-warning fs-5 flex-shrink-0"></i>
-            <div>
-              <strong>Photo Frame Studio Workspace Active:</strong> This order will strictly appear in the <strong>Photo Frames Studio</strong> queue and will be excluded from ordinary print orders.
-            </div>
-          </div>
-          <div id="generalPrintHint" class="alert alert-primary border border-primary-subtle d-flex align-items-center gap-2 mt-3 mb-0 py-2 px-3 rounded-2 <%= (typeof initialType === 'undefined' || initialType !== 'frame') ? '' : 'd-none' %>" style="font-size: 0.8rem; background: #eff6ff;">
-            <i class="bi bi-printer-fill text-primary fs-5 flex-shrink-0"></i>
-            <div>
-              <strong>General Commercial Print Order:</strong> This order will appear in the <strong>General Printing Orders</strong> queue.
-            </div>
-          </div>
+          <input type="hidden" name="orderType" id="orderTypeHiddenInput" value="PHOTO_FRAME">
         </div>
-      </div>
+      <% } else { %>
+        <!-- Dedicated Ordinary Commercial Print Order Card -->
+        <div class="serene-card mb-4 border-primary shadow-xs" id="orderTypeSelectorCard">
+          <div class="serene-card-header d-flex flex-wrap align-items-center justify-content-between gap-2" style="background:#eff6ff;">
+            <div class="d-flex align-items-center gap-2">
+              <span class="p-2 rounded-2 bg-primary text-white d-inline-flex align-items-center justify-content-center">
+                <i class="bi bi-printer fs-5"></i>
+              </span>
+              <div>
+                <h3 class="serene-card-title mb-0 fs-6 fw-bold text-dark">📋 Commercial & General Printing Order</h3>
+                <div class="text-muted small" style="font-size: 0.76rem;">
+                  Direct print queue for documents, flyers, business cards, brochures, banners, and books. (Photo frame orders isolated to Photo Frames Studio)
+                </div>
+              </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                <i class="bi bi-shield-check me-1"></i> Print Orders Workspace
+              </span>
+              <a href="/orders/new?type=frame" class="btn btn-sm btn-outline-warning text-dark shadow-xs" title="Need photo framing? Go to Photo Frames Studio">
+                <i class="bi bi-image me-1"></i> Photo Frames Studio &rarr;
+              </a>
+            </div>
+          </div>
+          <input type="hidden" name="orderType" id="orderTypeHiddenInput" value="GENERAL_PRINT">
+        </div>
+      <% } %>
 
       <div class="row g-4">
         <!-- Left: Customer Intake & Job Specifications (7 cols) -->
@@ -310,82 +281,133 @@
             <div class="serene-card-body">
               <div class="mb-3">
                 <label class="form-label">Job Title / Item Description *</label>
-                <input type="text" name="jobTitle" id="jobTitleInput" class="form-control" placeholder="e.g. 500x Business Cards, 8x10 Photo Frame with Print" required>
+                <input type="text" name="jobTitle" id="jobTitleInput" class="form-control" placeholder="<%= (typeof initialType !== 'undefined' && initialType === 'frame') ? 'e.g. 8x10 Wooden Portrait Frame with Glossy Print' : 'e.g. 40x A4 Color Reports, 500x Business Cards' %>" required>
               </div>
 
-              <!-- Material / Photo Frame Size Selector -->
+              <!-- Material / Substrate Selector -->
               <div class="mb-3 p-3 rounded-2" style="background:#fafbfc; border: 1px solid var(--serene-border-subtle);">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                   <label class="form-label fw-semibold mb-0 small text-dark">
-                    <i class="bi bi-aspect-ratio me-1 text-primary"></i> Stock Material / Photo Frame Size
+                    <% if (typeof initialType !== 'undefined' && initialType === 'frame') { %>
+                      <i class="bi bi-aspect-ratio me-1 text-warning"></i> Photo Frame Size & Material
+                    <% } else { %>
+                      <i class="bi bi-layers-half me-1 text-primary"></i> Printing Material / Paper Substrate
+                    <% } %>
                   </label>
-                  <span class="badge bg-light text-muted border small" style="font-size: 0.7rem;">Sizes & Live Prices</span>
+                  <span class="badge bg-light text-muted border small" style="font-size: 0.7rem;">Live Stock & Prices</span>
                 </div>
 
-                <select id="stockItemSelector" class="form-select form-select-sm mb-2" onchange="onStockItemSelect(this)">
-                  <option value="">-- Choose Stock Material or Photo Frame Size --</option>
-                  
-                  <!-- Sized Items & Photo Frames -->
-                  <optgroup label="Photo Frames (Sized Dimensions)">
-                    <% stockItems.filter(i => i.category === 'Photo Frames' || i.width || i.sizeLabel).forEach(item => { %>
-                      <option value="<%= item.id %>" 
-                        data-name="<%= item.name %>"
-                        data-category="<%= item.category %>"
-                        data-width="<%= item.width || '' %>"
-                        data-length="<%= item.length || '' %>"
-                        data-unit="<%= item.dimensionUnit || 'inches' %>"
-                        data-sizelabel="<%= item.sizeLabel || '' %>"
-                        data-price="<%= item.sellingPrice || item.unitCost || 0 %>"
-                        data-stock="<%= item.currentStock %>">
-                        <%= item.name %> &bull; Size: <%= item.sizeLabel || (item.width && item.length ? `${item.width}" x ${item.length}"` : 'Standard') %> &bull; Rs. <%= parseFloat(item.sellingPrice || item.unitCost || 0).toFixed(2) %> (<%= item.currentStock %> in stock)
-                      </option>
-                    <% }) %>
-                  </optgroup>
-
-                  <!-- Other Paper Substrates & Materials -->
-                  <optgroup label="Paper / Substrates & Other Materials">
-                    <% stockItems.filter(i => i.category !== 'Photo Frames' && !i.width && !i.sizeLabel).forEach(item => { %>
-                      <option value="<%= item.id %>"
-                        data-name="<%= item.name %>"
-                        data-category="<%= item.category %>"
-                        data-price="<%= item.sellingPrice || item.unitCost || 0 %>"
-                        data-stock="<%= item.currentStock %>">
-                        <%= item.name %> &bull; Rs. <%= parseFloat(item.sellingPrice || item.unitCost || 0).toFixed(2) %> (<%= item.currentStock %> <%= item.unit %>)
-                      </option>
-                    <% }) %>
-                  </optgroup>
-                  <option value="CUSTOM_FRAME">+ Custom Frame Size (Enter Width x Length)...</option>
+                <%
+                  const isQuickSellMat = (item) => {
+                    if (!item || !item.name) return false;
+                    const n = item.name.toLowerCase().trim();
+                    const c = (item.code || '').toLowerCase().trim();
+                    return (
+                      c === 'stk-a4-bw' || c === 'stk-a3-bw' || c === 'stk-a4-clr' || c === 'stk-a3-clr' || c === 'stk-a4-stk' ||
+                      n.includes('a4 black and white') || n.includes('a4 b&w') || n.includes('a4 b/w') || n === 'a4 bw' ||
+                      n.includes('a3 b&w') || n.includes('a3 black and white') || n.includes('a3 b/w') || n === 'a3 bw' ||
+                      n.includes('a4 color') || n.includes('a4 colour') ||
+                      n.includes('a3 color') || n.includes('a3 colour') ||
+                      n.includes('a4 sticker')
+                    );
+                  };
+                %>
+                <select id="stockItemSelector" name="stockItemId" class="form-select form-select-sm mb-2" onchange="onStockItemSelect(this)">
+                  <% if (typeof initialType !== 'undefined' && initialType === 'frame') { %>
+                    <option value="">-- Choose Photo Frame Size --</option>
+                    <!-- Sized Items & Photo Frames -->
+                    <optgroup label="Photo Frames (Sized Dimensions)">
+                      <% stockItems.filter(i => i.category === 'Photo Frames' || i.width || i.sizeLabel).forEach(item => { %>
+                        <option value="<%= item.id %>" 
+                          data-name="<%= item.name %>"
+                          data-category="<%= item.category %>"
+                          data-width="<%= item.width || '' %>"
+                          data-length="<%= item.length || '' %>"
+                          data-unit="<%= item.dimensionUnit || 'inches' %>"
+                          data-sizelabel="<%= item.sizeLabel || '' %>"
+                          data-price="<%= item.sellingPrice || item.unitCost || 0 %>"
+                          data-stock="<%= item.currentStock %>">
+                          <%= item.name %> &bull; Size: <%= item.sizeLabel || (item.width && item.length ? `${item.width}" x ${item.length}"` : 'Standard') %> &bull; Rs. <%= parseFloat(item.sellingPrice || item.unitCost || 0).toFixed(2) %> (<%= item.currentStock %> in stock)
+                        </option>
+                      <% }) %>
+                    </optgroup>
+                    <option value="CUSTOM_FRAME">+ Custom Frame Size (Enter Width x Length)...</option>
+                  <% } else { %>
+                    <option value="">-- Choose Printing Paper / Material --</option>
+                    <!-- Paper Substrates & Printing Materials Only (NO Photo Frames & NO Fast Quick-Sell Papers) -->
+                    <optgroup label="Paper / Substrates & Printing Materials">
+                      <% stockItems.filter(i => i.category !== 'Photo Frames' && !i.width && !i.sizeLabel && !isQuickSellMat(i)).forEach(item => { %>
+                        <option value="<%= item.id %>"
+                          data-name="<%= item.name %>"
+                          data-category="<%= item.category %>"
+                          data-unit="<%= item.unit %>"
+                          data-price="<%= item.sellingPrice || item.unitCost || 0 %>"
+                          data-stock="<%= item.currentStock %>">
+                          <%= item.name %> &bull; Rs. <%= parseFloat(item.sellingPrice || item.unitCost || 0).toFixed(2) %> (<%= item.currentStock %> <%= item.unit %> in stock)
+                        </option>
+                      <% }) %>
+                    </optgroup>
+                  <% } %>
                 </select>
 
-                <!-- Custom Photo Frame Dimensions (conditionally shown or inline) -->
-                <div id="customFrameDimsRow" class="row g-2 mt-1 mb-2 d-none">
-                  <div class="col-4">
-                    <label class="form-label small text-muted">Width (in)</label>
-                    <input type="number" id="customFrameWidth" class="form-control form-control-sm" placeholder="e.g. 12" step="any" min="1" oninput="onCustomDimensionsChange()">
-                  </div>
-                  <div class="col-4">
-                    <label class="form-label small text-muted">Length (in)</label>
-                    <input type="number" id="customFrameLength" class="form-control form-control-sm" placeholder="e.g. 18" step="any" min="1" oninput="onCustomDimensionsChange()">
-                  </div>
-                  <div class="col-4">
-                    <label class="form-label small text-muted">Frame Price / Unit</label>
-                    <input type="number" id="customFramePrice" class="form-control form-control-sm" placeholder="Rs. 0.00" step="any" min="0" oninput="onCustomDimensionsChange()">
-                  </div>
+                <!-- Inventory Auto-Deduction Notice (Office Use) -->
+                <div id="stockReductionNotice" class="alert alert-info py-2 px-3 small mb-2 d-none d-flex align-items-center gap-2" style="font-size: 0.78rem; background: #eff6ff; border-color: #bfdbfe; color: #1e40af;">
+                  <i class="bi bi-box-arrow-down fs-6 flex-shrink-0"></i>
+                  <span id="stockReductionNoticeText">Selected sheets will automatically reduce from inventory and be recorded as <strong>Office Use</strong>.</span>
                 </div>
+
+                <% if (typeof initialType !== 'undefined' && initialType === 'frame') { %>
+                  <!-- Custom Photo Frame Dimensions (Studio only) -->
+                  <div id="customFrameDimsRow" class="row g-2 mt-1 mb-2 d-none">
+                    <div class="col-4">
+                      <label class="form-label small text-muted">Width (in)</label>
+                      <input type="number" id="customFrameWidth" class="form-control form-control-sm" placeholder="e.g. 12" step="any" min="1" oninput="onCustomDimensionsChange()">
+                    </div>
+                    <div class="col-4">
+                      <label class="form-label small text-muted">Length (in)</label>
+                      <input type="number" id="customFrameLength" class="form-control form-control-sm" placeholder="e.g. 18" step="any" min="1" oninput="onCustomDimensionsChange()">
+                    </div>
+                    <div class="col-4">
+                      <label class="form-label small text-muted">Frame Price / Unit</label>
+                      <input type="number" id="customFramePrice" class="form-control form-control-sm" placeholder="Rs. 0.00" step="any" min="0" oninput="onCustomDimensionsChange()">
+                    </div>
+                  </div>
+                <% } %>
 
                 <div class="row g-2">
                   <div class="col-md-7">
-                    <label class="form-label small text-muted">Paper Substrate / Material Name</label>
-                    <input type="text" name="paperMaterial" id="paperMaterialField" list="stockPaperList" class="form-control form-control-sm" placeholder="e.g. 8x10 Black Photo Frame with Gloss Print">
+                    <label class="form-label small text-muted"><%= (typeof initialType !== 'undefined' && initialType === 'frame') ? 'Frame Material Name' : 'Paper Substrate / Material Name' %></label>
+                    <input type="text" name="paperMaterial" id="paperMaterialField" list="stockPaperList" class="form-control form-control-sm" placeholder="<%= (typeof initialType !== 'undefined' && initialType === 'frame') ? 'e.g. 8x10 Wooden Teak Frame with Glass' : 'e.g. 230 GSM Art Board / 100 GSM Bond Paper' %>">
                     <datalist id="stockPaperList">
-                      <% stockItems.forEach(item => { %>
+                      <% stockItems.filter(i => (typeof initialType !== 'undefined' && initialType === 'frame') ? (i.category === 'Photo Frames' || i.width) : (i.category !== 'Photo Frames' && !i.width && !isQuickSellMat(i))).forEach(item => { %>
                         <option value="<%= item.name %> <%= item.sizeLabel ? `(${item.sizeLabel})` : '' %>">
                       <% }) %>
                     </datalist>
                   </div>
                   <div class="col-md-5">
-                    <label class="form-label small text-muted">Print / Frame Quantity *</label>
+                    <label class="form-label small text-muted"><%= (typeof initialType !== 'undefined' && initialType === 'frame') ? 'Frame Quantity *' : 'Print Quantity (Sheets / Units) *' %></label>
                     <input type="number" name="quantity" id="orderQuantity" class="form-control form-control-sm" value="1" min="1" oninput="onQuantityChange()" required>
+                  </div>
+                </div>
+
+                <!-- Manual Misprint / Wastage Deduction Field -->
+                <div class="mt-2 p-2 rounded border" style="background: #faf5ff; border-color: #e9d5ff !important;">
+                  <div class="d-flex align-items-center justify-content-between mb-1">
+                    <label class="form-label small fw-semibold text-dark mb-0">
+                      <i class="bi bi-trash2 text-secondary me-1"></i> Manual Test / Misprinted Sheets (Optional Wastage)
+                    </label>
+                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle small" style="font-size: 0.68rem;">Manual Material Removal</span>
+                  </div>
+                  <div class="row g-2 align-items-center">
+                    <div class="col-sm-4">
+                      <div class="input-group input-group-sm">
+                        <input type="number" name="wastageQty" id="orderWastageQty" class="form-control form-control-sm" value="0" min="0" placeholder="0">
+                        <span class="input-group-text">Sheets</span>
+                      </div>
+                    </div>
+                    <div class="col-sm-8 text-muted" style="font-size: 0.73rem; line-height: 1.3;">
+                      If sheets are not printed well or spoiled during setup, enter quantity here to manually remove them from inventory as wastage.
+                    </div>
                   </div>
                 </div>
               </div>
@@ -594,13 +616,18 @@ window.selectedStockUnitPrice = 0;
 function onStockItemSelect(selectEl) {
   const customRow = document.getElementById('customFrameDimsRow');
   const selectedOpt = selectEl.options[selectEl.selectedIndex];
+  const noticeEl = document.getElementById('stockReductionNotice');
+  const noticeText = document.getElementById('stockReductionNoticeText');
+
   if (!selectedOpt || !selectEl.value) {
     if (customRow) customRow.classList.add('d-none');
+    if (noticeEl) noticeEl.classList.add('d-none');
     return;
   }
 
   if (selectEl.value === 'CUSTOM_FRAME') {
     if (customRow) customRow.classList.remove('d-none');
+    if (noticeEl) noticeEl.classList.add('d-none');
     document.getElementById('customFrameWidth').focus();
     return;
   }
@@ -611,8 +638,16 @@ function onStockItemSelect(selectEl) {
   const price = parseFloat(selectedOpt.dataset.price) || 0;
   const width = selectedOpt.dataset.width || '';
   const length = selectedOpt.dataset.length || '';
-  const unit = selectedOpt.dataset.unit || 'inches';
+  const unit = selectedOpt.dataset.unit || 'Sheets';
+  const stock = selectedOpt.dataset.stock || '0';
   const sizeLabel = selectedOpt.dataset.sizelabel || (width && length ? `${width}" x ${length}"` : '');
+
+  // Show auto-reduction notice for office use
+  const qty = parseInt(document.getElementById('orderQuantity').value, 10) || 1;
+  if (noticeEl && noticeText) {
+    noticeEl.classList.remove('d-none');
+    noticeText.innerHTML = `<strong>Auto-Inventory Reduction:</strong> ${qty} ${unit} of <strong>${name}</strong> will automatically reduce from inventory (Current stock: ${stock} ${unit}) and be recorded as <strong>Office Use</strong>.`;
+  }
 
   const paperField = document.getElementById('paperMaterialField');
   if (paperField) {
@@ -620,8 +655,8 @@ function onStockItemSelect(selectEl) {
   }
 
   const jobInput = document.getElementById('jobTitleInput');
-  if (jobInput && (!jobInput.value || jobInput.value.includes('Photo Frame') || jobInput.value.includes('Business Cards'))) {
-    jobInput.value = name + (sizeLabel ? ` - ${sizeLabel}` : '');
+  if (jobInput && (!jobInput.value || jobInput.value.includes('Photo Frame') || jobInput.value.includes('Business Cards') || jobInput.value.includes('Color Reports'))) {
+    jobInput.value = name + (sizeLabel ? ` - ${sizeLabel}` : ` (${qty} ${unit})`);
   }
 
   const specField = document.getElementById('specificationsField');
@@ -630,7 +665,6 @@ function onStockItemSelect(selectEl) {
   }
 
   window.selectedStockUnitPrice = price;
-  const qty = parseInt(document.getElementById('orderQuantity').value, 10) || 1;
   if (price > 0) {
     const sub = price * qty;
     document.getElementById('subtotalInput').value = sub.toFixed(2);
@@ -660,10 +694,26 @@ function onCustomDimensionsChange() {
 }
 
 function onQuantityChange() {
+  const qty = parseInt(document.getElementById('orderQuantity').value, 10) || 1;
   if (window.selectedStockUnitPrice > 0) {
-    const qty = parseInt(document.getElementById('orderQuantity').value, 10) || 1;
     document.getElementById('subtotalInput').value = (window.selectedStockUnitPrice * qty).toFixed(2);
   }
+
+  // Update dynamic reduction notice text
+  const selectEl = document.getElementById('stockItemSelector');
+  if (selectEl && selectEl.selectedIndex > 0) {
+    const selectedOpt = selectEl.options[selectEl.selectedIndex];
+    const name = selectedOpt.dataset.name || '';
+    const unit = selectedOpt.dataset.unit || 'Sheets';
+    const stock = selectedOpt.dataset.stock || '0';
+    const noticeEl = document.getElementById('stockReductionNotice');
+    const noticeText = document.getElementById('stockReductionNoticeText');
+    if (noticeEl && noticeText && selectEl.value && selectEl.value !== 'CUSTOM_FRAME') {
+      noticeEl.classList.remove('d-none');
+      noticeText.innerHTML = `<strong>Auto-Inventory Reduction:</strong> ${qty} ${unit} of <strong>${name}</strong> will automatically reduce from inventory (Current stock: ${stock} ${unit}) and be recorded as <strong>Office Use</strong>.`;
+    }
+  }
+
   updateBalanceCalc();
 }
 
@@ -731,6 +781,15 @@ async function handleOrderSubmit(e) {
       toast.warning('Customer phone number must be exactly 10 digits starting with 0 (e.g. 0771234567).');
       return;
     }
+  }
+
+  const selectEl = document.getElementById('stockItemSelector');
+  if (selectEl && selectEl.value && selectEl.value !== 'CUSTOM_FRAME') {
+    payload.stockItemId = selectEl.value;
+  }
+  const wastageInput = document.getElementById('orderWastageQty');
+  if (wastageInput && parseFloat(wastageInput.value) > 0) {
+    payload.wastageQty = parseFloat(wastageInput.value);
   }
 
   try {

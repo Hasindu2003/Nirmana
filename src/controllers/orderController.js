@@ -343,6 +343,23 @@ class OrderController {
   }
 
   /**
+   * Manually record misprinted / damaged printing material for an order
+   */
+  async recordMaterialWastage(req, res, next) {
+    try {
+      const { id } = req.params;
+      const result = await orderService.recordOrderMaterialWastage(id, req.body);
+      return res.json({
+        success: true,
+        message: `Successfully removed ${result.removedQty} units of ${result.item.name} (${result.reasonLabel}) from inventory!`,
+        data: result,
+      });
+    } catch (error) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
+  /**
    * Delete order permanently (Staff/Admin)
    */
   async deleteOrder(req, res, next) {

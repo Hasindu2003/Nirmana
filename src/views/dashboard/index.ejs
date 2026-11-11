@@ -186,7 +186,242 @@
       </div>
     </div>
 
-    <!-- Row 4: End-of-Day Business & Financial Summary (Daily Money Values, Prices, & Ledgers) -->
+    <!-- Row 4: Two-Column Workspace Layout (Left Panel: Quick Sell Bar & Right Panel: Essential Workspaces) -->
+    <div class="row g-3 mb-4">
+      <!-- Left Panel: Quick Sell -->
+      <div class="col-12 col-lg-5 col-xl-4">
+        <div class="serene-card h-100 shadow-sm" id="quickSellPanel" style="border: 1px solid #cbd5e1;">
+          <div class="serene-card-header d-flex flex-wrap align-items-center justify-content-between p-3 gap-2" style="background: linear-gradient(180deg, #ecfdf5 0%, #f0fdf4 100%); border-bottom: 1px solid #bbf7d0;">
+            <div class="d-flex align-items-center gap-2">
+              <div class="p-2 rounded-2 bg-success text-white d-flex align-items-center justify-content-center shadow-xs">
+                <i class="bi bi-lightning-charge-fill fs-5"></i>
+              </div>
+              <div>
+                <h3 class="serene-card-title mb-0 fs-6 fw-bold text-dark">Quick Sell</h3>
+                <div class="text-muted small" style="font-size: 0.74rem;">Frequently sold print inventory</div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2 d-inline-flex align-items-center gap-1 shadow-xs" 
+                    onclick="window.quickStockRemove()" title="Manually remove damaged / misprinted sheets from inventory" style="font-size: 0.75rem;">
+              <i class="bi bi-trash3"></i>
+              <span>Manual Wastage</span>
+            </button>
+          </div>
+
+          <div class="p-3">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <span class="text-muted small" style="font-size: 0.78rem;">
+                <i class="bi bi-info-circle me-1 text-success"></i> Click any material to sell instantly:
+              </span>
+              <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.68rem;">Auto-Office Use</span>
+            </div>
+
+            <!-- Divs for frequently sold materials -->
+            <div class="d-flex flex-column gap-2" id="quickSellItemsList">
+              <% 
+                const fallbackItems = [
+                  { name: 'A4 black and white', code: 'STK-A4-BW', price: 8, unit: 'Sheets', currentStock: 500, icon: 'bi-file-earmark-text', color: '#1e293b', bg: '#f1f5f9' },
+                  { name: 'A3 b&w', code: 'STK-A3-BW', price: 15, unit: 'Sheets', currentStock: 300, icon: 'bi-file-earmark-ruled', color: '#334155', bg: '#f8fafc' },
+                  { name: 'A4 color', code: 'STK-A4-CLR', price: 20, unit: 'Sheets', currentStock: 500, icon: 'bi-palette2', color: '#0284c7', bg: '#e0f2fe' },
+                  { name: 'A3 color', code: 'STK-A3-CLR', price: 40, unit: 'Sheets', currentStock: 300, icon: 'bi-aspect-ratio', color: '#7c3aed', bg: '#f3e8ff' },
+                  { name: 'A4 sticker', code: 'STK-A4-STK', price: 120, unit: 'Sheets', currentStock: 200, icon: 'bi-stickies', color: '#d97706', bg: '#fef3c7' }
+                ];
+                const quickItems = (stats.quickSellItems && stats.quickSellItems.length > 0) ? stats.quickSellItems : fallbackItems;
+              %>
+
+              <% quickItems.forEach(item => { %>
+                <div class="quick-sell-item-div p-3 rounded-3 border bg-white shadow-2xs d-flex align-items-center justify-content-between transition"
+                     id="quick-sell-<%= (item.code || item.name).toLowerCase().replace(/[^a-z0-9]/g, '-') %>"
+                     data-name="<%= item.name %>"
+                     data-price="<%= item.price %>"
+                     data-id="<%= item.id || '' %>"
+                     data-stock="<%= item.currentStock %>"
+                     data-unit="<%= item.unit %>"
+                     role="button"
+                     tabindex="0"
+                     onclick="triggerQuickSell(<%= item.id ? item.id : 'null' %>, '<%= escape(item.name) %>', <%= item.price %>, '<%= item.unit %>', <%= item.currentStock %>)"
+                     style="cursor: pointer; border-color: #e2e8f0; transition: all 0.2s ease;">
+                  <div class="d-flex align-items-center gap-2 gap-sm-3">
+                    <div class="rounded-3 p-2 d-flex align-items-center justify-content-center flex-shrink-0" 
+                         style="width: 42px; height: 42px; background: <%= item.bg || '#f1f5f9' %>; color: <%= item.color || '#334155' %>;">
+                      <i class="bi <%= item.icon || 'bi-file-earmark-text' %> fs-5"></i>
+                    </div>
+                    <div>
+                      <div class="fw-bold text-dark fs-6 text-capitalize"><%= item.name %></div>
+                      <div class="text-muted small d-flex align-items-center gap-2 mt-1">
+                        <span class="badge <%= item.currentStock > 30 ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle' %> tabular-nums" style="font-size: 0.72rem;">
+                          <i class="bi bi-boxes me-1"></i><%= item.currentStock %> <%= item.unit %> in stock
+                        </span>
+                        <span class="badge bg-light text-muted border font-monospace d-none d-sm-inline" style="font-size: 0.68rem;">
+                          Office Use
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="text-end d-flex flex-column align-items-end gap-1">
+                    <div class="fw-bold text-success fs-5 tabular-nums">
+                      <%= currencySymbol %> <%= parseFloat(item.price).toFixed(2) %>
+                    </div>
+                    <div class="d-flex align-items-center gap-1">
+                      <button type="button" class="btn btn-sm btn-light border py-0 px-2 text-dark fw-semibold" style="font-size: 0.72rem;" title="Click to Quick Sell">
+                        <i class="bi bi-lightning-charge-fill text-warning me-1"></i> Sell
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" title="Remove spoiled/misprinted sheets manually" 
+                              onclick="event.stopPropagation(); window.quickStockRemove(<%= item.id ? item.id : 'null' %>, '<%= escape(item.name) %>', <%= item.currentStock %>, '<%= item.unit %>');">
+                        <i class="bi bi-trash3"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              <% }) %>
+            </div>
+
+            <div class="mt-3 pt-2 border-top d-flex align-items-center justify-content-between text-muted small" style="font-size: 0.75rem;">
+              <span>⚡ Reduces stock & logs office use</span>
+              <a href="javascript:void(0)" onclick="window.quickStockRemove()" class="text-danger text-decoration-none">
+                <i class="bi bi-trash3 me-1"></i>Remove Damaged Sheets
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Panel: Essential Shortcuts & Workspaces -->
+      <div class="col-12 col-lg-7 col-xl-8">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div>
+            <h3 class="fs-5 fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+              <i class="bi bi-grid-fill text-primary"></i> Essential Shortcuts & Workspaces
+            </h3>
+            <div class="text-muted small">Instant 1-click access to production orders, custom framing, billing, counter printing, and inventory</div>
+          </div>
+        </div>
+
+        <div class="row g-2 g-md-3">
+          <!-- 1. Commercial Orders -->
+          <div class="col-12 col-sm-6">
+            <a href="/orders" class="text-decoration-none">
+              <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
+                <div class="d-flex align-items-center gap-3">
+                  <div class="p-3 rounded-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                    <i class="bi bi-clipboard2-check fs-4"></i>
+                  </div>
+                  <div class="flex-grow-1">
+                    <div class="d-flex align-items-center justify-content-between">
+                      <h5 class="fs-6 fw-bold text-dark mb-0">Commercial Orders</h5>
+                      <i class="bi bi-arrow-right text-muted small"></i>
+                    </div>
+                    <p class="text-muted small mb-0 mt-1">Flyers, mugs, cards, brochures & bulk print orders</p>
+                  </div>
+                </div>
+              </div>
+            </a>
+          </div>
+
+          <!-- 2. Photo Frames Studio -->
+          <div class="col-12 col-sm-6">
+            <a href="/orders?type=frame" class="text-decoration-none">
+              <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
+                <div class="d-flex align-items-center gap-3">
+                  <div class="p-3 rounded-3 bg-warning-subtle text-warning-emphasis d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                    <i class="bi bi-aspect-ratio fs-4"></i>
+                  </div>
+                  <div class="flex-grow-1">
+                    <div class="d-flex align-items-center justify-content-between">
+                      <h5 class="fs-6 fw-bold text-dark mb-0">Photo Frames Studio</h5>
+                      <i class="bi bi-arrow-right text-muted small"></i>
+                    </div>
+                    <p class="text-muted small mb-0 mt-1">Custom wooden frames, portrait mounts & canvas framing</p>
+                  </div>
+                </div>
+              </div>
+            </a>
+          </div>
+
+          <!-- 3. Express Quick-Print -->
+          <div class="col-12 col-sm-6">
+            <a href="/quick-print" class="text-decoration-none">
+              <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
+                <div class="d-flex align-items-center gap-3">
+                  <div class="p-3 rounded-3 bg-info-subtle text-info-emphasis d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                    <i class="bi bi-qr-code-scan fs-4"></i>
+                  </div>
+                  <div class="flex-grow-1">
+                    <div class="d-flex align-items-center justify-content-between">
+                      <h5 class="fs-6 fw-bold text-dark mb-0">Quick Print (QR)</h5>
+                      <i class="bi bi-arrow-right text-muted small"></i>
+                    </div>
+                    <p class="text-muted small mb-0 mt-1">Counter file uploads, token queue & fast walk-in printing</p>
+                  </div>
+                </div>
+              </div>
+            </a>
+          </div>
+
+          <!-- 4. Point of Sale (POS) -->
+          <div class="col-12 col-sm-6">
+            <a href="/pos" class="text-decoration-none">
+              <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
+                <div class="d-flex align-items-center gap-3">
+                  <div class="p-3 rounded-3 bg-success-subtle text-success d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                    <i class="bi bi-cart3 fs-4"></i>
+                  </div>
+                  <div class="flex-grow-1">
+                    <div class="d-flex align-items-center justify-content-between">
+                      <h5 class="fs-6 fw-bold text-dark mb-0">POS Cash Register</h5>
+                      <i class="bi bi-arrow-right text-muted small"></i>
+                    </div>
+                    <p class="text-muted small mb-0 mt-1">Counter retail billing, thermal receipts & daily sales audit</p>
+                  </div>
+                </div>
+              </div>
+            </a>
+          </div>
+
+          <!-- 5. Stock & Inventory -->
+          <div class="col-12 col-sm-6">
+            <a href="/stock" class="text-decoration-none">
+              <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
+                <div class="d-flex align-items-center gap-3">
+                  <div class="p-3 rounded-3 bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                    <i class="bi bi-box-seam fs-4"></i>
+                  </div>
+                  <div class="flex-grow-1">
+                    <div class="d-flex align-items-center justify-content-between">
+                      <h5 class="fs-6 fw-bold text-dark mb-0">Stock & Materials</h5>
+                      <i class="bi bi-arrow-right text-muted small"></i>
+                    </div>
+                    <p class="text-muted small mb-0 mt-1">Raw materials, paper substrates, stock in & damage write-offs</p>
+                  </div>
+                </div>
+              </div>
+            </a>
+          </div>
+
+          <!-- 6. Customers Directory -->
+          <div class="col-12 col-sm-6">
+            <a href="/customers" class="text-decoration-none">
+              <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
+                <div class="d-flex align-items-center gap-3">
+                  <div class="p-3 rounded-3 bg-danger-subtle text-danger d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                    <i class="bi bi-people fs-4"></i>
+                  </div>
+                  <div class="flex-grow-1">
+                    <div class="d-flex align-items-center justify-content-between">
+                      <h5 class="fs-6 fw-bold text-dark mb-0">Customers & Accounts</h5>
+                      <i class="bi bi-arrow-right text-muted small"></i>
+                    </div>
+                    <p class="text-muted small mb-0 mt-1">Client profiles, debt/credit balance & order history</p>
+                  </div>
+                </div>
+              </div>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 5: End-of-Day Business & Financial Summary (Daily Money Values, Prices, & Ledgers) -->
     <div class="serene-card mb-4" id="dailyBusinessCard" style="border: 1px solid #cbd5e1; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.06);">
       <div class="serene-card-header d-flex flex-wrap align-items-center justify-content-between gap-3" style="background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%); border-bottom: 1px solid var(--serene-border);">
         <div>
@@ -720,140 +955,6 @@
               </button>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Row 5: Quick Shortcuts & Essential Workspaces Navigation -->
-    <div class="mb-4">
-      <div class="d-flex align-items-center justify-content-between mb-3">
-        <div>
-          <h3 class="fs-5 fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-            <i class="bi bi-grid-fill text-primary"></i> Essential Shortcuts & Workspaces
-          </h3>
-          <div class="text-muted small">Instant 1-click access to production orders, custom framing, billing, counter printing, and inventory</div>
-        </div>
-      </div>
-
-      <div class="row g-3">
-        <!-- 1. Commercial Orders -->
-        <div class="col-12 col-sm-6 col-lg-4">
-          <a href="/orders" class="text-decoration-none">
-            <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
-              <div class="d-flex align-items-center gap-3">
-                <div class="p-3 rounded-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-                  <i class="bi bi-clipboard2-check fs-4"></i>
-                </div>
-                <div class="flex-grow-1">
-                  <div class="d-flex align-items-center justify-content-between">
-                    <h5 class="fs-6 fw-bold text-dark mb-0">Commercial Orders</h5>
-                    <i class="bi bi-arrow-right text-muted small"></i>
-                  </div>
-                  <p class="text-muted small mb-0 mt-1">Flyers, mugs, business cards, brochures & bulk print orders</p>
-                </div>
-              </div>
-            </div>
-          </a>
-        </div>
-
-        <!-- 2. Photo Frames Studio -->
-        <div class="col-12 col-sm-6 col-lg-4">
-          <a href="/orders?type=frame" class="text-decoration-none">
-            <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
-              <div class="d-flex align-items-center gap-3">
-                <div class="p-3 rounded-3 bg-warning-subtle text-warning-emphasis d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-                  <i class="bi bi-aspect-ratio fs-4"></i>
-                </div>
-                <div class="flex-grow-1">
-                  <div class="d-flex align-items-center justify-content-between">
-                    <h5 class="fs-6 fw-bold text-dark mb-0">Photo Frames Studio</h5>
-                    <i class="bi bi-arrow-right text-muted small"></i>
-                  </div>
-                  <p class="text-muted small mb-0 mt-1">Custom wooden frames, portrait mounts & canvas framing</p>
-                </div>
-              </div>
-            </div>
-          </a>
-        </div>
-
-        <!-- 3. Express Quick-Print -->
-        <div class="col-12 col-sm-6 col-lg-4">
-          <a href="/quick-print" class="text-decoration-none">
-            <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
-              <div class="d-flex align-items-center gap-3">
-                <div class="p-3 rounded-3 bg-info-subtle text-info-emphasis d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-                  <i class="bi bi-qr-code-scan fs-4"></i>
-                </div>
-                <div class="flex-grow-1">
-                  <div class="d-flex align-items-center justify-content-between">
-                    <h5 class="fs-6 fw-bold text-dark mb-0">Quick Print (QR)</h5>
-                    <i class="bi bi-arrow-right text-muted small"></i>
-                  </div>
-                  <p class="text-muted small mb-0 mt-1">Counter file uploads, token queue & fast walk-in printing</p>
-                </div>
-              </div>
-            </div>
-          </a>
-        </div>
-
-        <!-- 4. Point of Sale (POS) -->
-        <div class="col-12 col-sm-6 col-lg-4">
-          <a href="/pos" class="text-decoration-none">
-            <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
-              <div class="d-flex align-items-center gap-3">
-                <div class="p-3 rounded-3 bg-success-subtle text-success d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-                  <i class="bi bi-cart3 fs-4"></i>
-                </div>
-                <div class="flex-grow-1">
-                  <div class="d-flex align-items-center justify-content-between">
-                    <h5 class="fs-6 fw-bold text-dark mb-0">POS Cash Register</h5>
-                    <i class="bi bi-arrow-right text-muted small"></i>
-                  </div>
-                  <p class="text-muted small mb-0 mt-1">Counter retail billing, thermal receipts & daily sales audit</p>
-                </div>
-              </div>
-            </div>
-          </a>
-        </div>
-
-        <!-- 5. Stock & Inventory -->
-        <div class="col-12 col-sm-6 col-lg-4">
-          <a href="/stock" class="text-decoration-none">
-            <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
-              <div class="d-flex align-items-center gap-3">
-                <div class="p-3 rounded-3 bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-                  <i class="bi bi-box-seam fs-4"></i>
-                </div>
-                <div class="flex-grow-1">
-                  <div class="d-flex align-items-center justify-content-between">
-                    <h5 class="fs-6 fw-bold text-dark mb-0">Stock & Materials</h5>
-                    <i class="bi bi-arrow-right text-muted small"></i>
-                  </div>
-                  <p class="text-muted small mb-0 mt-1">Raw materials, paper substrates, stock in & damage write-offs</p>
-                </div>
-              </div>
-            </div>
-          </a>
-        </div>
-
-        <!-- 6. Customers Directory -->
-        <div class="col-12 col-sm-6 col-lg-4">
-          <a href="/customers" class="text-decoration-none">
-            <div class="card h-100 border shadow-xs hover-shadow transition p-3 rounded-3 bg-white">
-              <div class="d-flex align-items-center gap-3">
-                <div class="p-3 rounded-3 bg-danger-subtle text-danger d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-                  <i class="bi bi-people fs-4"></i>
-                </div>
-                <div class="flex-grow-1">
-                  <div class="d-flex align-items-center justify-content-between">
-                    <h5 class="fs-6 fw-bold text-dark mb-0">Customers & Accounts</h5>
-                    <i class="bi bi-arrow-right text-muted small"></i>
-                  </div>
-                  <p class="text-muted small mb-0 mt-1">Client profiles, debt/credit balance & order history</p>
-                </div>
-              </div>
-            </div>
-          </a>
         </div>
       </div>
     </div>

@@ -285,6 +285,33 @@ async function ensureDbInitialized() {
                 defaultValue: 'FIXED',
               });
             }
+            if (!ordDesc.stockItemId) {
+              await qi.addColumn('orders', 'stockItemId', {
+                type: sequelize.Sequelize.INTEGER,
+                allowNull: true,
+              });
+            }
+            if (!ordDesc.stockDeducted) {
+              await qi.addColumn('orders', 'stockDeducted', {
+                type: sequelize.Sequelize.BOOLEAN,
+                allowNull: false,
+                defaultValue: false,
+              });
+            }
+            if (!ordDesc.stockDeductedQty) {
+              await qi.addColumn('orders', 'stockDeductedQty', {
+                type: sequelize.Sequelize.DECIMAL(12, 2),
+                allowNull: false,
+                defaultValue: 0.00,
+              });
+            }
+            if (!ordDesc.wastageQty) {
+              await qi.addColumn('orders', 'wastageQty', {
+                type: sequelize.Sequelize.DECIMAL(12, 2),
+                allowNull: false,
+                defaultValue: 0.00,
+              });
+            }
           }
 
           // Ensure users table has customerId
@@ -424,6 +451,15 @@ async function ensureDbInitialized() {
           });
           console.log('✓ Initialized default admin user (admin / Password123!).');
         }
+
+        // Ensure frequently sold printing inventory items (A4/A3 B&W, Color, Sticker) exist in database
+        try {
+          const dashboardService = require('./src/services/dashboardService');
+          await dashboardService.ensureQuickSellMaterials();
+        } catch (matErr) {
+          console.warn('Non-fatal: Error ensuring quick sell materials:', matErr.message);
+        }
+
         isDbInitialized = true;
         return true;
       } catch (err) {

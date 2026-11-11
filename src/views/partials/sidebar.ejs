@@ -6,6 +6,15 @@
   <a href="<%= (currentUser && currentUser.role === 'CUSTOMER') ? '/portal' : '/dashboard' %>" class="mobile-topbar-brand">
     <img src="/images/logo.png" alt="Nirmana Printing" class="mobile-topbar-logo">
   </a>
+  <% if (currentUser && currentUser.role === 'CUSTOMER') { %>
+    <a href="/upload" class="btn btn-sm btn-serene-primary mobile-topbar-action" title="Upload Print Files">
+      <i class="bi bi-cloud-arrow-up"></i>
+    </a>
+  <% } else { %>
+    <a href="/orders/new" class="btn btn-sm btn-serene-primary mobile-topbar-action" title="Create New Order">
+      <i class="bi bi-plus-lg"></i>
+    </a>
+  <% } %>
   <div class="d-flex align-items-center gap-1">
     <button type="button" class="theme-toggle-btn text-muted" onclick="toggleDarkMode()" title="Toggle Dark / Light Mode" aria-label="Toggle Dark / Light Mode">
       <i class="bi bi-moon-stars-fill fs-5"></i>
@@ -62,6 +71,11 @@
       <a href="/dashboard" class="nav-item-link <%= activePage === 'dashboard' ? 'active' : '' %>">
         <i class="bi bi-grid-1x2"></i>
         <span>Dashboard</span>
+      </a>
+
+      <a href="/dashboard#quickSellPanel" class="nav-item-link text-success fw-semibold">
+        <i class="bi bi-lightning-charge-fill text-success"></i>
+        <span>Quick Sell</span>
       </a>
 
       <a href="/orders" class="nav-item-link <%= activePage === 'orders' ? 'active' : '' %>">
@@ -122,6 +136,9 @@
           <div class="text-muted" style="font-size: 0.72rem;"><%= currentUser ? (currentUser.role === 'ADMIN' || currentUser.role === 'OWNER' ? 'Owner / Admin' : (currentUser.role === 'CUSTOMER' ? 'Regular Customer' : 'Store Worker')) : 'Operations Desk' %></div>
         </div>
       </div>
+      <a href="/logout" class="btn btn-sm btn-serene-ghost text-muted p-1 ms-1" title="Sign Out" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px;">
+        <i class="bi bi-box-arrow-right fs-6"></i>
+      </a>
       <div class="d-flex align-items-center gap-1 ms-1">
         <button type="button" class="theme-toggle-btn text-muted p-1" onclick="toggleDarkMode()" title="Toggle Dark / Light Mode" aria-label="Toggle Dark / Light Mode">
           <i class="bi bi-moon-stars-fill fs-6"></i>

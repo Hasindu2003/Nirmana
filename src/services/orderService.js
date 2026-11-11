@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { Op } = require('sequelize');
-const { sequelize, Order, Customer, Payment, QuickPrintJob } = require('../models');
+const { sequelize, Order, Customer, Payment, QuickPrintJob, StockItem, StockTransaction } = require('../models');
 const { getSriLankaTodayString } = require('../utils/dateUtils');
 
 const { buildPagination } = require('../utils/pagination');
@@ -72,6 +72,12 @@ class OrderService {
           as: 'customer',
           attributes: ['id', 'name', 'phone', 'companyName', 'email', 'customerCode'],
         },
+        {
+          model: StockItem,
+          as: 'stockItem',
+          attributes: ['id', 'name', 'code', 'category', 'unit', 'currentStock', 'unitCost', 'sellingPrice'],
+          required: false,
+        },
       ],
       distinct: true,
     };
@@ -98,6 +104,11 @@ class OrderService {
         {
           model: Customer,
           as: 'customer',
+        },
+        {
+          model: StockItem,
+          as: 'stockItem',
+          required: false,
         },
       ],
     });
@@ -184,6 +195,92 @@ class OrderService {
         orderType = isFrame ? 'PHOTO_FRAME' : 'GENERAL_PRINT';
       }
 
+      // Resolve linked inventory stock item if supplied or matching material name
+      let stockItem = null;
+      if (data.stockItemId) {
+        stockItem = await StockItem.findByPk(data.stockItemId, { transaction: t });
+      } else if (data.paperMaterial && data.paperMaterial.trim()) {
+        const mat = data.paperMaterial.trim();
+        stockItem = await StockItem.findOne({
+          where: {
+            isActive: true,
+            [Op.or]: [
+              { name: mat },
+              sequelize.where(sequelize.fn('LOWER', sequelize.col('name')), mat.toLowerCase()),
+            ],
+          },
+          transaction: t,
+        });
+        if (!stockItem) {
+          const cleanMat = mat.replace(/[^\w\s]/g, '').trim();
+          if (cleanMat.length >= 2) {
+            stockItem = await StockItem.findOne({
+              where: {
+                isActive: true,
+                name: { [Op.like]: `%${cleanMat}%` },
+              },
+              transaction: t,
+            });
+          }
+        }
+      }
+
+      let stockDeducted = false;
+      let stockDeductedQty = 0;
+      let wastageDeductedQty = 0;
+
+      // Automatically reduce printing materials from inventory (considered as Office Use)
+      // e.g. If 40 A4 sheets are printed, 40 sheets automatically reduce from inventory and logged as OFFICE_USE
+      if (stockItem && qty > 0) {
+        const currentStock = parseFloat(stockItem.currentStock) || 0;
+        const newBalance = Math.max(0, currentStock - qty);
+        stockItem.currentStock = newBalance;
+        await stockItem.save({ transaction: t });
+
+        const unitCost = parseFloat(stockItem.unitCost) || 0.00;
+        const totalCost = parseFloat((unitCost * qty).toFixed(2));
+
+        await StockTransaction.create({
+          stockItemId: stockItem.id,
+          type: 'OUT',
+          category: 'OFFICE_USE',
+          quantity: qty,
+          balanceAfter: newBalance,
+          unitCost: unitCost,
+          totalCost: totalCost,
+          reference: `Print Order #${orderNumber}`,
+          notes: `Auto-deducted for Print Order #${orderNumber}: ${data.jobTitle || 'Print Job'} (${qty} ${stockItem.unit || 'Sheets'}) - Office Use`,
+          date: data.orderDate || getSriLankaTodayString(),
+        }, { transaction: t });
+
+        stockDeducted = true;
+        stockDeductedQty = qty;
+
+        // Also if manual wastage was entered during order intake (e.g. 10 sheets not printed well)
+        const manualWastage = parseFloat(data.wastageQty || data.wastage) || 0;
+        if (manualWastage > 0) {
+          const balAfterWastage = Math.max(0, newBalance - manualWastage);
+          stockItem.currentStock = balAfterWastage;
+          await stockItem.save({ transaction: t });
+
+          const wastageCost = parseFloat((unitCost * manualWastage).toFixed(2));
+          await StockTransaction.create({
+            stockItemId: stockItem.id,
+            type: 'OUT',
+            category: 'WASTAGE',
+            quantity: manualWastage,
+            balanceAfter: balAfterWastage,
+            unitCost: unitCost,
+            totalCost: wastageCost,
+            reference: `Print Order #${orderNumber} (Wastage)`,
+            notes: `Manual removal: ${manualWastage} ${stockItem.unit || 'Sheets'} (Not printed well / misprints during setup for #${orderNumber})`,
+            date: data.orderDate || getSriLankaTodayString(),
+          }, { transaction: t });
+
+          wastageDeductedQty = manualWastage;
+        }
+      }
+
       const order = await Order.create({
         orderNumber,
         customerId: customer ? customer.id : null,
@@ -191,7 +288,11 @@ class OrderService {
         dueDate: data.dueDate || null,
         jobTitle: data.jobTitle || 'Print Job Order',
         orderType: orderType,
-        paperMaterial: data.paperMaterial || null,
+        paperMaterial: data.paperMaterial || (stockItem ? stockItem.name : null),
+        stockItemId: stockItem ? stockItem.id : (data.stockItemId ? parseInt(data.stockItemId, 10) : null),
+        stockDeducted: stockDeducted,
+        stockDeductedQty: stockDeductedQty,
+        wastageQty: wastageDeductedQty,
         specifications: data.specifications || null,
         quantity: qty,
         subtotal: subtotal,
@@ -223,6 +324,90 @@ class OrderService {
       }
 
       return order;
+    });
+  }
+
+  /**
+   * Manually record and remove misprinted / damaged printing materials for an order.
+   * e.g. 10 sheets were not printed well and need to be deducted from inventory.
+   */
+  async recordOrderMaterialWastage(orderId, { stockItemId, quantity, reason, notes, date } = {}) {
+    return await sequelize.transaction(async (t) => {
+      const order = await Order.findByPk(orderId, {
+        include: [{ model: Customer, as: 'customer' }],
+        transaction: t,
+      });
+      if (!order) throw new Error('Order not found.');
+
+      const targetStockItemId = stockItemId || order.stockItemId;
+      if (!targetStockItemId) {
+        throw new Error('Please select a stock material to deduct.');
+      }
+
+      const item = await StockItem.findByPk(targetStockItemId, { transaction: t });
+      if (!item) throw new Error('Stock item not found.');
+
+      const qty = parseFloat(quantity);
+      if (isNaN(qty) || qty <= 0) {
+        throw new Error('Quantity must be greater than zero.');
+      }
+
+      const current = parseFloat(item.currentStock) || 0;
+      if (qty > current) {
+        throw new Error(`Cannot remove ${qty} ${item.unit}. Only ${current} ${item.unit} available in stock!`);
+      }
+
+      const newBalance = current - qty;
+      item.currentStock = newBalance;
+      await item.save({ transaction: t });
+
+      const unitCost = parseFloat(item.unitCost) || 0.00;
+      const totalLoss = parseFloat((unitCost * qty).toFixed(2));
+
+      const selectedReason = reason && ['WASTAGE', 'DAMAGED', 'OFFICE_USE', 'OTHER'].includes(reason.toUpperCase())
+        ? reason.toUpperCase()
+        : 'WASTAGE';
+
+      const reasonLabels = {
+        WASTAGE: 'Misprint / Scrap (Not printed well)',
+        DAMAGED: 'Damaged / Paper Jam',
+        OFFICE_USE: 'Office Use / Setup Calibration',
+        OTHER: 'Manual Stock Removal',
+      };
+      const reasonLabel = reasonLabels[selectedReason] || selectedReason;
+
+      const userNote = notes && notes.trim() ? notes.trim() : 'Sheets not printed well / spoiled during printing';
+      const refText = `Print Order #${order.orderNumber} (Wastage)`;
+
+      const transaction = await StockTransaction.create({
+        stockItemId: item.id,
+        type: 'OUT',
+        category: selectedReason,
+        quantity: qty,
+        balanceAfter: newBalance,
+        unitCost: unitCost,
+        totalCost: totalLoss,
+        reference: refText,
+        notes: `Manual removal: ${qty} ${item.unit} (${reasonLabel}) for Order #${order.orderNumber} - ${userNote}`,
+        date: date || getSriLankaTodayString(),
+      }, { transaction: t });
+
+      // Update order record
+      const currentWastage = parseFloat(order.wastageQty) || 0;
+      order.wastageQty = currentWastage + qty;
+      const auditNote = `[Manual Material Removal]: ${qty} ${item.unit} of "${item.name}" removed (${reasonLabel}) - ${userNote}`;
+      order.notes = order.notes ? `${order.notes}\n${auditNote}` : auditNote;
+      await order.save({ transaction: t });
+
+      return {
+        order,
+        transaction,
+        item,
+        removedQty: qty,
+        lossValue: totalLoss,
+        reason: selectedReason,
+        reasonLabel,
+      };
     });
   }
 

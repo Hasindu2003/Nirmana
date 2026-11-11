@@ -421,10 +421,26 @@ router.get('/orders', requireStaff, async (req, res, next) => {
 // 3. New Order Form (with inline customer selection / creation)
 router.get('/orders/new', requireStaff, async (req, res, next) => {
   try {
-    const [customers, stockItems] = await Promise.all([
+    const [customers, allStock] = await Promise.all([
       customerService.getAllCustomers({ paginate: false }),
       stockService.getAllStockItems({ paginate: false }),
     ]);
+
+    // Fast-selling print materials (A4/A3 B&W, Color, Sticker) are strictly handled via the Dashboard Quick Sell bar
+    const stockItems = allStock.filter(i => {
+      const n = (i.name || '').toLowerCase().trim();
+      const c = (i.code || '').toLowerCase().trim();
+      const isQuick = (
+        c === 'stk-a4-bw' || c === 'stk-a3-bw' || c === 'stk-a4-clr' || c === 'stk-a3-clr' || c === 'stk-a4-stk' ||
+        n.includes('a4 black and white') || n.includes('a4 b&w') || n.includes('a4 b/w') || n === 'a4 bw' ||
+        n.includes('a3 b&w') || n.includes('a3 black and white') || n.includes('a3 b/w') || n === 'a3 bw' ||
+        n.includes('a4 color') || n.includes('a4 colour') ||
+        n.includes('a3 color') || n.includes('a3 colour') ||
+        n.includes('a4 sticker')
+      );
+      return !isQuick;
+    });
+
     res.render('orders/create', {
       title: 'New Print Order · Nirmana Printing',
       activePage: req.query.type === 'frame' ? 'frames' : 'new-order',
@@ -440,11 +456,15 @@ router.get('/orders/new', requireStaff, async (req, res, next) => {
 // 4. Order Detail & Actions
 router.get('/orders/:id', requireStaff, async (req, res, next) => {
   try {
-    const order = await orderService.getOrderById(req.params.id);
+    const [order, stockItems] = await Promise.all([
+      orderService.getOrderById(req.params.id),
+      stockService.getAllStockItems({ paginate: false }),
+    ]);
     res.render('orders/detail', {
       title: `Order ${order.orderNumber} · Nirmana Printing`,
-      activePage: 'orders',
+      activePage: order.orderType === 'PHOTO_FRAME' ? 'frames' : 'orders',
       order,
+      stockItems: stockItems || [],
     });
   } catch (err) {
     next(err);

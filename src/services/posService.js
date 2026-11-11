@@ -149,18 +149,43 @@ class PosService {
             stockItem.currentStock = newStock;
             await stockItem.save({ transaction: t });
 
+            const isOffice = Boolean(data.isOfficeUse || stockItem.category === 'Paper / Substrate');
+            const itemCategory = isOffice ? 'OFFICE_USE' : (stockItem.category === 'Merchandise' ? 'GENERAL' : 'OFFICE_USE');
+
             await StockTransaction.create({
               stockItemId: stockItem.id,
               type: 'OUT',
+              category: itemCategory,
               quantity: pItem.quantity,
               balanceAfter: newStock,
               unitCost: parseFloat(unitCost.toFixed(2)),
               totalCost: parseFloat((unitCost * pItem.quantity).toFixed(2)),
               sellingPrice: pItem.unitPrice,
               reference: `POS #${receiptNumber}`,
-              notes: `Sold via POS counter checkout to ${customerName}`,
+              notes: isOffice ? `Quick Sell: Sold ${pItem.quantity} ${stockItem.unit || 'Sheets'} of ${stockItem.name} via Counter Checkout (Office Use)` : `Sold via POS counter checkout to ${customerName}`,
               date: getSriLankaTodayString(),
             }, { transaction: t });
+
+            // If manual wastage / misprinted sheets were also entered (e.g. 10 sheets not printed well)
+            const wastageQty = parseFloat(data.wastageQty) || 0;
+            if (wastageQty > 0) {
+              const balAfterWastage = Math.max(0, newStock - wastageQty);
+              stockItem.currentStock = balAfterWastage;
+              await stockItem.save({ transaction: t });
+
+              await StockTransaction.create({
+                stockItemId: stockItem.id,
+                type: 'OUT',
+                category: 'WASTAGE',
+                quantity: wastageQty,
+                balanceAfter: balAfterWastage,
+                unitCost: parseFloat(unitCost.toFixed(2)),
+                totalCost: parseFloat((unitCost * wastageQty).toFixed(2)),
+                reference: `POS #${receiptNumber} (Wastage)`,
+                notes: `Manual removal: ${wastageQty} ${stockItem.unit || 'Sheets'} (Not printed well / misprinted sheets for POS #${receiptNumber})`,
+                date: getSriLankaTodayString(),
+              }, { transaction: t });
+            }
           }
         }
 

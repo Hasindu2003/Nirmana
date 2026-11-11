@@ -1,8 +1,36 @@
 const { Op } = require('sequelize');
+const sequelize = require('../config/database');
 const { Order, Customer, StockItem, StockTransaction, PosSale, PosSaleItem, User, Payment } = require('../models');
 const { getSriLankaTodayString, getSriLankaDayBounds, formatSriLankaDate } = require('../utils/dateUtils');
 
 class DashboardService {
+  async ensureQuickSellMaterials() {
+    const defaultMaterials = [
+      { name: 'A4 Black and White', code: 'STK-A4-BW', sellingPrice: 8.00, unitCost: 3.00, currentStock: 500.00, minStockAlert: 50.00, category: 'Paper / Substrate', unit: 'Sheets' },
+      { name: 'A3 B&W', code: 'STK-A3-BW', sellingPrice: 15.00, unitCost: 6.00, currentStock: 300.00, minStockAlert: 30.00, category: 'Paper / Substrate', unit: 'Sheets' },
+      { name: 'A4 Color', code: 'STK-A4-CLR', sellingPrice: 20.00, unitCost: 8.00, currentStock: 500.00, minStockAlert: 50.00, category: 'Paper / Substrate', unit: 'Sheets' },
+      { name: 'A3 Color', code: 'STK-A3-CLR', sellingPrice: 40.00, unitCost: 16.00, currentStock: 300.00, minStockAlert: 30.00, category: 'Paper / Substrate', unit: 'Sheets' },
+      { name: 'A4 Sticker', code: 'STK-A4-STK', sellingPrice: 120.00, unitCost: 45.00, currentStock: 200.00, minStockAlert: 20.00, category: 'Paper / Substrate', unit: 'Sheets' },
+    ];
+
+    for (const mat of defaultMaterials) {
+      let existing = await StockItem.findOne({
+        where: {
+          [Op.or]: [
+            { code: mat.code },
+            sequelize.where(sequelize.fn('LOWER', sequelize.col('name')), mat.name.toLowerCase()),
+          ],
+        },
+      });
+      if (!existing) {
+        await StockItem.create(mat);
+      } else if (existing.sellingPrice !== mat.sellingPrice) {
+        existing.sellingPrice = mat.sellingPrice;
+        await existing.save();
+      }
+    }
+  }
+
   async getDashboardStats(selectedDate = null) {
     const today = getSriLankaTodayString();
     const targetDateStr = selectedDate || today;
@@ -364,6 +392,35 @@ class DashboardService {
       cancelled: recentOrders.filter(o => !isFrameOrder(o) && o.status === 'CANCELLED').length,
     };
 
+    const quickSellPresets = [
+      { name: 'A4 Black and White', displayName: 'A4 black and white', code: 'STK-A4-BW', price: 8.00, unitCost: 3.00, icon: 'bi-file-earmark-text', color: '#1e293b', bg: '#f1f5f9' },
+      { name: 'A3 B&W', displayName: 'A3 b&w', code: 'STK-A3-BW', price: 15.00, unitCost: 6.00, icon: 'bi-file-earmark-ruled', color: '#334155', bg: '#f8fafc' },
+      { name: 'A4 Color', displayName: 'A4 color', code: 'STK-A4-CLR', price: 20.00, unitCost: 8.00, icon: 'bi-palette2', color: '#0284c7', bg: '#e0f2fe' },
+      { name: 'A3 Color', displayName: 'A3 color', code: 'STK-A3-CLR', price: 40.00, unitCost: 16.00, icon: 'bi-aspect-ratio', color: '#7c3aed', bg: '#f3e8ff' },
+      { name: 'A4 Sticker', displayName: 'A4 sticker', code: 'STK-A4-STK', price: 120.00, unitCost: 45.00, icon: 'bi-stickies', color: '#d97706', bg: '#fef3c7' },
+    ];
+
+    const quickSellItems = quickSellPresets.map(preset => {
+      const found = allStockItems.find(it => {
+        const c = (it.code || '').toLowerCase().trim();
+        const n = (it.name || '').toLowerCase().trim();
+        return c === preset.code.toLowerCase() || n === preset.name.toLowerCase() || n.includes(preset.displayName.toLowerCase());
+      });
+      return {
+        id: found ? found.id : null,
+        name: preset.displayName,
+        fullName: found ? found.name : preset.name,
+        code: preset.code,
+        price: found && found.sellingPrice ? parseFloat(found.sellingPrice) : preset.price,
+        currentStock: found ? parseFloat(found.currentStock) : 0,
+        unit: found ? found.unit : 'Sheets',
+        unitCost: found ? parseFloat(found.unitCost) : preset.unitCost,
+        icon: preset.icon,
+        color: preset.color,
+        bg: preset.bg,
+      };
+    });
+
     return {
       kpis: {
         activeOrdersCount,
@@ -374,6 +431,7 @@ class DashboardService {
       },
       lowStockItems,
       allStockItems,
+      quickSellItems,
       recentOrders,
       recentOrdinaryOrders,
       recentFrameOrders,

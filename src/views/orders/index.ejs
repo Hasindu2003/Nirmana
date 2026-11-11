@@ -359,7 +359,11 @@
           <label class="form-label fw-semibold small text-dark mb-1">Reason for Removal / Cancellation <span class="text-danger">*</span></label>
           <select class="form-select form-select-sm" id="orderCancelReasonSelect" onchange="window.handleOrderCancelReasonChange(this.value)">
             <option value="Customer requested cancellation / changed mind" selected>Customer requested cancellation / changed mind</option>
-            <option value="Frame size / substrate material currently out of stock">Frame size / substrate material currently out of stock</option>
+            <% if (typeFilter === 'frame') { %>
+              <option value="Frame size / moulding material currently out of stock">Frame size / moulding material currently out of stock</option>
+            <% } else { %>
+              <option value="Paper substrate / printing material currently out of stock">Paper substrate / printing material currently out of stock</option>
+            <% } %>
             <option value="Customer walked out / did not confirm specifications">Customer walked out / did not confirm specifications</option>
             <option value="Wrong dimensions or artwork resolution entered">Wrong dimensions or artwork resolution entered</option>
             <option value="Duplicate order entry created by mistake">Duplicate order entry created by mistake</option>
@@ -440,7 +444,7 @@
             <i class="bi bi-eraser-fill fs-3"></i>
           </span>
         </div>
-        <h5 class="fw-bold mb-2">Purge Cancelled <span id="cleanCancelledTypeLabel">Photo Frame</span> Orders?</h5>
+        <h5 class="fw-bold mb-2">Purge Cancelled <span id="cleanCancelledTypeLabel"><%= typeFilter === 'frame' ? 'Photo Frame' : 'Commercial Print' %></span> Orders?</h5>
         <p class="text-muted small mb-0" style="line-height: 1.6;">
           This will permanently delete all orders marked as <strong>CANCELLED</strong> in this category, removing stale records and freeing database storage. <strong>This action cannot be undone.</strong>
         </p>

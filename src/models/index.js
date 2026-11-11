@@ -16,6 +16,10 @@ const Payment = require('./Payment');
 Customer.hasMany(Order, { foreignKey: 'customerId', as: 'orders' });
 Order.belongsTo(Customer, { foreignKey: 'customerId', as: 'customer' });
 
+// Order <-> StockItem (Material Deduction & Tracking)
+StockItem.hasMany(Order, { foreignKey: 'stockItemId', as: 'orders' });
+Order.belongsTo(StockItem, { foreignKey: 'stockItemId', as: 'stockItem' });
+
 // StockItem <-> StockTransactions
 StockItem.hasMany(StockTransaction, { foreignKey: 'stockItemId', as: 'transactions' });
 StockTransaction.belongsTo(StockItem, { foreignKey: 'stockItemId', as: 'stockItem' });

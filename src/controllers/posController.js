@@ -25,11 +25,12 @@ class PosController {
   async createQuickTransaction(req, res, next) {
     try {
       const cashierId = req.user ? req.user.id : null;
-      const { goodName, itemName, price, unitPrice, amount, quantity, paymentMethod, stockItemId, notes } = req.body;
+      const { goodName, itemName, price, unitPrice, amount, quantity, paymentMethod, stockItemId, notes, wastageQty, wastage } = req.body;
 
       const nameOfGood = (goodName || itemName || '').trim();
       const unitPriceVal = parseFloat(price !== undefined ? price : unitPrice);
       const amountQty = parseFloat(amount !== undefined ? amount : quantity) || 1;
+      const wastageAmount = parseFloat(wastageQty !== undefined ? wastageQty : wastage) || 0;
 
       if (!nameOfGood) {
         return res.status(400).json({ success: false, message: 'Name of the good/item is required.' });
@@ -61,12 +62,19 @@ class PosController {
         totalAmount: totalVal,
         amountTendered: totalVal,
         paymentMethod: paymentMethod || 'CASH',
-        notes: notes || 'Direct transaction without customer profile',
+        notes: notes || `Direct Quick Sell: ${nameOfGood}`,
+        wastageQty: wastageAmount,
+        isOfficeUse: true,
       }, cashierId);
+
+      let msg = `Transaction recorded: "${nameOfGood}" (${amountQty} @ Rs. ${unitPriceVal.toFixed(2)}) = Rs. ${totalVal.toFixed(2)}. Receipt #${sale.receiptNumber}. Inventory reduced automatically (Office Use).`;
+      if (wastageAmount > 0) {
+        msg += ` Plus ${wastageAmount} damaged/misprinted sheets manually removed as wastage.`;
+      }
 
       return res.status(201).json({
         success: true,
-        message: `Transaction recorded: "${nameOfGood}" (${amountQty} @ Rs. ${unitPriceVal.toFixed(2)}) = Rs. ${totalVal.toFixed(2)}. Receipt #${sale.receiptNumber}.`,
+        message: msg,
         data: sale,
       });
     } catch (error) {

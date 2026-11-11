@@ -86,6 +86,29 @@ const Order = sequelize.define('Order', {
     allowNull: false,
     defaultValue: 'GENERAL_PRINT', // 'PHOTO_FRAME' or 'GENERAL_PRINT'
   },
+  stockItemId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'stock_items',
+      key: 'id',
+    },
+  },
+  stockDeducted: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
+  stockDeductedQty: {
+    type: DataTypes.DECIMAL(12, 2),
+    allowNull: false,
+    defaultValue: 0.00,
+  },
+  wastageQty: {
+    type: DataTypes.DECIMAL(12, 2),
+    allowNull: false,
+    defaultValue: 0.00,
+  },
   notes: {
     type: DataTypes.TEXT,
     allowNull: true,

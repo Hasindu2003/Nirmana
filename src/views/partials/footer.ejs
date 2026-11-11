@@ -295,8 +295,8 @@
           <div class="mb-3">
             <label class="form-label fw-semibold small text-dark">Reason for Stock Removal *</label>
             <select name="reason" id="stockRemoveReason" class="form-select" required>
-              <option value="DAMAGED">💥 Damaged / Broken during handling</option>
-              <option value="WASTAGE">🗑️ Wastage / Print trial scrap</option>
+              <option value="WASTAGE">🗑️ Wastage / Not printed well / Misprint scrap</option>
+              <option value="DAMAGED">💥 Damaged / Paper jam / Broken handling</option>
               <option value="EXPIRED">⏳ Expired (ink / adhesives / chemicals)</option>
               <option value="SUPPLIER_RETURN">🔄 Returned to Supplier / Defective batch</option>
               <option value="CORRECTION">⚖️ Physical Count Correction / Discrepancy</option>
@@ -396,6 +396,20 @@
             <div class="d-flex justify-content-between align-items-center">
               <span class="text-muted small">Total Payable:</span>
               <span class="fs-4 fw-bold text-success tabular-nums" id="quickTxTotalDisplay"><%= currencySymbol %> 0.00</span>
+            </div>
+          </div>
+
+          <!-- Misprint / Damaged Wastage Manual Removal Field -->
+          <div class="p-3 mb-3 rounded-2 border" style="background: #faf5ff; border-color: #e9d5ff !important;">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <label class="form-label small fw-semibold text-dark mb-0">
+                <i class="bi bi-trash3 text-danger me-1"></i> Damaged / Misprinted Sheets (Manual Wastage)
+              </label>
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size: 0.68rem;">Optional Wastage</span>
+            </div>
+            <input type="number" name="wastageQty" id="quickTxWastageQty" class="form-control form-control-sm" placeholder="0" min="0" step="any" value="0">
+            <div class="form-text small text-muted mt-1" style="font-size: 0.72rem;">
+              If some sheets were not printed well (e.g. 10 sheets), enter here to automatically deduct them and record as wastage in inventory.
             </div>
           </div>
 
@@ -1269,6 +1283,43 @@ window.openQuickTransaction = function(stockItemId = null, goodName = null, pric
     const priceInput = document.getElementById('quickTxPrice');
     if (priceInput) priceInput.value = parseFloat(price).toFixed(2);
   }
+  const wastageInput = document.getElementById('quickTxWastageQty');
+  if (wastageInput) wastageInput.value = '0';
+
+  calculateQuickTxTotal();
+  modal.show();
+};
+
+// Global helper specifically for Quick Sell panel divs
+window.triggerQuickSell = function(stockItemId, itemName, price, unit, currentStock) {
+  const modalEl = document.getElementById('quickTransactionModal');
+  if (!modalEl) return;
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+  const realName = itemName ? unescape(itemName) : '';
+
+  if (stockItemId) {
+    const select = document.getElementById('quickTxStockSelect');
+    if (select) select.value = String(stockItemId);
+    const stockIdInput = document.getElementById('quickTxStockItemId');
+    if (stockIdInput) stockIdInput.value = String(stockItemId);
+  }
+  if (realName) {
+    const nameInput = document.getElementById('quickTxGoodName');
+    if (nameInput) nameInput.value = realName;
+  }
+  if (price !== null && price !== undefined) {
+    const priceInput = document.getElementById('quickTxPrice');
+    if (priceInput) priceInput.value = parseFloat(price).toFixed(2);
+  }
+  const amountInput = document.getElementById('quickTxAmount');
+  if (amountInput) {
+    amountInput.value = '1';
+    setTimeout(() => { amountInput.focus(); amountInput.select(); }, 400);
+  }
+  const wastageInput = document.getElementById('quickTxWastageQty');
+  if (wastageInput) wastageInput.value = '0';
+
   calculateQuickTxTotal();
   modal.show();
 };
