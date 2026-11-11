@@ -334,7 +334,7 @@
                     <option value="CUSTOM_FRAME">+ Custom Frame Size (Enter Width x Length)...</option>
                   <% } else { %>
                     <option value="">-- Choose Printing Paper / Material --</option>
-                    <!-- Paper Substrates & Printing Materials Only (NO Photo Frames & NO Fast Quick-Sell Papers) -->
+                    <!-- Paper Substrates & Printing Materials Only (NO Photo Frames) (NO Fast Quick-Sell Papers) -->
                     <optgroup label="Paper / Substrates & Printing Materials">
                       <% stockItems.filter(i => i.category !== 'Photo Frames' && !i.width && !i.sizeLabel && !isQuickSellMat(i)).forEach(item => { %>
                         <option value="<%= item.id %>"

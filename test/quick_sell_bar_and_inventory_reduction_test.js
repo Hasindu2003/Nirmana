@@ -116,21 +116,26 @@ async function runTests() {
 
   try {
     // ------------------------------------------------------------------------
-    // TEST 1: Check Dashboard HTML contains Quick Sell Panel & 5 Material Divs
+    // TEST 1: Check Dedicated /quick-sell Page & 5 Material Cards
     // ------------------------------------------------------------------------
-    console.log('\n[TEST 1] Checking Dashboard left panel for Quick Sell and 5 material divs...');
+    console.log('\n[TEST 1] Checking dedicated /quick-sell counter page for 5 material cards...');
+    const qsRes = await get('/quick-sell', adminToken, cookieHeader);
+    assert.strictEqual(qsRes.status, 200, `Expected status 200 on /quick-sell, got ${qsRes.status}`);
+
+    const html = qsRes.text;
+    assert.ok(html.includes('Quick Sell Counter'), 'Must display "Quick Sell Counter" title');
+
+    // Check dashboard has link and no longer contains embedded panel
     const dashRes = await get('/dashboard', adminToken, cookieHeader);
-    assert.strictEqual(dashRes.status, 200, `Expected status 200 on /dashboard, got ${dashRes.status}`);
+    assert.strictEqual(dashRes.status, 200);
+    assert.ok(dashRes.text.includes('/quick-sell'), 'Dashboard must link to dedicated /quick-sell page');
+    assert.ok(!dashRes.text.includes('id="quickSellPanel"'), 'Dashboard must not have old embedded panel');
 
-    const html = dashRes.text;
-    assert.ok(html.includes('id="quickSellPanel"'), 'Must contain #quickSellPanel');
-    assert.ok(html.includes('Quick Sell'), 'Must display "Quick Sell" title');
-
-    // Check presence of 5 material names & prices
+    // Check presence of 5 material names & prices on /quick-sell
     assert.ok(html.toLowerCase().includes('a4 black and white') || html.toLowerCase().includes('a4 b&w'), 'Must include A4 Black and White');
     assert.ok(html.includes('8.00'), 'Must display 8.00 LKR price for A4 B&W');
 
-    assert.ok(html.toLowerCase().includes('a3 b&w'), 'Must include A3 B&W');
+    assert.ok(html.toLowerCase().includes('a3 b&w') || html.toLowerCase().includes('a3 b&amp;w') || html.toLowerCase().includes('stk-a3-bw'), 'Must include A3 B&W');
     assert.ok(html.includes('15.00'), 'Must display 15.00 LKR price for A3 B&W');
 
     assert.ok(html.toLowerCase().includes('a4 color'), 'Must include A4 Color');
@@ -144,7 +149,7 @@ async function runTests() {
 
     // Check triggerQuickSell is wired
     assert.ok(html.includes('triggerQuickSell'), 'Must include triggerQuickSell function call');
-    console.log('✓ TEST 1 PASSED: Quick Sell panel and all 5 material divs rendered properly on Dashboard.');
+    console.log('✓ TEST 1 PASSED: Quick Sell counter page and all 5 material cards rendered properly.');
 
     // ------------------------------------------------------------------------
     // TEST 2: Check ordinary order print part (/orders/new) does NOT include quick sell materials

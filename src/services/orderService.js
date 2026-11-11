@@ -231,33 +231,34 @@ class OrderService {
 
       // Automatically reduce printing materials from inventory (considered as Office Use)
       // e.g. If 40 A4 sheets are printed, 40 sheets automatically reduce from inventory and logged as OFFICE_USE
-      if (stockItem && qty > 0) {
+      const deductQty = parseFloat(data.stockDeductedQty !== undefined ? data.stockDeductedQty : data.quantity) || qty;
+      if (stockItem && deductQty > 0) {
         const currentStock = parseFloat(stockItem.currentStock) || 0;
-        const newBalance = Math.max(0, currentStock - qty);
+        const newBalance = Math.max(0, currentStock - deductQty);
         stockItem.currentStock = newBalance;
         await stockItem.save({ transaction: t });
 
         const unitCost = parseFloat(stockItem.unitCost) || 0.00;
-        const totalCost = parseFloat((unitCost * qty).toFixed(2));
+        const totalCost = parseFloat((unitCost * deductQty).toFixed(2));
 
         await StockTransaction.create({
           stockItemId: stockItem.id,
           type: 'OUT',
           category: 'OFFICE_USE',
-          quantity: qty,
+          quantity: deductQty,
           balanceAfter: newBalance,
           unitCost: unitCost,
           totalCost: totalCost,
           reference: `Print Order #${orderNumber}`,
-          notes: `Auto-deducted for Print Order #${orderNumber}: ${data.jobTitle || 'Print Job'} (${qty} ${stockItem.unit || 'Sheets'}) - Office Use`,
+          notes: `Auto-deducted for Print Order #${orderNumber}: ${data.jobTitle || 'Print Job'} (${deductQty} ${stockItem.unit || 'Sheets'}) - Office Use`,
           date: data.orderDate || getSriLankaTodayString(),
         }, { transaction: t });
 
         stockDeducted = true;
-        stockDeductedQty = qty;
+        stockDeductedQty = deductQty;
 
         // Also if manual wastage was entered during order intake (e.g. 10 sheets not printed well)
-        const manualWastage = parseFloat(data.wastageQty || data.wastage) || 0;
+        const manualWastage = parseFloat(data.orderWastageQty || data.wastageQty || data.wastage) || 0;
         if (manualWastage > 0) {
           const balAfterWastage = Math.max(0, newBalance - manualWastage);
           stockItem.currentStock = balAfterWastage;
