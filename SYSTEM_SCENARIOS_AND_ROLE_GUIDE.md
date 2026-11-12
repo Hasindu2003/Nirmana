@@ -372,3 +372,4 @@ The system is tested across all functional subsystems with automatic teardown of
 * **Stock & Materials**: [https://nirmanaprinting-eta.vercel.app/stock](https://nirmanaprinting-eta.vercel.app/stock)
 * **Customer Portal**: [https://nirmanaprinting-eta.vercel.app/portal](https://nirmanaprinting-eta.vercel.app/portal)
 * **Kiosk Self-Service Upload**: [https://nirmanaprinting-eta.vercel.app/upload](https://nirmanaprinting-eta.vercel.app/upload)
+

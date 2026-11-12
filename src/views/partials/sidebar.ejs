@@ -47,22 +47,22 @@
   <div class="sidebar-nav">
     <% if (currentUser && currentUser.role === 'CUSTOMER') { %>
       <div class="nav-section-title">Customer Dashboard</div>
-      <a href="/portal" class="nav-item-link <%= activePage === 'portal' ? 'active' : '' %>">
+      <a href="/portal" class="nav-item-link <%= activePage === 'portal' ? 'active' : '' %>" data-turbo="false">
         <i class="bi bi-speedometer2"></i>
         <span>My Dashboard</span>
       </a>
 
-      <a href="/portal#ordersSection" class="nav-item-link">
+      <a href="/portal#ordersSection" class="nav-item-link" data-turbo="false">
         <i class="bi bi-receipt-cutoff"></i>
         <span>My Orders & Slips</span>
       </a>
 
-      <a href="/products" class="nav-item-link <%= activePage === 'products' ? 'active' : '' %>">
+      <a href="/products" class="nav-item-link <%= activePage === 'products' ? 'active' : '' %>" data-turbo="false">
         <i class="bi bi-tags"></i>
         <span>Products & Rates</span>
       </a>
 
-      <a href="/upload" class="nav-item-link <%= activePage === 'guest-upload' ? 'active' : '' %>">
+      <a href="/upload" class="nav-item-link <%= activePage === 'guest-upload' ? 'active' : '' %>" data-turbo="false">
         <i class="bi bi-cloud-arrow-up"></i>
         <span>Upload Print Files</span>
       </a>
@@ -85,17 +85,17 @@
       <!-- SECTION 2: PRINT PRODUCTION -->
       <div class="nav-section-divider"></div>
       <div class="nav-section-title">Print Production</div>
-      <a href="/orders" class="nav-item-link <%= activePage === 'orders' ? 'active' : '' %>">
+      <a href="/orders" class="nav-item-link <%= activePage === 'orders' ? 'active' : '' %>" data-turbo="false">
         <i class="bi bi-clipboard2-check text-info"></i>
         <span>Printing Orders</span>
       </a>
 
-      <a href="/orders?type=frame" class="nav-item-link <%= (typeof activePage !== 'undefined' && activePage === 'frames') ? 'active' : '' %>">
+      <a href="/orders?type=frame" class="nav-item-link <%= (typeof activePage !== 'undefined' && activePage === 'frames') ? 'active' : '' %>" data-turbo="false">
         <i class="bi bi-aspect-ratio text-warning"></i>
         <span>Photo Frames Studio</span>
       </a>
 
-      <a href="/quick-print" class="nav-item-link <%= activePage === 'quick-print' ? 'active' : '' %>">
+      <a href="/quick-print" class="nav-item-link <%= activePage === 'quick-print' ? 'active' : '' %>" data-turbo="false">
         <i class="bi bi-qr-code-scan text-success"></i>
         <span class="d-flex align-items-center justify-content-between flex-grow-1">
           <span>Quick Print (QR)</span>
@@ -106,22 +106,22 @@
       <!-- SECTION 3: SALES & INVENTORY -->
       <div class="nav-section-divider"></div>
       <div class="nav-section-title">Sales & Inventory</div>
-      <a href="/pos" class="nav-item-link <%= activePage === 'pos' ? 'active' : '' %>">
+      <a href="/pos" class="nav-item-link <%= activePage === 'pos' ? 'active' : '' %>" data-turbo="false">
         <i class="bi bi-cart3 text-success"></i>
         <span>Point of Sale (POS)</span>
       </a>
 
-      <a href="/stock" class="nav-item-link <%= activePage === 'stock' ? 'active' : '' %>">
+      <a href="/stock" class="nav-item-link <%= activePage === 'stock' ? 'active' : '' %>" data-turbo="false">
         <i class="bi bi-box-seam text-secondary"></i>
         <span>Stock Management</span>
       </a>
 
-      <a href="/products" class="nav-item-link <%= activePage === 'products' ? 'active' : '' %>">
+      <a href="/products" class="nav-item-link <%= activePage === 'products' ? 'active' : '' %>" data-turbo="false">
         <i class="bi bi-tags text-info"></i>
         <span>Products & Catalog</span>
       </a>
 
-      <a href="/customers" class="nav-item-link <%= activePage === 'customers' ? 'active' : '' %>">
+      <a href="/customers" class="nav-item-link <%= activePage === 'customers' ? 'active' : '' %>" data-turbo="false">
         <i class="bi bi-people text-danger"></i>
         <span>Customers & Accounts</span>
       </a>
@@ -130,7 +130,7 @@
       <% if (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'OWNER')) { %>
         <div class="nav-section-divider"></div>
         <div class="nav-section-title">System Administration</div>
-        <a href="/users" class="nav-item-link <%= activePage === 'users' ? 'active' : '' %>">
+        <a href="/users" class="nav-item-link <%= activePage === 'users' ? 'active' : '' %>" data-turbo="false">
           <i class="bi bi-shield-lock text-primary"></i>
           <span>User Administration</span>
         </a>
