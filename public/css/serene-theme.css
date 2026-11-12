@@ -550,10 +550,11 @@ h1, h2, h3, h4, h5, h6 {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
+  background-color: var(--serene-surface);
 }
 
 .serene-table th {
-  background-color: #fafbfc;
+  background-color: var(--serene-surface-muted, #fafbfc);
   color: var(--serene-text-muted);
   font-size: 0.75rem;
   font-weight: 600;
@@ -570,7 +571,7 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--serene-text-main);
   font-size: 0.88rem;
   vertical-align: middle;
-  background-color: #fff;
+  background-color: var(--serene-surface);
   transition: background-color 0.15s;
 }
 
@@ -1477,24 +1478,48 @@ textarea.form-control {
   color: var(--serene-text-main) !important;
 }
 
-/* Tables */
-[data-bs-theme="dark"] .table {
-  color: var(--serene-text-main);
-  border-color: var(--serene-border);
+/* Tables & Data Grids */
+[data-bs-theme="dark"] .table,
+[data-bs-theme="dark"] .serene-table {
+  color: var(--serene-text-main) !important;
+  border-color: var(--serene-border) !important;
+  background-color: var(--serene-surface) !important;
 }
 
-[data-bs-theme="dark"] .table thead th {
-  background-color: #162036;
-  color: var(--serene-text-muted);
-  border-color: var(--serene-border);
+[data-bs-theme="dark"] .table thead th,
+[data-bs-theme="dark"] .serene-table th,
+[data-bs-theme="dark"] .table-light,
+[data-bs-theme="dark"] .table-light th,
+[data-bs-theme="dark"] .table-light td {
+  background-color: #162036 !important;
+  color: var(--serene-text-muted) !important;
+  border-color: var(--serene-border) !important;
 }
 
-[data-bs-theme="dark"] .table tbody tr:hover td {
-  background-color: #1a253c;
+[data-bs-theme="dark"] .table td,
+[data-bs-theme="dark"] .serene-table td {
+  background-color: var(--serene-surface) !important;
+  color: var(--serene-text-main) !important;
+  border-color: var(--serene-border-subtle) !important;
 }
 
-[data-bs-theme="dark"] .table td {
-  border-color: var(--serene-border-subtle);
+[data-bs-theme="dark"] .table tbody tr:hover td,
+[data-bs-theme="dark"] .serene-table tbody tr:hover td,
+[data-bs-theme="dark"] .table-hover tbody tr:hover td {
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+}
+
+[data-bs-theme="dark"] .serene-table td a,
+[data-bs-theme="dark"] .serene-table td .text-dark,
+[data-bs-theme="dark"] .table td a,
+[data-bs-theme="dark"] .table td .text-dark {
+  color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] .serene-table td .text-muted,
+[data-bs-theme="dark"] .table td .text-muted {
+  color: #94a3b8 !important;
 }
 
 /* Form Controls & Modals */
@@ -1902,7 +1927,9 @@ textarea.form-control {
 [data-bs-theme="dark"] [style*="background: #fffbeb"],
 [data-bs-theme="dark"] [style*="background:#fffbeb"],
 [data-bs-theme="dark"] [style*="background: #faf5ff"],
-[data-bs-theme="dark"] [style*="background:#faf5ff"] {
+[data-bs-theme="dark"] [style*="background:#faf5ff"],
+[data-bs-theme="dark"] [style*="background: #fff1f2"],
+[data-bs-theme="dark"] [style*="background:#fff1f2"] {
   background-color: var(--serene-surface) !important;
   border-color: var(--serene-border) !important;
 }

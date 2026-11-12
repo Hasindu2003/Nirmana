@@ -92,7 +92,7 @@
                 <span class="status-dot" style="background:#16a34a;"></span> <%= ordersSummary.completedCount %> completed
               </div>
             </div>
-            <div class="kpi-icon-chip" style="background: #f1f5f9; color: #334155;">
+            <div class="kpi-icon-chip bg-secondary-subtle text-secondary">
               <i class="bi bi-receipt"></i>
             </div>
           </div>
@@ -112,7 +112,7 @@
                 <i class="bi bi-file-earmark-check"></i> Gross order sales
               </div>
             </div>
-            <div class="kpi-icon-chip" style="background: #e6f0ef; color: #2d6a68;">
+            <div class="kpi-icon-chip bg-primary-subtle text-primary">
               <i class="bi bi-tag-fill"></i>
             </div>
           </div>
@@ -132,7 +132,7 @@
                 <i class="bi bi-cash-stack"></i> Advances & settled payments
               </div>
             </div>
-            <div class="kpi-icon-chip" style="background: #edf7ed; color: #16a34a;">
+            <div class="kpi-icon-chip bg-success-subtle text-success">
               <i class="bi bi-wallet2"></i>
             </div>
           </div>
@@ -269,7 +269,7 @@
                       <%= currencySymbol %> <%= parseFloat(o.totalAmount).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
                     </div>
                     <% if (parseFloat(o.balanceAmount) <= 0) { %>
-                      <span class="badge mt-1" style="background:#edf7ed; color:#1e4620;">Paid in Full</span>
+                      <span class="badge bg-success-subtle text-success border border-success-subtle mt-1" style="font-size: 0.72rem; font-weight: 600;">Paid in Full</span>
                     <% } else { %>
                       <div class="text-danger small fw-semibold mt-1">
                         Due: <%= currencySymbol %> <%= parseFloat(o.balanceAmount).toLocaleString('en-LK', { minimumFractionDigits: 2 }) %>
