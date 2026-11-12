@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
   <!-- Serene Workshop Studio Design System -->
-  <link rel="stylesheet" href="/css/serene-theme.css">
+  <link rel="stylesheet" href="/css/serene-theme.css?v=<%= Date.now() %>">
 
   <!-- Favicons: Crisp Modern SVG with PNG Fallback -->
   <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
@@ -36,6 +36,96 @@
       } catch(e) {}
     })();
   </script>
+
+  <!-- Inlined Guaranteed Dark Mode Contrast Protections -->
+  <style>
+    /* Immediate Dark Mode Table & Card Protection (Bypasses external cache) */
+    html[data-bs-theme="dark"] .serene-card,
+    html[data-theme="dark"] .serene-card,
+    [data-bs-theme="dark"] .serene-card {
+      background-color: #131c31 !important;
+      border-color: #243049 !important;
+    }
+
+    html[data-bs-theme="dark"] .serene-table,
+    html[data-theme="dark"] .serene-table,
+    [data-bs-theme="dark"] .serene-table,
+    html[data-bs-theme="dark"] .table,
+    html[data-theme="dark"] .table,
+    [data-bs-theme="dark"] .table {
+      background-color: #131c31 !important;
+      color: #f8fafc !important;
+      border-color: #243049 !important;
+    }
+
+    html[data-bs-theme="dark"] .serene-table th,
+    html[data-theme="dark"] .serene-table th,
+    [data-bs-theme="dark"] .serene-table th,
+    html[data-bs-theme="dark"] .table thead th,
+    html[data-theme="dark"] .table thead th,
+    [data-bs-theme="dark"] .table thead th,
+    html[data-bs-theme="dark"] .table-light,
+    html[data-theme="dark"] .table-light,
+    [data-bs-theme="dark"] .table-light,
+    html[data-bs-theme="dark"] .table-light th,
+    html[data-theme="dark"] .table-light td {
+      background-color: #162036 !important;
+      color: #94a3b8 !important;
+      border-color: #243049 !important;
+    }
+
+    html[data-bs-theme="dark"] .serene-table tr,
+    html[data-theme="dark"] .serene-table tr,
+    [data-bs-theme="dark"] .serene-table tr,
+    html[data-bs-theme="dark"] .serene-table td,
+    html[data-theme="dark"] .serene-table td,
+    [data-bs-theme="dark"] .serene-table td,
+    html[data-bs-theme="dark"] .table tr,
+    html[data-theme="dark"] .table tr,
+    [data-bs-theme="dark"] .table tr,
+    html[data-bs-theme="dark"] .table td,
+    html[data-theme="dark"] .table td,
+    [data-bs-theme="dark"] .table td {
+      background-color: #131c31 !important;
+      color: #f8fafc !important;
+      border-color: #1a253c !important;
+    }
+
+    html[data-bs-theme="dark"] .serene-table tbody tr:hover td,
+    html[data-theme="dark"] .serene-table tbody tr:hover td,
+    [data-bs-theme="dark"] .serene-table tbody tr:hover td,
+    html[data-bs-theme="dark"] .table-hover tbody tr:hover td,
+    html[data-theme="dark"] .table-hover tbody tr:hover td,
+    [data-bs-theme="dark"] .table-hover tbody tr:hover td {
+      background-color: #1e293b !important;
+      color: #ffffff !important;
+    }
+
+    html[data-bs-theme="dark"] .serene-table td a,
+    html[data-theme="dark"] .serene-table td a,
+    html[data-bs-theme="dark"] .serene-table td div,
+    html[data-theme="dark"] .serene-table td div,
+    html[data-bs-theme="dark"] .serene-table td .text-dark,
+    html[data-theme="dark"] .serene-table td .text-dark,
+    html[data-bs-theme="dark"] .table td a,
+    html[data-theme="dark"] .table td a,
+    html[data-bs-theme="dark"] .table td div,
+    html[data-theme="dark"] .table td div,
+    html[data-bs-theme="dark"] .table td .text-dark,
+    html[data-theme="dark"] .table td .text-dark {
+      color: #f8fafc !important;
+    }
+
+    html[data-bs-theme="dark"] .serene-table td .text-muted,
+    html[data-theme="dark"] .serene-table td .text-muted,
+    html[data-bs-theme="dark"] .table td .text-muted,
+    html[data-theme="dark"] .table td .text-muted,
+    html[data-bs-theme="dark"] #noOrdersRow td,
+    html[data-theme="dark"] #noOrdersRow td {
+      color: #94a3b8 !important;
+      background-color: #131c31 !important;
+    }
+  </style>
 </head>
 <body>
 <div class="app-container">
